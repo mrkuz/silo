@@ -54,3 +54,17 @@ persist ".config/myapp.conf"  # file
 ```bash
 ./silo.sh rm
 ```
+
+### Development Container (VS Code)
+
+To generate a `.devcontainer.json` for the current directory, run:
+
+```bash
+./silo.sh devcontainer
+```
+
+This writes a `.devcontainer.json` that points at the `silo` image, sets the remote user, and configures the integrated terminal.
+
+The generated `runArgs` mirror the security options that would apply in the current context (default hardened, or relaxed when `-p` is passed).
+
+> **Note:** The devcontainer and the silo container are independent. Running `./silo.sh` always creates or starts its own named container - it does not join or reuse a container started by VS Code. The `silo-state` volume is not mounted in devcontainers.

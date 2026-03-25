@@ -18,17 +18,18 @@ state_enabled=1
 
 while getopts "pWS" opt; do
   case $opt in
-    p) podman_enabled=1
-       ;;
-    W) workspace_enabled=0
-       ;;
-    S) state_enabled=0
-       ;;
-    *) echo "Usage: $0 [-p] [-W] [-S]" >&2
-       exit 1
-       ;;
+    p) podman_enabled=1 ;;
+    W) workspace_enabled=0 ;;
+    S) state_enabled=0 ;;
+    *) echo "Usage: $0 [-p] [-W] [-S]" >&2; exit 1 ;;
   esac
 done
+
+if [ $podman_enabled -eq 1 ]; then
+  security_args=(--security-opt label=disable --device /dev/fuse)
+else
+  security_args=(--cap-drop=ALL --cap-add=NET_BIND_SERVICE --security-opt no-new-privileges)
+fi
 
 workspace_args=()
 if [ $workspace_enabled -eq 1 ]; then
@@ -40,9 +41,7 @@ fi
 
 state_args=()
 if [ $state_enabled -eq 1 ]; then
-  state_args=(
-    --volume "silo-state:/state/global:Z"
-  )
+  state_args=(--volume "silo-state:/state/global:Z")
 fi
 
 if [ "${1:-}" = "rm" ]; then
@@ -55,6 +54,51 @@ if [ "${1:-}" = "rm" ]; then
   exit 0
 fi
 
+if [ "${1:-}" = "devcontainer" ]; then
+  devcontainer_file=".devcontainer.json"
+
+  json_args=$(printf '"%s", ' "${security_args[@]}")
+  run_args="[${json_args%, }]"
+
+  new_content=$(cat <<EOF
+{
+  "image": "silo",
+  "remoteUser": "${username}",
+  "runArgs": ${run_args},
+  "overrideCommand": false,
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "fish",
+        "terminal.integrated.profiles.linux": {
+          "fish": { "path": "/home/${username}/.nix-profile/bin/fish", "args": ["--login"] }
+        }
+      }
+    }
+  }
+}
+EOF
+)
+
+  if [ -f "$devcontainer_file" ]; then
+    diff_output=$(diff -uNr "$devcontainer_file" - <<< "$new_content")
+    if [ -z "$diff_output" ]; then
+      exit 0
+    fi
+    echo "$diff_output"
+    printf "Replace %s? [y/N] " "$devcontainer_file"
+    read -r answer
+    case "$answer" in
+      [yY]*) ;;
+      *) echo "Aborted"; exit 0 ;;
+    esac
+  fi
+
+  printf '%s\n' "$new_content" > "$devcontainer_file"
+  echo "Generated ${devcontainer_file}"
+  exit 0
+fi
+
 if podman container inspect --format '{{.State.Running}}' "$container_name" 2>/dev/null | grep -q true; then
   echo "Joining $container_name..."
   podman exec -ti "$container_name" fish --login
@@ -63,29 +107,13 @@ elif podman container exists "$container_name"; then
   podman start -ai "$container_name"
 else
   echo "Creating and starting $container_name..."
-  if [ $podman_enabled -eq 1 ]; then
-    # Allow nested containers
-    podman run -ti \
-      --security-opt label=disable \
-      --device /dev/fuse \
-      --name "$container_name" \
-      --hostname "$container_name" \
-      --user $username \
-      "${workspace_args[@]}" \
-      "${state_args[@]}" \
-      "silo" \
-      fish --login
-  else
-    podman run -ti \
-      --cap-drop=ALL \
-      --cap-add=NET_BIND_SERVICE \
-      --security-opt no-new-privileges \
-      --name "$container_name" \
-      --hostname "$container_name" \
-      --user $username \
-      "${workspace_args[@]}" \
-      "${state_args[@]}" \
-      "silo" \
-      fish --login
-  fi
+  podman run -ti \
+    "${security_args[@]}" \
+    --name "$container_name" \
+    --hostname "$container_name" \
+    --user $username \
+    "${workspace_args[@]}" \
+    "${state_args[@]}" \
+    "silo" \
+    fish --login
 fi
