@@ -8,9 +8,10 @@ if [ -f "$silo_toml" ]; then
   silo_id="$(grep -E '^id[[:space:]]*=' "$silo_toml" | sed 's/.*=[[:space:]]*"\(.*\)"/\1/')"
 else
   silo_id="$(LC_ALL=C tr -dc 'a-z0-9' < /dev/urandom | head -c 8)"
-  printf '[general]\nid = "%s"\n' "$silo_id" > "$silo_toml"
 fi
 container_name="silo-$silo_id"
+
+default_cmd="fish --login"
 
 podman_enabled=0
 workspace_enabled=1
@@ -46,6 +47,43 @@ state_args=()
 if [ $state_enabled -eq 1 ]; then
   state_args=(--volume "silo-state:/state/global:Z")
 fi
+
+toml_array() {
+  if [ $# -eq 0 ]; then
+    printf '[]'
+    return
+  fi
+  local out="[\n"
+  while [ $# -gt 0 ]; do
+    local entry="$1"; shift
+    if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
+      entry="$entry $1"; shift
+    fi
+    out+="  \"${entry//\"/\\\"}\",\n"
+  done
+  out+="]"
+  printf '%b' "$out"
+}
+
+write_toml_sections() {
+  local toml_file="$1"
+  local bool_workspace bool_state bool_podman
+  [ $workspace_enabled -eq 1 ] && bool_workspace="true" || bool_workspace="false"
+  [ $state_enabled -eq 1 ]     && bool_state="true"     || bool_state="false"
+  [ $podman_enabled -eq 1 ]    && bool_podman="true"     || bool_podman="false"
+
+  local resolved_args=("${security_args[@]}" "${workspace_args[@]}" "${state_args[@]}")
+  local args_val extra_val
+  args_val=$(toml_array "${resolved_args[@]}")
+  extra_val=$(toml_array "${extra_args[@]}")
+
+  printf '[general]\nid = "%s"\nuser = "%s"\ncontainer_name = "%s"\n' \
+    "$silo_id" "$username" "$container_name" > "$toml_file"
+  printf '\n[features]\nworkspace = %s\nstate = %s\npodman = %s\n' \
+    "$bool_workspace" "$bool_state" "$bool_podman" >> "$toml_file"
+  printf '\n[podman]\nargs = %s\nextra_args = %s\ncommand = "%s"\n' \
+    "$args_val" "$extra_val" "$default_cmd" >> "$toml_file"
+}
 
 if [ "${1:-}" = "rm" ]; then
   if podman container exists "$container_name"; then
@@ -104,12 +142,13 @@ fi
 
 if podman container inspect --format '{{.State.Running}}' "$container_name" 2>/dev/null | grep -q true; then
   echo "Joining $container_name..."
-  podman exec -ti "$container_name" fish --login
+  podman exec -ti "$container_name" $default_cmd
 elif podman container exists "$container_name"; then
   echo "Starting $container_name..."
   podman start -ai "$container_name"
 else
   echo "Creating and starting $container_name..."
+  write_toml_sections "$silo_toml"
   podman run -ti \
     "${security_args[@]}" \
     --name "$container_name" \
@@ -119,5 +158,5 @@ else
     "${state_args[@]}" \
     "${extra_args[@]}" \
     "silo" \
-    fish --login
+    $default_cmd
 fi
