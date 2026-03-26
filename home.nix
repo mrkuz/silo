@@ -40,6 +40,8 @@
     };
   };
 
+  programs.home-manager.enable = true;
+
   programs = {
     # General
     bat.enable = true;

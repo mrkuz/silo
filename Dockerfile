@@ -50,17 +50,16 @@ RUN bash <(curl -L https://nixos.org/nix/install) --no-daemon
 ENV PATH=$HOME/.nix-profile/bin:$HOME/.nix-profile/sbin:$PATH
 ENV USER=$USER
 
-# Install home-manager
-
-RUN nix profile add nixpkgs#home-manager
-
 # Activate home-manager configuration
 
 ADD --chown=$USER:$USER flake.nix $HOME/.config/home-manager/flake.nix
-ADD --chown=$USER:$USER flake.lock $HOME/.config/home-manager/flake.lock
 ADD --chown=$USER:$USER home.nix $HOME/.config/home-manager/home.nix
 
-RUN home-manager switch --flake $HOME/.config/home-manager
+# Install home-manager
+
+RUN nix flake update --override-input nixpkgs nixpkgs --flake $HOME/.config/home-manager && \
+    nix run nixpkgs#home-manager -- switch --flake $HOME/.config/home-manager && \
+    nix-store --gc
 
 # Entrypoint
 

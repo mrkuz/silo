@@ -14,6 +14,15 @@ A shared named volume (`silo-state`) is mounted at `/state/global` across all co
 
 - [Podman](https://podman.io/)
 
+## Installation
+
+Clone the repository and link `silo.sh` onto your `PATH`:
+
+```bash
+git clone https://github.com/mrkuz/silo.git
+ln -s silo/silo.sh /usr/local/bin/silo.sh
+```
+
 ## Usage
 
 ### Customization
@@ -38,7 +47,7 @@ persist ".config/myapp.conf"  # file
 **Start or join a container** for the current directory:
 
 ```bash
-./silo.sh
+silo.sh
 ```
 
 **Flags:**
@@ -52,7 +61,7 @@ persist ".config/myapp.conf"  # file
 **Remove the container** for the current directory:
 
 ```bash
-./silo.sh rm
+silo.sh rm
 ```
 
 ### Development Container (VS Code)
@@ -60,11 +69,11 @@ persist ".config/myapp.conf"  # file
 To generate a `.devcontainer.json` for the current directory, run:
 
 ```bash
-./silo.sh devcontainer
+silo.sh devcontainer
 ```
 
 This writes a `.devcontainer.json` that points at the `silo` image, sets the remote user, and configures the integrated terminal.
 
 The generated `runArgs` mirror the security options that would apply in the current context (default hardened, or relaxed when `-p` is passed).
 
-> **Note:** The devcontainer and the silo container are independent. Running `./silo.sh` always creates or starts its own named container - it does not join or reuse a container started by VS Code. The `silo-state` volume is not mounted in devcontainers.
+> **Note:** The devcontainer and the silo container are independent. Running `silo.sh` always creates or starts its own named container - it does not join or reuse a container started by VS Code. The `silo-state` volume is not mounted in devcontainers.
