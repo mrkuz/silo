@@ -58,6 +58,12 @@ silo.sh
 | `-W` | Disable workspace mount (current directory will not be mounted) |
 | `-S` | Disable state volume mount |
 
+Any arguments after `--` are passed directly to `podman run`:
+
+```bash
+silo.sh -- --env MY_VAR=value --publish 8080:8080
+```
+
 **Remove the container** for the current directory:
 
 ```bash

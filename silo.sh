@@ -21,9 +21,12 @@ while getopts "pWS" opt; do
     p) podman_enabled=1 ;;
     W) workspace_enabled=0 ;;
     S) state_enabled=0 ;;
-    *) echo "Usage: $0 [-p] [-W] [-S]" >&2; exit 1 ;;
+    *) echo "Usage: $0 [-p] [-W] [-S] [--] [podman args...]" >&2; exit 1 ;;
   esac
 done
+shift $((OPTIND - 1))
+
+extra_args=("$@")
 
 if [ $podman_enabled -eq 1 ]; then
   security_args=(--security-opt label=disable --device /dev/fuse)
@@ -114,6 +117,7 @@ else
     --user $username \
     "${workspace_args[@]}" \
     "${state_args[@]}" \
+    "${extra_args[@]}" \
     "silo" \
     fish --login
 fi
