@@ -1,0 +1,30 @@
+{
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "lfs.vscode-emacs-friendly",
+        "golang.go"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "fish",
+        "terminal.integrated.profiles.linux": {
+          "fish": {
+            "args": [
+              "--login"
+            ],
+            "path": "/home/markus/.nix-profile/bin/fish"
+          }
+        }
+      }
+    }
+  },
+  "image": "silo-xqmrs9xj",
+  "overrideCommand": true,
+  "remoteUser": "markus",
+  "runArgs": [
+    "--cap-drop=ALL",
+    "--cap-add=NET_BIND_SERVICE",
+    "--security-opt",
+    "no-new-privileges"
+  ]
+}

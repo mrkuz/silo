@@ -1,0 +1,6 @@
+FROM {{.BaseImage}}
+
+ADD --chown={{.User}}:{{.User}} home-workspace.nix {{.Home}}/.config/home-manager/home-workspace.nix
+
+RUN home-manager switch --flake {{.Home}}/.config/home-manager && \
+    nix-store --gc

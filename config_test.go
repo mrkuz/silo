@@ -1,0 +1,472 @@
+package main
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/BurntSushi/toml"
+)
+
+// tomlEncode is a test helper that encodes a Config to a file using BurntSushi/toml.
+func tomlEncode(f *os.File, c Config) error {
+	return toml.NewEncoder(f).Encode(c)
+}
+
+func TestGenerateID(t *testing.T) {
+	id := generateID()
+	if len(id) != 8 {
+		t.Errorf("expected length 8, got %d", len(id))
+	}
+	for _, c := range id {
+		if !((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+			t.Errorf("unexpected character %q in ID", c)
+		}
+	}
+	// IDs should be unique
+	if generateID() == generateID() {
+		t.Error("two consecutive IDs should not be equal (extremely unlikely)")
+	}
+}
+
+func TestBaseImageName(t *testing.T) {
+	if got := baseImageName("alice"); got != "silo-alice" {
+		t.Errorf("got %q, want %q", got, "silo-alice")
+	}
+}
+
+func TestTOMLRoundtrip(t *testing.T) {
+	original := Config{
+		General: GeneralConfig{
+			ID:            "abc12345",
+			User:          "testuser",
+			ContainerName: "silo-abc12345",
+			ImageName:     "silo-abc12345",
+		},
+		Features: FeaturesConfig{
+			Workspace:    true,
+			SharedVolume: false,
+			Nested:       true,
+		},
+		SharedVolume: SharedVolumeConfig{
+			Paths: []string{".cache/uv/", ".local/share/opencode/"},
+		},
+		Connect: ConnectConfig{
+			Command: "/bin/sh",
+		},
+		Create: CreateConfig{
+			ExtraArgs: []string{"--memory", "512m"},
+		},
+	}
+
+	tmpDir := t.TempDir()
+	// Temporarily override siloDir/siloToml is not possible without refactor;
+	// use parseTOML directly with a temp file.
+	f, err := os.CreateTemp(tmpDir, "silo-test-*.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := f.Name()
+	if err := tomlEncode(f, original); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	parsed, err := parseTOML(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if parsed.General != original.General {
+		t.Errorf("General mismatch: got %+v, want %+v", parsed.General, original.General)
+	}
+	if parsed.Features != original.Features {
+		t.Errorf("Features mismatch: got %+v, want %+v", parsed.Features, original.Features)
+	}
+	if parsed.Connect.Command != original.Connect.Command {
+		t.Errorf("Command: got %q, want %q", parsed.Connect.Command, original.Connect.Command)
+	}
+	if len(parsed.SharedVolume.Paths) != len(original.SharedVolume.Paths) {
+		t.Fatalf("SharedVolume.Paths len: got %d, want %d", len(parsed.SharedVolume.Paths), len(original.SharedVolume.Paths))
+	}
+	for i, want := range original.SharedVolume.Paths {
+		if parsed.SharedVolume.Paths[i] != want {
+			t.Errorf("SharedVolume.Paths[%d]: got %q, want %q", i, parsed.SharedVolume.Paths[i], want)
+		}
+	}
+	if len(parsed.Create.ExtraArgs) != len(original.Create.ExtraArgs) {
+		t.Fatalf("Create.ExtraArgs len: got %d, want %d", len(parsed.Create.ExtraArgs), len(original.Create.ExtraArgs))
+	}
+	for i, want := range original.Create.ExtraArgs {
+		if parsed.Create.ExtraArgs[i] != want {
+			t.Errorf("Create.ExtraArgs[%d]: got %q, want %q", i, parsed.Create.ExtraArgs[i], want)
+		}
+	}
+}
+
+func TestTOMLEmptyExtraArgs(t *testing.T) {
+	cfg := Config{
+		General:      GeneralConfig{ID: "x", User: "u", ContainerName: "silo-x", ImageName: "silo-x"},
+		Features:     FeaturesConfig{Workspace: true, SharedVolume: true, Nested: false},
+		SharedVolume: SharedVolumeConfig{Paths: []string{}},
+		Connect:      ConnectConfig{Command: "/bin/sh"},
+	}
+
+	f, err := os.CreateTemp("", "silo-test-*.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+
+	if err := tomlEncode(f, cfg); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	parsed, err := parseTOML(f.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.Connect.Command != "/bin/sh" {
+		t.Errorf("expected command /bin/sh, got %q", parsed.Connect.Command)
+	}
+	if len(parsed.Create.ExtraArgs) != 0 {
+		t.Errorf("expected empty ExtraArgs, got %v", parsed.Create.ExtraArgs)
+	}
+}
+
+func TestBuildSharedVolumeScript(t *testing.T) {
+	t.Run("empty paths", func(t *testing.T) {
+		got := buildSharedVolumeScript(nil)
+		if got != "" {
+			t.Errorf("expected empty string, got %q", got)
+		}
+	})
+
+	t.Run("directory path with $HOME prefix", func(t *testing.T) {
+		got := buildSharedVolumeScript([]string{"$HOME/.cache/uv/"})
+		if !contains(got, `mkdir -p "/shared${HOME}/.cache/uv"`) {
+			t.Errorf("expected src mkdir in script, got:\n%s", got)
+		}
+		if !contains(got, `mkdir -p "$HOME/.cache"`) {
+			t.Errorf("expected dst parent mkdir in script, got:\n%s", got)
+		}
+		if !contains(got, `ln -sfn "/shared${HOME}/.cache/uv" "$HOME/.cache/uv"`) {
+			t.Errorf("expected symlink in script, got:\n%s", got)
+		}
+	})
+
+	t.Run("file path with $HOME prefix", func(t *testing.T) {
+		got := buildSharedVolumeScript([]string{"$HOME/.local/share/fish/fish_history"})
+		if !contains(got, `touch "/shared${HOME}/.local/share/fish/fish_history"`) {
+			t.Errorf("expected touch in script, got:\n%s", got)
+		}
+		if !contains(got, `ln -sf "/shared${HOME}/.local/share/fish/fish_history" "$HOME/.local/share/fish/fish_history"`) {
+			t.Errorf("expected symlink in script, got:\n%s", got)
+		}
+	})
+
+	t.Run("absolute directory path", func(t *testing.T) {
+		got := buildSharedVolumeScript([]string{"/etc/foo/"})
+		if !contains(got, `ln -sfn "/shared/etc/foo" "/etc/foo"`) {
+			t.Errorf("expected absolute symlink in script, got:\n%s", got)
+		}
+	})
+
+	t.Run("absolute file path", func(t *testing.T) {
+		got := buildSharedVolumeScript([]string{"/home/alice/.gitconfig"})
+		if !contains(got, `touch "/shared/home/alice/.gitconfig"`) {
+			t.Errorf("expected touch in script, got:\n%s", got)
+		}
+		if !contains(got, `ln -sf "/shared/home/alice/.gitconfig" "/home/alice/.gitconfig"`) {
+			t.Errorf("expected symlink in script, got:\n%s", got)
+		}
+	})
+
+	t.Run("multiple paths joined with &&", func(t *testing.T) {
+		got := buildSharedVolumeScript([]string{"$HOME/.cache/uv/", "$HOME/.cache/pip/"})
+		parts := strings.Split(got, " && ")
+		// Each of the two paths generates 3 parts (mkdir src, mkdir dst-parent, ln), so 6 total connected by &&.
+		if len(parts) < 2 {
+			t.Errorf("expected multiple && parts, got: %s", got)
+		}
+	})
+}
+
+func TestDefaultConfig(t *testing.T) {
+	cfg, err := defaultConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cfg.General.ID) != 8 {
+		t.Errorf("expected ID length 8, got %d", len(cfg.General.ID))
+	}
+	if cfg.General.ContainerName != "silo-"+cfg.General.ID {
+		t.Errorf("ContainerName %q does not match ID %q", cfg.General.ContainerName, cfg.General.ID)
+	}
+	if cfg.General.ImageName != "silo-"+cfg.General.ID {
+		t.Errorf("ImageName %q does not match ID %q", cfg.General.ImageName, cfg.General.ID)
+	}
+	if cfg.General.User == "" {
+		t.Error("expected non-empty User")
+	}
+	if cfg.Connect.Command != "/bin/sh" {
+		t.Errorf("expected command /bin/sh, got %q", cfg.Connect.Command)
+	}
+	if !cfg.Features.Workspace || !cfg.Features.SharedVolume || cfg.Features.Nested {
+		t.Errorf("unexpected feature defaults: %+v", cfg.Features)
+	}
+	if cfg.SharedVolume.Paths == nil {
+		t.Error("expected non-nil SharedVolume.Paths")
+	}
+	if cfg.Create.ExtraArgs == nil {
+		t.Error("expected non-nil Create.ExtraArgs")
+	}
+}
+
+// contains is a helper to check substring presence.
+func contains(s, substr string) bool {
+	return strings.Contains(s, substr)
+}
+
+func TestLoadGlobalConfig(t *testing.T) {
+	t.Run("returns empty config when file absent", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		cfg, err := loadGlobalConfig()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if cfg.Connect.Command != "" || cfg.General.ID != "" {
+			t.Errorf("expected zero config for absent file, got %+v", cfg)
+		}
+	})
+
+	t.Run("parses connect and features from existing file", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		siloConfigPath := filepath.Join(base, "silo", "silo.toml")
+		if err := os.MkdirAll(filepath.Dir(siloConfigPath), 0755); err != nil {
+			t.Fatal(err)
+		}
+		content := []byte("[connect]\ncommand = \"/bin/fish\"\n[features]\nworkspace = true\n")
+		if err := os.WriteFile(siloConfigPath, content, 0644); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := loadGlobalConfig()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if cfg.Connect.Command != "/bin/fish" {
+			t.Errorf("expected command /bin/fish, got %q", cfg.Connect.Command)
+		}
+		if !cfg.Features.Workspace {
+			t.Error("expected Features.Workspace = true")
+		}
+	})
+}
+
+func TestGlobalConfigDir(t *testing.T) {
+	t.Run("uses XDG_CONFIG_HOME when set", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", "/tmp/xdg-test")
+		got, err := globalConfigDir()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != "/tmp/xdg-test/silo" {
+			t.Errorf("got %q, want %q", got, "/tmp/xdg-test/silo")
+		}
+	})
+
+	t.Run("falls back to HOME/.config/silo", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", "")
+		got, err := globalConfigDir()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.HasSuffix(got, "/.config/silo") {
+			t.Errorf("expected path ending in /.config/silo, got %q", got)
+		}
+	})
+}
+
+func TestEnsureFile(t *testing.T) {
+	t.Run("creates file when absent", func(t *testing.T) {
+		dir := t.TempDir()
+		path := dir + "/sub/file.txt"
+		if err := ensureFile(path, []byte("hello")); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		got, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("file not created: %v", err)
+		}
+		if string(got) != "hello" {
+			t.Errorf("got %q, want %q", string(got), "hello")
+		}
+	})
+
+	t.Run("does not overwrite existing file", func(t *testing.T) {
+		dir := t.TempDir()
+		path := dir + "/file.txt"
+		if err := os.WriteFile(path, []byte("original"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := ensureFile(path, []byte("new")); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		got, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != "original" {
+			t.Errorf("got %q, want file unchanged %q", string(got), "original")
+		}
+	})
+}
+
+func TestInitWorkspaceConfig(t *testing.T) {
+	t.Run("first run: creates .silo/silo.toml with generated ID", func(t *testing.T) {
+		setupGlobalConfig(t)
+		setupWorkspace(t, Config{}) // write an *empty* silo.toml so setupWorkspace doesn't interfere
+		// Remove the file so we simulate a true first run.
+		os.Remove(siloToml)
+		os.Remove(siloDir) // remove dir too so it is recreated
+
+		cfg, err := initWorkspaceConfig()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(cfg.General.ID) != 8 {
+			t.Errorf("expected 8-char ID, got %q", cfg.General.ID)
+		}
+		// .silo/silo.toml must have been written.
+		if _, err := os.Stat(siloToml); os.IsNotExist(err) {
+			t.Error(".silo/silo.toml was not created on first run")
+		}
+	})
+
+	t.Run("first run: seeds Connect.Command from global config", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		siloGlobal := filepath.Join(base, "silo")
+		if err := os.MkdirAll(siloGlobal, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(siloGlobal, "home.nix"), []byte(emptyHomeNix), 0644); err != nil {
+			t.Fatal(err)
+		}
+		globalToml := filepath.Join(siloGlobal, "silo.toml")
+		if err := os.WriteFile(globalToml, []byte("[connect]\ncommand = \"/bin/fish\"\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		// Workspace directory with no silo.toml.
+		dir := t.TempDir()
+		orig, _ := os.Getwd()
+		t.Cleanup(func() { os.Chdir(orig) })
+		os.Chdir(dir)
+
+		cfg, err := initWorkspaceConfig()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if cfg.Connect.Command != "/bin/fish" {
+			t.Errorf("expected seeded command /bin/fish, got %q", cfg.Connect.Command)
+		}
+	})
+
+	t.Run("second run: existing silo.toml is loaded unchanged", func(t *testing.T) {
+		existing := minimalConfig("deadbeef")
+		existing.Connect.Command = "/usr/bin/zsh"
+		setupWorkspace(t, existing)
+		setupGlobalConfig(t)
+
+		cfg, err := initWorkspaceConfig()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if cfg.General.ID != "deadbeef" {
+			t.Errorf("expected ID deadbeef, got %q", cfg.General.ID)
+		}
+		if cfg.Connect.Command != "/usr/bin/zsh" {
+			t.Errorf("expected command /usr/bin/zsh, got %q", cfg.Connect.Command)
+		}
+	})
+}
+
+func TestEnsureScaffoldFiles(t *testing.T) {
+	t.Run("creates all three scaffold files when absent", func(t *testing.T) {
+		setupGlobalConfig(t) // sets XDG_CONFIG_HOME but writes home.nix and silo.toml there
+		setupWorkspace(t, minimalConfig("abc12345"))
+		// Remove the files ensureScaffoldFiles should create so we test from scratch.
+		dir, _ := globalConfigDir()
+		os.Remove(filepath.Join(dir, "home.nix"))
+		os.Remove(filepath.Join(dir, "devcontainer.json"))
+		os.Remove(filepath.Join(siloDir, "home.nix"))
+
+		if err := ensureScaffoldFiles(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		for _, path := range []string{
+			filepath.Join(dir, "home.nix"),
+			filepath.Join(dir, "devcontainer.json"),
+			filepath.Join(siloDir, "home.nix"),
+		} {
+			if _, err := os.Stat(path); os.IsNotExist(err) {
+				t.Errorf("expected %s to be created", path)
+			}
+		}
+	})
+
+	t.Run("does not overwrite existing scaffold files", func(t *testing.T) {
+		setupWorkspace(t, minimalConfig("abc12345"))
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		dir := filepath.Join(base, "silo")
+		os.MkdirAll(dir, 0755)
+
+		sentinel := []byte("# my custom home.nix\n")
+		os.WriteFile(filepath.Join(dir, "home.nix"), sentinel, 0644)
+		os.WriteFile(filepath.Join(dir, "devcontainer.json"), []byte(`{"custom":true}`), 0644)
+		os.WriteFile(filepath.Join(siloDir, "home.nix"), sentinel, 0644)
+
+		if err := ensureScaffoldFiles(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		got, _ := os.ReadFile(filepath.Join(dir, "home.nix"))
+		if string(got) != string(sentinel) {
+			t.Errorf("global home.nix was overwritten")
+		}
+		got, _ = os.ReadFile(filepath.Join(siloDir, "home.nix"))
+		if string(got) != string(sentinel) {
+			t.Errorf("workspace home.nix was overwritten")
+		}
+	})
+}
+
+func TestSaveWorkspaceConfigNilGuards(t *testing.T) {
+	// Configs loaded from old TOML files may have nil slices;
+	// saveWorkspaceConfig must normalize them to empty slices.
+	dir := t.TempDir()
+	orig, _ := os.Getwd()
+	t.Cleanup(func() { os.Chdir(orig) })
+	os.Chdir(dir)
+
+	cfg := minimalConfig("abc12345")
+	cfg.SharedVolume.Paths = nil
+	cfg.Create.ExtraArgs = nil
+	if err := cfg.saveWorkspaceConfig(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	parsed, err := parseTOML(siloToml)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if parsed.SharedVolume.Paths == nil {
+		t.Error("SharedVolume.Paths should not be nil after save")
+	}
+	if parsed.Create.ExtraArgs == nil {
+		t.Error("Create.ExtraArgs should not be nil after save")
+	}
+}

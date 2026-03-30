@@ -1,0 +1,19 @@
+[general]
+  id = "xqmrs9xj"
+  user = "markus"
+  container_name = "silo-xqmrs9xj"
+  image_name = "silo-xqmrs9xj"
+
+[features]
+  workspace = true
+  shared_volume = true
+  nested = false
+
+[shared_volume]
+  paths = ["$HOME/.local/share/fish/fish_history", "$HOME/.cache/opencode/", "$HOME/.local/share/opencode/", "$HOME/.local/state/opencode/", "$HOME/.cache/uv/", "$HOME/.local/share/uv/"]
+
+[connect]
+  command = "fish --login"
+
+[create]
+  extra_args = []

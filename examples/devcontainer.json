@@ -1,0 +1,20 @@
+{
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "fish",
+        "terminal.integrated.profiles.linux": {
+          "fish": {
+            "path": "/home/markus/.nix-profile/bin/fish",
+            "args": [
+              "--login"
+            ]
+          }
+        }
+      },
+      "extensions": [
+        "lfs.vscode-emacs-friendly"
+      ]
+    }
+  }
+}

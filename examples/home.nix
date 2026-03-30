@@ -1,15 +1,16 @@
 {
   config,
   pkgs,
-  vars,
   ...
 }:
+let
+  vars = {
+    gitUserName = "mrkuz";
+    gitUserEmail = "master23@gmail.com";
+  };
+in  
 {
   home = {
-    username = vars.username;
-    homeDirectory = "/home/${vars.username}";
-    stateVersion = vars.homeStateVersion;
-
     shell.enableFishIntegration = true;
 
     packages = with pkgs; [
@@ -40,20 +41,13 @@
     };
   };
 
-  programs.home-manager.enable = true;
-
   programs = {
-    # General
     bat.enable = true;
-    eza.enable = true;
     fd.enable = true;
     fzf.enable = true;
     htop.enable = true;
     jq.enable = true;
-    mise.enable = true;
     ripgrep.enable = true;
-    # Python
-    uv.enable = true;
   };
 
   programs.diff-so-fancy = {
@@ -98,8 +92,8 @@
     enable = true;
     settings = {
       user = {
-        name = vars.gitUsername;
-        email = vars.gitEmail;
+        name = vars.gitUserName;
+        email = vars.gitUserEmail;
       };
       init = {
         defaultBranch = "main";

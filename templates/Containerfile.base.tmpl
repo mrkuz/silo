@@ -1,0 +1,66 @@
+FROM alpine
+
+# User setup
+
+RUN apk add --no-cache \
+  bash coreutils shadow-uidmap sudo xz && \
+  rm -rf /var/cache/apk/*
+
+RUN adduser -D {{.User}} && \
+  adduser {{.User}} wheel && \
+  echo '%wheel ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/wheel && \
+  chmod 0440 /etc/sudoers.d/wheel
+
+# Rootless containers
+
+RUN echo "{{.User}}:100000:65536" >> /etc/subuid && \
+    echo "{{.User}}:100000:65536" >> /etc/subgid
+
+ENV _CONTAINERS_USERNS_CONFIGURED=""
+
+# Nix build users (see: https://hub.docker.com/r/nixos/nix/dockerfile/)
+
+RUN addgroup -g 30000 -S nixbld && \
+  for i in $(seq 1 30); do \
+    adduser -S -D -h /var/empty \
+      -g "Nix build user $i" \
+      -u $((30000 + i)) \
+      -G nixbld nixbld$i ; \
+  done
+
+# Shared volume directory
+
+RUN mkdir -p /shared && \
+  chown {{.User}}:{{.User}} /shared
+
+# Nix configuration
+
+RUN mkdir -p /etc/nix && \
+  echo 'sandbox = false' > /etc/nix/nix.conf && \
+  echo 'experimental-features = nix-command flakes' >> /etc/nix/nix.conf && \
+  echo 'auto-optimise-store = true' >> /etc/nix/nix.conf
+
+# Entrypoint
+
+CMD ["sleep", "infinity"]
+
+# Install Nix
+
+USER {{.User}}
+WORKDIR {{.Home}}
+ENV USER={{.User}}
+
+RUN sh <(wget -O- https://nixos.org/nix/install) --no-daemon
+ENV PATH={{.Home}}/.nix-profile/bin:{{.Home}}/.nix-profile/sbin:$PATH
+
+# Install home-manager
+
+RUN nix profile add nixpkgs#home-manager && \
+    nix-store --gc
+
+ADD --chown={{.User}}:{{.User}} flake.nix {{.Home}}/.config/home-manager/flake.nix
+ADD --chown={{.User}}:{{.User}} home.nix {{.Home}}/.config/home-manager/home.nix
+ADD --chown={{.User}}:{{.User}} home-workspace-empty.nix {{.Home}}/.config/home-manager/home-workspace.nix
+
+RUN home-manager switch --flake $HOME/.config/home-manager && \
+    nix-store --gc
