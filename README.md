@@ -1,6 +1,6 @@
 # silo
 
-Per-directory developer sandbox containers, powered by Podman, Nix, and home-manager. Run `silo` in any directory to connect to the right container — images and containers are built and started automatically.
+Per-directory developer sandbox containers, powered by Podman, Nix, and home-manager.
 
 ---
 
@@ -23,7 +23,9 @@ silo
 
 See [Build and Install](#build-and-install) for installation instructions.
 
-On first run, silo scaffolds `.silo/silo.toml` and builds two images: a shared base image and a per-directory workspace image. Then it connects to the container. Subsequent runs reconnect to the running container or restart it if stopped.
+On first run, silo scaffolds `.silo/silo.toml` and builds two images: a shared base image and a per-directory workspace image. Then it starts the container and connects to it.
+
+See [Configuration](#configuration) to customize your workspace container.
 
 ---
 
@@ -114,13 +116,11 @@ Print `Running` or `Stopped`.
 
 ### `silo devcontainer`
 
-Generate a `.devcontainer.json` for VS Code in the current directory. Merges `$XDG_CONFIG_HOME/silo/devcontainer.json` with silo-specific settings (image name, user, security options). Does nothing if `.devcontainer.json` already exists.
+Generate a `.devcontainer.json` for VS Code in the current directory. Does nothing if `.devcontainer.json` already exists. See [VS Code devcontainer](#vs-code-devcontainer) for details.
 
 ---
 
 ## Configuration
-
-`$XDG_CONFIG_HOME` defaults to `~/.config`. On macOS the XDG spec is not followed by default, so `~/.config/silo/` is used unless `$XDG_CONFIG_HOME` is set explicitly.
 
 ### Workspace config: `.silo/silo.toml`
 
@@ -143,8 +143,8 @@ nested        = false                # Allow nested Podman containers
 
 [shared_volume]
 paths = [
-    "$HOME/.local/share/fish/fish_history",  # persisted file
-    "$HOME/.cache/uv/",                      # persisted directory (trailing /)
+    "$HOME/.local/share/fish/fish_history",  # persist and share file
+    "$HOME/.cache/uv/",                      # persist and share directory (trailing /)
 ]
 
 [create]
@@ -169,7 +169,7 @@ extra_args = []                      # Extra arguments passed to podman create
 
 | Key | Description |
 |---|---|
-| `paths` | Paths to persist via symlinks into `/shared`. `$HOME` is expanded at runtime. A trailing `/` marks a directory; without it, a file symlink is created. |
+| `paths` | Paths to persist and share across containers. See [Shared volume](#shared-volume). |
 
 **`[create]`**
 
@@ -177,17 +177,9 @@ extra_args = []                      # Extra arguments passed to podman create
 |---|---|---|
 | `extra_args` | `[]` | Extra arguments appended to `podman create`. |
 
-`extra_args` is updated automatically when `-- ...` arguments are passed to `silo create`, so ad-hoc flags are persisted for future runs.
+`extra_args` is updated automatically when extra arguments are passed to `silo create`.
 
-### Global config: `$XDG_CONFIG_HOME/silo/`
-
-| File | Description |
-|---|---|
-| `silo.toml` | Default values for new workspaces. `[general]` is ignored. |
-| `home.nix` | Global home-manager config applied to every container. |
-| `devcontainer.json` | Merged into every generated `.devcontainer.json`. |
-
-### Per-workspace Nix config: `.silo/home.nix`
+### Workspace config: `.silo/home.nix`
 
 Home-manager config applied only to this workspace. Created as an empty module on first run.
 
@@ -203,6 +195,18 @@ Example:
 }
 ```
 
+### Global config: `$XDG_CONFIG_HOME/silo/`
+
+On macOS the XDG spec is not followed by default, so `~/.config/silo/` is used unless `$XDG_CONFIG_HOME` is set explicitly.
+
+All three files are created automatically on first run if they don't exist. See [examples/](examples/) for reference configs.
+
+| File | Description |
+|---|---|
+| `silo.toml` | Default values for new workspaces. `[general]` is ignored. |
+| `home.nix` | Global home-manager config applied to every container. |
+| `devcontainer.json` | Merged into every generated `.devcontainer.json`. |
+
 ---
 
 ## How It Works
@@ -216,14 +220,6 @@ silo builds two OCI images using Podman:
 
 Build context files are written to a temporary directory and passed to `podman build`. No persistent build context is kept on disk.
 
-### Container lifecycle
-
-On each `silo` invocation:
-
-1. If `.silo/silo.toml` doesn't exist, a new config is scaffolded with a random 8-character ID.
-2. Missing images are built automatically (base first, then workspace).
-3. If the container is running: connect to it. If stopped: start it, then connect. If missing: create it, start it, run shared volume setup, then connect.
-
 ### Workspace mount
 
 The current directory is mounted at `/workspace/<id>/<dirname>` inside the container.
@@ -232,15 +228,15 @@ The current directory is mounted at `/workspace/<id>/<dirname>` inside the conta
 
 The named Podman volume `silo-shared` is mounted at `/shared` in every container, so data — such as package caches — is shared across all workspaces and survives container restarts and image rebuilds.
 
-Paths listed in `[shared_volume] paths` are redirected via symlinks — the path inside the container looks normal, but the data lives in `/shared/`, mirroring the absolute path. `$HOME` is the only supported placeholder. For example, `$HOME/.cache/uv/` maps to `/shared/home/alice/.cache/uv/`.
+For paths listed in `[shared_volume]` a symlink to `/shared/` is created. `$HOME` is the only supported placeholder. For example, `$HOME/.cache/uv/` maps to `/shared/home/alice/.cache/uv/`.
 
 ### Nix + home-manager
 
-Each image build generates a Nix flake in a temporary directory and passes it to `podman build`. The flake wires together `nixos-unstable` and home-manager, and loads two modules: `home.nix` (global, from `$XDG_CONFIG_HOME/silo/`) and `home.nix` (workspace, from `.silo/`). The global config is baked into the base image; the workspace config into the workspace image. The target architecture is detected via `uname -m`.
+Each image build generates a Nix flake in a temporary directory and passes it to `podman build`. The flake wires together `nixos-unstable`, home-manager and `home.nix` (global and workspace).
 
 ### VS Code devcontainer
 
-`silo devcontainer` generates a `.devcontainer.json` pointing at the workspace image. The global `$XDG_CONFIG_HOME/silo/devcontainer.json` is deep-merged with the generated file — objects merge recursively, arrays concatenate. This lets you define shared extensions and settings once.
+`silo devcontainer` generates a `.devcontainer.json` pointing at the workspace image. The global `$XDG_CONFIG_HOME/silo/devcontainer.json` is merged with the generated file — objects merge recursively, arrays concatenate.
 
 Example global `$XDG_CONFIG_HOME/silo/devcontainer.json`:
 
