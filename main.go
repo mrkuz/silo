@@ -48,7 +48,7 @@ Build flags:
 Create flags:
   --nested            Enable nested Podman containers
   --no-workspace      Disable workspace volume mount
-  --no-shared-volume  Disable shared volume
+  --no-shared-volume  Disable shared volume mount
   --force             Remove and recreate the container if it already exists
   --dry-run           Print the podman command without running it
   -- ...              Pass remaining arguments to podman
@@ -59,70 +59,40 @@ Start flags:
 Remove flags:
   --image  Also remove the workspace image`
 
+var commands = map[string]func([]string) error{
+	"init":         withoutArgs(cmdInit),
+	"build":        cmdBuild,
+	"create":       cmdCreate,
+	"start":        cmdStart,
+	"setup":        withoutArgs(cmdSetup),
+	"connect":      cmdConnect,
+	"exec":         cmdExec,
+	"stop":         withoutArgs(cmdStop),
+	"rm":           cmdRemove,
+	"status":       withoutArgs(cmdStatus),
+	"devcontainer": withoutArgs(cmdDevcontainer),
+}
+
+func withoutArgs(f func() error) func([]string) error {
+	return func(_ []string) error { return f() }
+}
+
 func main() {
 	if len(os.Args) >= 2 {
-		switch os.Args[1] {
-		case "init":
-			if err := cmdInit(); err != nil {
+		cmd := os.Args[1]
+		if run, ok := commands[cmd]; ok {
+			if err := run(os.Args[2:]); err != nil {
 				fatal(err)
 			}
 			return
-		case "build":
-			if err := cmdBuild(os.Args[2:]); err != nil {
-				fatal(err)
-			}
-			return
-		case "create":
-			if err := cmdCreate(os.Args[2:]); err != nil {
-				fatal(err)
-			}
-			return
-		case "start":
-			if err := cmdStart(os.Args[2:]); err != nil {
-				fatal(err)
-			}
-			return
-		case "setup":
-			if err := cmdSetup(); err != nil {
-				fatal(err)
-			}
-			return
-		case "connect":
-			if err := cmdConnect(os.Args[2:]); err != nil {
-				fatal(err)
-			}
-			return
-		case "exec":
-			if err := cmdExec(os.Args[2:]); err != nil {
-				fatal(err)
-			}
-			return
-		case "stop":
-			if err := cmdStop(); err != nil {
-				fatal(err)
-			}
-			return
-		case "rm":
-			if err := cmdRemove(os.Args[2:]); err != nil {
-				fatal(err)
-			}
-			return
-		case "status":
-			if err := cmdStatus(); err != nil {
-				fatal(err)
-			}
-			return
-		case "devcontainer":
-			if err := cmdDevcontainer(); err != nil {
-				fatal(err)
-			}
-			return
+		}
+		switch cmd {
 		case "help", "--help", "-h":
 			fmt.Println(helpText)
 			return
 		default:
-			if os.Args[1][0] != '-' {
-				fmt.Fprintf(os.Stderr, "silo: unknown command %q\n\n%s\n", os.Args[1], helpText)
+			if cmd[0] != '-' {
+				fmt.Fprintf(os.Stderr, "silo: unknown command %q\n\n%s\n", cmd, helpText)
 				os.Exit(1)
 			}
 		}

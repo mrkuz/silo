@@ -138,7 +138,7 @@ func TestTOMLEmptyExtraArgs(t *testing.T) {
 
 func renderSetupScript(paths []string) (string, error) {
 	entries := buildSharedVolumeEntries(paths)
-	got, err := renderTemplate("setup.sh.tmpl", struct{ Entries []sharedVolumeEntry }{entries})
+	got, err := renderTemplate("setup.sh.tmpl", struct{ SharedVolumeEntries []sharedVolumeEntry }{entries})
 	if err != nil {
 		return "", err
 	}
@@ -151,10 +151,10 @@ func TestRenderSetupScript(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !contains(s, "#!/usr/bin/env bash") {
+		if !strings.Contains(s, "#!/usr/bin/env bash") {
 			t.Errorf("expected shebang, got:\n%s", s)
 		}
-		if contains(s, "mkdir") || contains(s, "ln ") {
+		if strings.Contains(s, "mkdir") || strings.Contains(s, "ln ") {
 			t.Errorf("expected no commands for empty paths, got:\n%s", s)
 		}
 	})
@@ -164,13 +164,13 @@ func TestRenderSetupScript(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !contains(s, `src="/shared${HOME}/.cache/uv"`) {
+		if !strings.Contains(s, `src="/silo/shared${HOME}/.cache/uv"`) {
 			t.Errorf("expected src with expanded HOME, got:\n%s", s)
 		}
-		if !contains(s, `dst="$HOME/.cache/uv"`) {
+		if !strings.Contains(s, `dst="$HOME/.cache/uv"`) {
 			t.Errorf("expected dst, got:\n%s", s)
 		}
-		if !contains(s, `ln -sfn "$src" "$dst"`) {
+		if !strings.Contains(s, `ln -sfn "$src" "$dst"`) {
 			t.Errorf("expected directory symlink, got:\n%s", s)
 		}
 	})
@@ -180,10 +180,10 @@ func TestRenderSetupScript(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !contains(s, `touch "$src"`) {
+		if !strings.Contains(s, `touch "$src"`) {
 			t.Errorf("expected touch for file path, got:\n%s", s)
 		}
-		if !contains(s, `ln -sf "$src" "$dst"`) {
+		if !strings.Contains(s, `ln -sf "$src" "$dst"`) {
 			t.Errorf("expected file symlink, got:\n%s", s)
 		}
 	})
@@ -193,10 +193,10 @@ func TestRenderSetupScript(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !contains(s, `src="/shared/etc/foo"`) {
+		if !strings.Contains(s, `src="/silo/shared/etc/foo"`) {
 			t.Errorf("expected absolute src, got:\n%s", s)
 		}
-		if !contains(s, `dst="/etc/foo"`) {
+		if !strings.Contains(s, `dst="/etc/foo"`) {
 			t.Errorf("expected absolute dst, got:\n%s", s)
 		}
 	})
@@ -206,10 +206,10 @@ func TestRenderSetupScript(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !contains(s, `src="/shared/home/alice/.gitconfig"`) {
+		if !strings.Contains(s, `src="/silo/shared/home/alice/.gitconfig"`) {
 			t.Errorf("expected absolute src, got:\n%s", s)
 		}
-		if !contains(s, `touch "$src"`) {
+		if !strings.Contains(s, `touch "$src"`) {
 			t.Errorf("expected touch for file, got:\n%s", s)
 		}
 	})
@@ -219,7 +219,7 @@ func TestRenderSetupScript(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !contains(s, ".cache/uv") || !contains(s, ".cache/pip") {
+		if !strings.Contains(s, ".cache/uv") || !strings.Contains(s, ".cache/pip") {
 			t.Errorf("expected both paths in script, got:\n%s", s)
 		}
 	})
@@ -229,7 +229,7 @@ func TestRenderSetupScript(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !contains(s, `[ -L "$dst" ] || [ ! -e "$dst" ]`) {
+		if !strings.Contains(s, `[ -L "$dst" ] || [ ! -e "$dst" ]`) {
 			t.Errorf("expected guard check before symlink, got:\n%s", s)
 		}
 	})
@@ -264,11 +264,6 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.Create.ExtraArgs == nil {
 		t.Error("expected non-nil Create.ExtraArgs")
 	}
-}
-
-// contains is a helper to check substring presence.
-func contains(s, substr string) bool {
-	return strings.Contains(s, substr)
 }
 
 func TestLoadGlobalConfig(t *testing.T) {

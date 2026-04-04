@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -27,8 +25,17 @@ func containerExists(name string) bool {
 }
 
 // printDryRun prints a podman command as it would be invoked, without running it.
+// Arguments containing spaces are quoted for clarity.
 func printDryRun(args []string) {
-	fmt.Println("podman " + strings.Join(args, " "))
+	quoted := make([]string, len(args))
+	for i, a := range args {
+		if strings.ContainsAny(a, " \t\"'\\") {
+			quoted[i] = fmt.Sprintf("%q", a)
+		} else {
+			quoted[i] = a
+		}
+	}
+	fmt.Println("podman " + strings.Join(quoted, " "))
 }
 
 // connectContainer attaches to a running container via podman exec.
@@ -75,7 +82,7 @@ func buildContainerArgs(cfg Config) ([]string, error) {
 
 	// Shared volume
 	if cfg.Features.SharedVolume {
-		args = append(args, "--volume", sharedVolume+":/shared:Z")
+		args = append(args, "--volume", sharedVolume+":/silo/shared:Z")
 	}
 
 	return args, nil
@@ -98,28 +105,52 @@ func buildSharedVolumeEntries(paths []string) []sharedVolumeEntry {
 		dst := strings.TrimRight(raw, "/")
 		var src string
 		if strings.HasPrefix(dst, "$HOME") {
-			src = "/shared${HOME}" + dst[len("$HOME"):]
+			src = "/silo/shared${HOME}" + dst[len("$HOME"):]
 		} else {
-			src = "/shared" + dst
+			src = "/silo/shared" + dst
 		}
 		entries = append(entries, sharedVolumeEntry{Src: src, Dst: dst, IsDir: isDir})
 	}
 	return entries
 }
 
-// setupContainer runs post-start setup inside a running container.
-// Currently this renders and pipes the shared volume setup script via stdin.
+const setupScriptPath = "/silo/setup.sh"
+
+// copySetupScript renders the setup script and copies it into the container at /silo/startup.sh.
+// The container must exist but does not need to be running.
+func copySetupScript(cfg Config) error {
+	entries := buildSharedVolumeEntries(cfg.SharedVolume.Paths)
+	script, err := renderTemplate("setup.sh.tmpl", struct{ SharedVolumeEntries []sharedVolumeEntry }{entries})
+	if err != nil {
+		return fmt.Errorf("render setup script: %w", err)
+	}
+
+	dir, err := os.MkdirTemp("", "silo-setup-*")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(dir)
+
+	src := filepath.Join(dir, "startup.sh")
+	if err := os.WriteFile(src, script, 0755); err != nil {
+		return err
+	}
+
+	cmd := execCommand("podman", "cp", src, cfg.General.ContainerName+":"+setupScriptPath)
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("copy setup script: %w", err)
+	}
+	return nil
+}
+
+// setupContainer runs the setup script inside a running container.
+// The script itself handles the setup-done marker.
 func setupContainer(cfg Config) error {
 	if !cfg.Features.SharedVolume || len(cfg.SharedVolume.Paths) == 0 {
 		return nil
 	}
-	entries := buildSharedVolumeEntries(cfg.SharedVolume.Paths)
-	script, err := renderTemplate("setup.sh.tmpl", struct{ Entries []sharedVolumeEntry }{entries})
-	if err != nil {
-		return fmt.Errorf("render setup script: %w", err)
-	}
-	cmd := execCommand("podman", "exec", "-i", cfg.General.ContainerName, "bash")
-	cmd.Stdin = bytes.NewReader(script)
+	cmd := execCommand("podman", "exec", cfg.General.ContainerName, "bash", setupScriptPath)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -128,8 +159,8 @@ func setupContainer(cfg Config) error {
 	return nil
 }
 
-// createContainer creates and starts a new container, running shared volume setup if needed.
-// The container is left running. extra args are forwarded to podman create.
+// createContainer creates a new container. It does not start it.
+// Extra args are forwarded to podman create.
 func createContainer(cfg Config, extra []string) error {
 	containerArgs, err := buildContainerArgs(cfg)
 	if err != nil {
@@ -139,54 +170,101 @@ func createContainer(cfg Config, extra []string) error {
 	createArgs = append(createArgs, extra...)
 	createArgs = append(createArgs, cfg.General.ImageName)
 
-	fmt.Printf("Creating %s...\n", cfg.General.ContainerName)
-	cmd := execCommand("podman", createArgs...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+	fmt.Printf("Creating container %s...\n", cfg.General.ContainerName)
+	if err := runVisible("podman", createArgs...); err != nil {
 		return err
 	}
-
-	if err := execCommand("podman", "start", cfg.General.ContainerName).Run(); err != nil {
-		return err
-	}
-
-	return setupContainer(cfg)
+	return copySetupScript(cfg)
 }
 
-// ensureContainerRunning ensures the container exists and is running,
-// creating it if needed or starting it if stopped.
-func ensureContainerRunning(cfg Config) error {
+// startContainer starts a stopped container.
+func startContainer(name string) error {
+	fmt.Printf("Starting %s...\n", name)
+	return execCommand("podman", "start", name).Run()
+}
+
+// stopContainer stops a running container immediately.
+func stopContainer(name string) error {
+	fmt.Printf("Stopping %s...\n", name)
+	return execCommand("podman", "stop", "-t", "0", name).Run()
+}
+
+// --- ensure chain: ensureSetup → ensureStarted → ensureCreated → ensureBuilt → ensureInit ---
+
+// ensureInit initializes workspace config and scaffold files.
+func ensureInit() (Config, error) {
+	cfg, err := initWorkspaceConfig()
+	if err != nil {
+		return cfg, err
+	}
+	return cfg, ensureScaffoldFiles()
+}
+
+// ensureBuilt ensures images exist, building them if needed.
+func ensureBuilt() (Config, error) {
+	cfg, err := ensureInit()
+	if err != nil {
+		return cfg, err
+	}
+	return cfg, ensureImages(cfg)
+}
+
+// ensureCreated ensures the container exists, creating it if needed.
+func ensureCreated() (Config, error) {
+	cfg, err := ensureBuilt()
+	if err != nil {
+		return cfg, err
+	}
 	if !containerExists(cfg.General.ContainerName) {
-		return createContainer(cfg, cfg.Create.ExtraArgs)
+		if err := createContainer(cfg, cfg.Create.ExtraArgs); err != nil {
+			return cfg, err
+		}
+	}
+	return cfg, nil
+}
+
+// ensureStarted ensures the container is running, starting it if needed.
+func ensureStarted() (Config, error) {
+	cfg, err := ensureCreated()
+	if err != nil {
+		return cfg, err
 	}
 	if !containerRunning(cfg.General.ContainerName) {
-		fmt.Printf("Starting %s...\n", cfg.General.ContainerName)
-		if err := execCommand("podman", "start", cfg.General.ContainerName).Run(); err != nil {
-			return err
+		if err := startContainer(cfg.General.ContainerName); err != nil {
+			return cfg, err
 		}
-		return setupContainer(cfg)
 	}
-	return nil
+	return cfg, nil
+}
+
+// ensureSetup ensures the container is running and post-start setup has been applied.
+func ensureSetup() (Config, error) {
+	cfg, err := ensureStarted()
+	if err != nil {
+		return cfg, err
+	}
+	return cfg, setupContainer(cfg)
 }
 
 // removeContainer forcibly removes the named container.
 func removeContainer(name string) error {
-	cmd := execCommand("podman", "rm", "-f", name)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return runVisible("podman", "rm", "-f", name)
 }
 
 // removeImage removes the named image.
 func removeImage(name string) error {
-	cmd := execCommand("podman", "rmi", name)
+	return runVisible("podman", "rmi", name)
+}
+
+// runVisible runs a command with stdout and stderr connected to the terminal.
+func runVisible(name string, args ...string) error {
+	cmd := execCommand(name, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-// runInteractive runs a command with stdio connected to the terminal.
+// runInteractive runs a command with full stdio connected to the terminal.
 func runInteractive(name string, args ...string) error {
 	cmd := execCommand(name, args...)
 	cmd.Stdin = os.Stdin
@@ -195,326 +273,3 @@ func runInteractive(name string, args ...string) error {
 	return cmd.Run()
 }
 
-// cmdInit implements `silo init`.
-// Creates global scaffold files and local .silo/silo.toml + .silo/home.nix.
-func cmdInit() error {
-	if _, err := initWorkspaceConfig(); err != nil {
-		return err
-	}
-	return ensureScaffoldFiles()
-}
-
-// cmdSetup implements `silo setup`.
-// Runs the post-start setup script inside the running container.
-func cmdSetup() error {
-	cfg, err := requireWorkspaceConfig()
-	if err != nil {
-		return err
-	}
-	if !containerRunning(cfg.General.ContainerName) {
-		return fmt.Errorf("container %s is not running", cfg.General.ContainerName)
-	}
-	return setupContainer(cfg)
-}
-
-// cmdConnect implements `silo connect [--stop] [-- extra...]` and is the default command.
-func cmdConnect(args []string) error {
-	flags, err := parseConnectFlags(args)
-	if err != nil {
-		return err
-	}
-
-	cfg, err := initWorkspaceConfig()
-	if err != nil {
-		return err
-	}
-
-	if err := ensureScaffoldFiles(); err != nil {
-		return err
-	}
-	if err := ensureImages(cfg); err != nil {
-		return err
-	}
-
-	if err := ensureContainerRunning(cfg); err != nil {
-		return err
-	}
-	fmt.Printf("Connecting to %s...\n", cfg.General.ContainerName)
-	err = connectContainer(cfg.General.ContainerName, cfg.Connect.Command, flags.extra)
-	if flags.stop {
-		// Ignore error — best-effort cleanup; original session error (if any) takes precedence.
-		execCommand("podman", "stop", "-t", "0", cfg.General.ContainerName).Run()
-	}
-	return err
-}
-
-// cmdExec implements `silo exec <cmd> [args...]`.
-func cmdExec(args []string) error {
-	cfg, err := requireWorkspaceConfig()
-	if err != nil {
-		return err
-	}
-	if !containerRunning(cfg.General.ContainerName) {
-		return fmt.Errorf("container %s is not running", cfg.General.ContainerName)
-	}
-	execArgs := append([]string{"exec", "-ti", cfg.General.ContainerName}, args...)
-	return runInteractive("podman", execArgs...)
-}
-
-// cmdStop implements `silo stop`.
-func cmdStop() error {
-	cfg, err := requireWorkspaceConfig()
-	if err != nil {
-		return err
-	}
-	if !containerRunning(cfg.General.ContainerName) {
-		fmt.Printf("Container %s is not running.\n", cfg.General.ContainerName)
-		return nil
-	}
-	fmt.Printf("Stopping %s...\n", cfg.General.ContainerName)
-	return execCommand("podman", "stop", "-t", "0", cfg.General.ContainerName).Run()
-}
-
-// cmdStatus implements `silo status`.
-func cmdStatus() error {
-	cfg, err := requireWorkspaceConfig()
-	if err != nil {
-		return err
-	}
-	if containerRunning(cfg.General.ContainerName) {
-		fmt.Println("Running")
-	} else {
-		fmt.Println("Stopped")
-	}
-	return nil
-}
-
-// cmdRemove implements `silo rm [--image]`.
-func cmdRemove(args []string) error {
-	removeImg, err := parseRemoveFlags(args)
-	if err != nil {
-		return err
-	}
-
-	cfg, err := requireWorkspaceConfig()
-	if err != nil {
-		return err
-	}
-
-	if containerExists(cfg.General.ContainerName) {
-		if containerRunning(cfg.General.ContainerName) {
-			fmt.Printf("Stopping %s...\n", cfg.General.ContainerName)
-			if err := execCommand("podman", "stop", "-t", "0", cfg.General.ContainerName).Run(); err != nil {
-				return err
-			}
-		}
-		fmt.Printf("Removing container %s...\n", cfg.General.ContainerName)
-		if err := removeContainer(cfg.General.ContainerName); err != nil {
-			return err
-		}
-	} else {
-		fmt.Printf("No container %s found.\n", cfg.General.ContainerName)
-	}
-
-	if removeImg {
-		if imageExists(cfg.General.ImageName) {
-			fmt.Printf("Removing image %s...\n", cfg.General.ImageName)
-			return removeImage(cfg.General.ImageName)
-		}
-		fmt.Printf("No image %s found.\n", cfg.General.ImageName)
-	}
-	return nil
-}
-
-// cmdCreate implements `silo create [--nested] [--no-workspace] [--no-shared-volume] [--force] [--dry-run] [-- extra...]`.
-func cmdCreate(args []string) error {
-	flags, err := parseCreateFlags(args)
-	if err != nil {
-		return err
-	}
-
-	cfg, err := initWorkspaceConfig()
-	if err != nil {
-		return err
-	}
-
-	// Apply feature flags to cfg; persist to silo.toml only when not a dry run.
-	changed := false
-	if flags.nested && !cfg.Features.Nested {
-		cfg.Features.Nested = true
-		changed = true
-	}
-	if flags.noWorkspace && cfg.Features.Workspace {
-		cfg.Features.Workspace = false
-		changed = true
-	}
-	if flags.noSharedVolume && cfg.Features.SharedVolume {
-		cfg.Features.SharedVolume = false
-		changed = true
-	}
-
-	// Resolve extra args: CLI wins over stored value; update stored value when CLI provides args.
-	var extraArgs []string
-	if len(flags.extra) > 0 {
-		extraArgs = flags.extra
-		if strings.Join(flags.extra, "\x00") != strings.Join(cfg.Create.ExtraArgs, "\x00") {
-			cfg.Create.ExtraArgs = flags.extra
-			changed = true
-		}
-	} else {
-		extraArgs = cfg.Create.ExtraArgs
-	}
-
-	if flags.dryRun {
-		containerArgs, err := buildContainerArgs(cfg)
-		if err != nil {
-			return err
-		}
-		createArgs := append([]string{"create"}, containerArgs...)
-		createArgs = append(createArgs, extraArgs...)
-		createArgs = append(createArgs, cfg.General.ImageName)
-		printDryRun(createArgs)
-		return nil
-	}
-
-	if changed {
-		if err := cfg.saveWorkspaceConfig(); err != nil {
-			return fmt.Errorf("save silo.toml: %w", err)
-		}
-	}
-
-	if err := ensureScaffoldFiles(); err != nil {
-		return err
-	}
-	if err := ensureImages(cfg); err != nil {
-		return err
-	}
-
-	if containerExists(cfg.General.ContainerName) {
-		if !flags.force {
-			fmt.Printf("Container %s already exists.\n", cfg.General.ContainerName)
-			return nil
-		}
-		fmt.Printf("Removing existing container %s...\n", cfg.General.ContainerName)
-		if err := removeContainer(cfg.General.ContainerName); err != nil {
-			return err
-		}
-	}
-
-	if err := createContainer(cfg, extraArgs); err != nil {
-		return err
-	}
-	return execCommand("podman", "stop", "-t", "0", cfg.General.ContainerName).Run()
-}
-
-// cmdStart implements `silo start [--force]`.
-func cmdStart(args []string) error {
-	flags, err := parseStartFlags(args)
-	if err != nil {
-		return err
-	}
-
-	cfg, err := initWorkspaceConfig()
-	if err != nil {
-		return err
-	}
-
-	if err := ensureScaffoldFiles(); err != nil {
-		return err
-	}
-	if err := ensureImages(cfg); err != nil {
-		return err
-	}
-
-	// If already running, stop first (force) or bail.
-	if containerRunning(cfg.General.ContainerName) {
-		if !flags.force {
-			fmt.Printf("Container %s is already running.\n", cfg.General.ContainerName)
-			return nil
-		}
-		fmt.Printf("Stopping %s...\n", cfg.General.ContainerName)
-		if err := execCommand("podman", "stop", "-t", "0", cfg.General.ContainerName).Run(); err != nil {
-			return err
-		}
-	}
-
-	// Create the container if it doesn't exist yet.
-	if !containerExists(cfg.General.ContainerName) {
-		return createContainer(cfg, nil)
-	}
-
-	fmt.Printf("Starting %s...\n", cfg.General.ContainerName)
-	if err := execCommand("podman", "start", cfg.General.ContainerName).Run(); err != nil {
-		return err
-	}
-	return setupContainer(cfg)
-}
-
-type connectFlags struct {
-	stop  bool
-	extra []string
-}
-
-func parseConnectFlags(args []string) (connectFlags, error) {
-	fs := flag.NewFlagSet("silo connect", flag.ContinueOnError)
-	stop := fs.Bool("stop", false, "Stop the container when the session exits")
-	fs.Usage = func() {} // suppress; handled by main helpText
-	if err := fs.Parse(args); err != nil {
-		return connectFlags{}, err
-	}
-	return connectFlags{stop: *stop, extra: fs.Args()}, nil
-}
-
-func parseRemoveFlags(args []string) (bool, error) {
-	fs := flag.NewFlagSet("silo rm", flag.ContinueOnError)
-	removeImg := fs.Bool("image", false, "Also remove the workspace image")
-	fs.Usage = func() {} // suppress; handled by main helpText
-	if err := fs.Parse(args); err != nil {
-		return false, err
-	}
-	return *removeImg, nil
-}
-
-type createFlags struct {
-	nested         bool
-	noWorkspace    bool
-	noSharedVolume bool
-	force          bool
-	dryRun         bool
-	extra          []string
-}
-
-func parseCreateFlags(args []string) (createFlags, error) {
-	fs := flag.NewFlagSet("silo create", flag.ContinueOnError)
-	nested := fs.Bool("nested", false, "Enable nested Podman containers")
-	noWorkspace := fs.Bool("no-workspace", false, "Disable workspace volume mount")
-	noSharedVolume := fs.Bool("no-shared-volume", false, "Disable shared volume")
-	force := fs.Bool("force", false, "Remove and recreate the container if it already exists")
-	dryRun := fs.Bool("dry-run", false, "Print the podman create command without running it")
-	fs.Usage = func() {} // suppress; handled by main helpText
-	if err := fs.Parse(args); err != nil {
-		return createFlags{}, err
-	}
-	return createFlags{
-		nested:         *nested,
-		noWorkspace:    *noWorkspace,
-		noSharedVolume: *noSharedVolume,
-		force:          *force,
-		dryRun:         *dryRun,
-		extra:          fs.Args(),
-	}, nil
-}
-
-type startFlags struct {
-	force bool
-}
-
-func parseStartFlags(args []string) (startFlags, error) {
-	fs := flag.NewFlagSet("silo start", flag.ContinueOnError)
-	force := fs.Bool("force", false, "Restart the container if it is already running")
-	fs.Usage = func() {} // suppress; handled by main helpText
-	if err := fs.Parse(args); err != nil {
-		return startFlags{}, err
-	}
-	return startFlags{force: *force}, nil
-}

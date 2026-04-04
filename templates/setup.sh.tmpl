@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -eu
-{{- range .Entries}}
+
+if [ -f /silo/.setup-done ]; then
+  exit 0
+fi
+{{- range .SharedVolumeEntries}}
 {{- if .IsDir}}
 src="{{.Src}}"
 dst="{{.Dst}}"
@@ -18,3 +22,4 @@ if [ -L "$dst" ] || [ ! -e "$dst" ]; then
 fi
 {{- end}}
 {{- end}}
+touch /silo/.setup-done

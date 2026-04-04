@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -16,7 +15,7 @@ func imageExists(name string) bool {
 
 // detectNixSystem maps the host machine architecture to a Nix system string.
 func detectNixSystem() string {
-	out, err := exec.Command("uname", "-m").Output()
+	out, err := execCommand("uname", "-m").Output()
 	if err != nil {
 		return "x86_64-linux"
 	}
@@ -105,11 +104,21 @@ func runBuild(tag string, files map[string][]byte) error {
 		}
 	}
 
-	args := []string{"build", "-t", tag, dir}
-	cmd := execCommand("podman", args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return runVisible("podman", "build", "-t", tag, dir)
+}
+
+// ensureImageRemoved removes the image if force is set and the image exists.
+// If force is false and the image exists, it returns false to signal "already exists".
+// Returns true when the caller should proceed to build.
+func ensureImageRemoved(tag string, force bool) (bool, error) {
+	if !imageExists(tag) {
+		return true, nil
+	}
+	if !force {
+		return false, nil
+	}
+	fmt.Printf("Removing image %s...\n", tag)
+	return true, removeImage(tag)
 }
 
 // cmdBuild implements `silo build [--base] [--force]`.
@@ -119,18 +128,20 @@ func cmdBuild(args []string) error {
 		return err
 	}
 
-	cfg, err := initWorkspaceConfig()
+	cfg, err := ensureInit()
 	if err != nil {
 		return err
 	}
 
-	if err := ensureScaffoldFiles(); err != nil {
-		return err
-	}
+	baseTag := baseImageName(cfg.General.User)
+	wsTag := cfg.General.ImageName
 
 	if flags.base {
-		baseTag := baseImageName(cfg.General.User)
-		if !flags.force && imageExists(baseTag) {
+		proceed, err := ensureImageRemoved(baseTag, flags.force)
+		if err != nil {
+			return err
+		}
+		if !proceed {
 			fmt.Printf("Base image %s already exists.\n", baseTag)
 			return nil
 		}
@@ -139,18 +150,23 @@ func cmdBuild(args []string) error {
 			return err
 		}
 		// Also rebuild the workspace image on top of the new base.
-		wsTag := cfg.General.ImageName
+		if _, err := ensureImageRemoved(wsTag, flags.force); err != nil {
+			return err
+		}
 		fmt.Printf("Building workspace image %s...\n", wsTag)
 		return buildWorkspaceImage(wsTag, baseTag, cfg.General.User)
 	}
 
-	tag := cfg.General.ImageName
-	if !flags.force && imageExists(tag) {
-		fmt.Printf("Workspace image %s already exists.\n", tag)
+	proceed, err := ensureImageRemoved(wsTag, flags.force)
+	if err != nil {
+		return err
+	}
+	if !proceed {
+		fmt.Printf("Workspace image %s already exists.\n", wsTag)
 		return nil
 	}
-	fmt.Printf("Building workspace image %s...\n", tag)
-	return buildWorkspaceImage(tag, baseImageName(cfg.General.User), cfg.General.User)
+	fmt.Printf("Building workspace image %s...\n", wsTag)
+	return buildWorkspaceImage(wsTag, baseTag, cfg.General.User)
 }
 
 type buildFlags struct {
