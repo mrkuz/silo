@@ -47,10 +47,12 @@ go install .
 
 ```
 silo [--stop] [-- args...]
-silo connect [--stop] [-- args...]
-silo start [--force]
-silo create [--nested] [--no-workspace] [--no-shared-volume] [--force] [--dry-run] [-- args...]
+silo init
 silo build [--base] [--force]
+silo create [--nested] [--no-workspace] [--no-shared-volume] [--force] [--dry-run] [-- args...]
+silo start [--force]
+silo setup
+silo connect [--stop] [-- args...]
 silo exec <cmd> [args...]
 silo stop
 silo rm [--image]
@@ -68,13 +70,18 @@ Connect to the container for the current directory. Builds images and container 
 | `--stop` | Stop the container when the session exits |
 | `-- ...` | Pass remaining arguments to `podman exec` |
 
-### `silo start`
+### `silo init`
 
-Start the container without connecting to it.
+Initialize workspace and global config files. Creates `.silo/silo.toml`, `.silo/home.nix`, and global scaffold files. Safe to run multiple times — existing files are not overwritten.
+
+### `silo build`
+
+Build the workspace image (and optionally the base image).
 
 | Flag | Description |
 |---|---|
-| `--force` | Restart the container if it is already running |
+| `--base` | Build the base image, then the workspace image |
+| `--force` | Remove and rebuild the image(s) if it already exists |
 
 ### `silo create`
 
@@ -89,14 +96,17 @@ Create the container without starting it. Builds images if needed.
 | `--dry-run` | Print the `podman create` command without running it |
 | `-- ...` | Pass remaining arguments to `podman create` |
 
-### `silo build`
+### `silo start`
 
-Build the workspace image (and optionally the base image).
+Start the container without connecting to it.
 
 | Flag | Description |
 |---|---|
-| `--base` | Build the base image, then the workspace image |
-| `--force` | Remove and rebuild the image(s) if it already exists |
+| `--force` | Restart the container if it is already running |
+
+### `silo setup`
+
+Run post-start setup in the running container. Currently this creates shared volume symlinks for paths configured in `[shared_volume]`. Fails if the container is not running. This step runs automatically on every start.
 
 ### `silo exec <cmd> [args...]`
 

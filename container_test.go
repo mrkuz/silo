@@ -739,3 +739,75 @@ func TestCmdCreateFilePersistence(t *testing.T) {
 		}
 	})
 }
+
+func TestCmdInit(t *testing.T) {
+	t.Run("creates workspace and scaffold files", func(t *testing.T) {
+		setupGlobalConfig(t)
+		dir := t.TempDir()
+		orig, _ := os.Getwd()
+		t.Cleanup(func() { os.Chdir(orig) })
+		os.Chdir(dir)
+
+		mockExecCommand(t, map[string]*exec.Cmd{})
+		if err := cmdInit(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, err := os.Stat(siloToml); os.IsNotExist(err) {
+			t.Error("expected .silo/silo.toml to be created")
+		}
+		if _, err := os.Stat(".silo/home.nix"); os.IsNotExist(err) {
+			t.Error("expected .silo/home.nix to be created")
+		}
+	})
+
+	t.Run("idempotent — does not overwrite existing config", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		setupGlobalConfig(t)
+
+		mockExecCommand(t, map[string]*exec.Cmd{})
+		if err := cmdInit(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		saved, err := parseTOML(siloToml)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if saved.General.ID != "abc12345" {
+			t.Errorf("expected ID abc12345, got %q", saved.General.ID)
+		}
+	})
+}
+
+func TestCmdSetup(t *testing.T) {
+	t.Run("container running — runs setup", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		cfg.Features.SharedVolume = true
+		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
+		setupWorkspace(t, cfg)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
+		})
+		if err := cmdSetup(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !anyCall(calls, "podman", "exec", "-i", "silo-abc12345", "bash") {
+			t.Errorf("expected podman exec for setup, got %v", *calls)
+		}
+	})
+
+	t.Run("container not running — returns error", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		mockExecCommand(t, map[string]*exec.Cmd{
+			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
+		})
+		err := cmdSetup()
+		if err == nil {
+			t.Error("expected error when container not running")
+		}
+		if !strings.Contains(err.Error(), "not running") {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+}

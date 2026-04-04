@@ -9,10 +9,12 @@ const helpText = `silo - developer sandbox container
 
 Usage:
   silo [--stop] [-- args...]
-  silo connect [--stop] [-- args...]
-  silo start [--force]
-  silo create [--nested] [--no-workspace] [--no-shared-volume] [--force] [--dry-run] [-- args...]
+  silo init
   silo build [--base] [--force]
+  silo create [--nested] [--no-workspace] [--no-shared-volume] [--force] [--dry-run] [-- args...]
+  silo start [--force]
+  silo setup
+  silo connect [--stop] [-- args...]
   silo exec <cmd> [args...]
   silo stop
   silo rm [--image]
@@ -22,10 +24,12 @@ Usage:
 
 Commands:
   (default)     Alias for connect
-  connect       Connect to the silo container
-  start         Start the container
-  create        Create the container
+  init          Initialize workspace and global config files
   build         Build the workspace image
+  create        Create the container
+  start         Start the container
+  setup         Run post-start setup in the running container
+  connect       Connect to the silo container
   exec          Run a command in the running container
   stop          Stop the running container
   rm            Remove the container
@@ -37,8 +41,9 @@ Connect flags:
   --stop   Stop the container when the session exits
   -- ...   Pass remaining arguments to podman exec
 
-Start flags:
-  --force  Restart the container if it is already running
+Build flags:
+  --base   Build the base and workspace image
+  --force  Remove and rebuild the image if it already exists
 
 Create flags:
   --nested            Enable nested Podman containers
@@ -48,9 +53,8 @@ Create flags:
   --dry-run           Print the podman command without running it
   -- ...              Pass remaining arguments to podman
 
-Build flags:
-  --base   Build the base and workspace image
-  --force  Remove and rebuild the image if it already exists
+Start flags:
+  --force  Restart the container if it is already running
 
 Remove flags:
   --image  Also remove the workspace image`
@@ -58,8 +62,13 @@ Remove flags:
 func main() {
 	if len(os.Args) >= 2 {
 		switch os.Args[1] {
-		case "connect":
-			if err := cmdConnect(os.Args[2:]); err != nil {
+		case "init":
+			if err := cmdInit(); err != nil {
+				fatal(err)
+			}
+			return
+		case "build":
+			if err := cmdBuild(os.Args[2:]); err != nil {
 				fatal(err)
 			}
 			return
@@ -73,13 +82,18 @@ func main() {
 				fatal(err)
 			}
 			return
-		case "exec":
-			if err := cmdExec(os.Args[2:]); err != nil {
+		case "setup":
+			if err := cmdSetup(); err != nil {
 				fatal(err)
 			}
 			return
-		case "build":
-			if err := cmdBuild(os.Args[2:]); err != nil {
+		case "connect":
+			if err := cmdConnect(os.Args[2:]); err != nil {
+				fatal(err)
+			}
+			return
+		case "exec":
+			if err := cmdExec(os.Args[2:]); err != nil {
 				fatal(err)
 			}
 			return

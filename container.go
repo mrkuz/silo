@@ -195,6 +195,28 @@ func runInteractive(name string, args ...string) error {
 	return cmd.Run()
 }
 
+// cmdInit implements `silo init`.
+// Creates global scaffold files and local .silo/silo.toml + .silo/home.nix.
+func cmdInit() error {
+	if _, err := initWorkspaceConfig(); err != nil {
+		return err
+	}
+	return ensureScaffoldFiles()
+}
+
+// cmdSetup implements `silo setup`.
+// Runs the post-start setup script inside the running container.
+func cmdSetup() error {
+	cfg, err := requireWorkspaceConfig()
+	if err != nil {
+		return err
+	}
+	if !containerRunning(cfg.General.ContainerName) {
+		return fmt.Errorf("container %s is not running", cfg.General.ContainerName)
+	}
+	return setupContainer(cfg)
+}
+
 // cmdConnect implements `silo connect [--stop] [-- extra...]` and is the default command.
 func cmdConnect(args []string) error {
 	flags, err := parseConnectFlags(args)
