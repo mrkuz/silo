@@ -267,6 +267,46 @@ func TestParseRemoveFlags(t *testing.T) {
 	}
 }
 
+// ---- setupContainer tests ------------------------------------------------
+
+func TestSetupContainer(t *testing.T) {
+	t.Run("skipped when shared volume disabled", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		cfg.Features.SharedVolume = false
+		calls := mockExecCommand(t, map[string]*exec.Cmd{})
+		if err := setupContainer(cfg); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if anyCall(calls, "podman", "exec") {
+			t.Errorf("expected no podman exec, got %v", *calls)
+		}
+	})
+
+	t.Run("skipped when paths empty", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		cfg.Features.SharedVolume = true
+		cfg.SharedVolume.Paths = []string{}
+		calls := mockExecCommand(t, map[string]*exec.Cmd{})
+		if err := setupContainer(cfg); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if anyCall(calls, "podman", "exec") {
+			t.Errorf("expected no podman exec, got %v", *calls)
+		}
+	})
+
+	t.Run("runs podman exec with stdin when paths configured", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		cfg.Features.SharedVolume = true
+		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
+		calls := mockExecCommand(t, map[string]*exec.Cmd{})
+		_ = setupContainer(cfg)
+		if !anyCall(calls, "podman", "exec", "-i", "silo-abc12345", "bash") {
+			t.Errorf("expected podman exec -i silo-abc12345 bash, got %v", *calls)
+		}
+	})
+}
+
 // ---- helper-function tests -----------------------------------------------
 
 func TestContainerExists(t *testing.T) {
@@ -331,8 +371,10 @@ func TestEnsureContainerRunning(t *testing.T) {
 		}
 	})
 
-	t.Run("container stopped — starts it", func(t *testing.T) {
+	t.Run("container stopped — starts it and runs setup", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
+		cfg.Features.SharedVolume = true
+		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
 			"podman container exists silo-abc12345":                              exec.Command("true"),
 			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
@@ -342,6 +384,9 @@ func TestEnsureContainerRunning(t *testing.T) {
 		}
 		if !anyCall(calls, "podman", "start", "silo-abc12345") {
 			t.Errorf("expected podman start, got %v", *calls)
+		}
+		if !anyCall(calls, "podman", "exec", "-i", "silo-abc12345", "bash") {
+			t.Errorf("expected setup via podman exec, got %v", *calls)
 		}
 	})
 

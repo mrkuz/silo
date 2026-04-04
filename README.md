@@ -228,7 +228,9 @@ The current directory is mounted at `/workspace/<id>/<dirname>` inside the conta
 
 The named Podman volume `silo-shared` is mounted at `/shared` in every container, so data — such as package caches — is shared across all workspaces and survives container restarts and image rebuilds.
 
-For paths listed in `[shared_volume]` a symlink to `/shared/` is created. `$HOME` is the only supported placeholder. For example, `$HOME/.cache/uv/` maps to `/shared/home/alice/.cache/uv/`.
+For paths listed in `[shared_volume]` a symlink to `/shared/` is created on every container start. `$HOME` is the only supported placeholder. For example, `$HOME/.cache/uv/` maps to `/shared/home/alice/.cache/uv/`. Existing non-symlink files or directories at the target path are left untouched.
+
+The setup script (`templates/setup.sh.tmpl`) is rendered and piped into the container via `podman exec -i bash` as part of the **setup** lifecycle step, which runs automatically after every start.
 
 ### Nix + home-manager
 

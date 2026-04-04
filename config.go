@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -209,40 +208,6 @@ func loadGlobalConfig() (Config, error) {
 // baseImageName returns the base image tag for the given user.
 func baseImageName(user string) string {
 	return "silo-" + user
-}
-
-// buildSharedVolumeScript returns a POSIX sh script that creates symlinks into /shared
-// for each configured path. Paths may be absolute or use $HOME as a prefix.
-// Paths ending in '/' are treated as directories; others as files.
-// The source mirrors the full absolute path under /shared, e.g.:
-//
-//	$HOME/.cache/uv/ → /shared${HOME}/.cache/uv  (expands to /shared/home/user/.cache/uv)
-//	/home/user/.cache/uv/ → /shared/home/user/.cache/uv
-func buildSharedVolumeScript(paths []string) string {
-	var parts []string
-	for _, raw := range paths {
-		isDir := len(raw) > 0 && raw[len(raw)-1] == '/'
-		dst := strings.TrimRight(raw, "/")
-
-		// Mirror full path under /shared. $HOME expands at shell runtime.
-		var src string
-		if strings.HasPrefix(dst, "$HOME") {
-			src = "/shared${HOME}" + dst[len("$HOME"):]
-		} else {
-			src = "/shared" + dst
-		}
-
-		if isDir {
-			parts = append(parts, fmt.Sprintf(
-				`mkdir -p "%s" && mkdir -p "%s" && ln -sfn "%s" "%s"`,
-				src, filepath.Dir(dst), src, dst))
-		} else {
-			parts = append(parts, fmt.Sprintf(
-				`mkdir -p "%s" && mkdir -p "%s" && touch "%s" && ln -sf "%s" "%s"`,
-				filepath.Dir(src), filepath.Dir(dst), src, src, dst))
-		}
-	}
-	return strings.Join(parts, " && ")
 }
 
 // initWorkspaceConfig loads the workspace config, or seeds it from global defaults on first run.

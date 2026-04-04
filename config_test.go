@@ -136,60 +136,101 @@ func TestTOMLEmptyExtraArgs(t *testing.T) {
 	}
 }
 
-func TestBuildSharedVolumeScript(t *testing.T) {
+func renderSetupScript(paths []string) (string, error) {
+	entries := buildSharedVolumeEntries(paths)
+	got, err := renderTemplate("setup.sh.tmpl", struct{ Entries []sharedVolumeEntry }{entries})
+	if err != nil {
+		return "", err
+	}
+	return string(got), nil
+}
+
+func TestRenderSetupScript(t *testing.T) {
 	t.Run("empty paths", func(t *testing.T) {
-		got := buildSharedVolumeScript(nil)
-		if got != "" {
-			t.Errorf("expected empty string, got %q", got)
+		s, err := renderSetupScript(nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !contains(s, "#!/usr/bin/env bash") {
+			t.Errorf("expected shebang, got:\n%s", s)
+		}
+		if contains(s, "mkdir") || contains(s, "ln ") {
+			t.Errorf("expected no commands for empty paths, got:\n%s", s)
 		}
 	})
 
 	t.Run("directory path with $HOME prefix", func(t *testing.T) {
-		got := buildSharedVolumeScript([]string{"$HOME/.cache/uv/"})
-		if !contains(got, `mkdir -p "/shared${HOME}/.cache/uv"`) {
-			t.Errorf("expected src mkdir in script, got:\n%s", got)
+		s, err := renderSetupScript([]string{"$HOME/.cache/uv/"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
-		if !contains(got, `mkdir -p "$HOME/.cache"`) {
-			t.Errorf("expected dst parent mkdir in script, got:\n%s", got)
+		if !contains(s, `src="/shared${HOME}/.cache/uv"`) {
+			t.Errorf("expected src with expanded HOME, got:\n%s", s)
 		}
-		if !contains(got, `ln -sfn "/shared${HOME}/.cache/uv" "$HOME/.cache/uv"`) {
-			t.Errorf("expected symlink in script, got:\n%s", got)
+		if !contains(s, `dst="$HOME/.cache/uv"`) {
+			t.Errorf("expected dst, got:\n%s", s)
+		}
+		if !contains(s, `ln -sfn "$src" "$dst"`) {
+			t.Errorf("expected directory symlink, got:\n%s", s)
 		}
 	})
 
 	t.Run("file path with $HOME prefix", func(t *testing.T) {
-		got := buildSharedVolumeScript([]string{"$HOME/.local/share/fish/fish_history"})
-		if !contains(got, `touch "/shared${HOME}/.local/share/fish/fish_history"`) {
-			t.Errorf("expected touch in script, got:\n%s", got)
+		s, err := renderSetupScript([]string{"$HOME/.local/share/fish/fish_history"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
-		if !contains(got, `ln -sf "/shared${HOME}/.local/share/fish/fish_history" "$HOME/.local/share/fish/fish_history"`) {
-			t.Errorf("expected symlink in script, got:\n%s", got)
+		if !contains(s, `touch "$src"`) {
+			t.Errorf("expected touch for file path, got:\n%s", s)
+		}
+		if !contains(s, `ln -sf "$src" "$dst"`) {
+			t.Errorf("expected file symlink, got:\n%s", s)
 		}
 	})
 
 	t.Run("absolute directory path", func(t *testing.T) {
-		got := buildSharedVolumeScript([]string{"/etc/foo/"})
-		if !contains(got, `ln -sfn "/shared/etc/foo" "/etc/foo"`) {
-			t.Errorf("expected absolute symlink in script, got:\n%s", got)
+		s, err := renderSetupScript([]string{"/etc/foo/"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !contains(s, `src="/shared/etc/foo"`) {
+			t.Errorf("expected absolute src, got:\n%s", s)
+		}
+		if !contains(s, `dst="/etc/foo"`) {
+			t.Errorf("expected absolute dst, got:\n%s", s)
 		}
 	})
 
 	t.Run("absolute file path", func(t *testing.T) {
-		got := buildSharedVolumeScript([]string{"/home/alice/.gitconfig"})
-		if !contains(got, `touch "/shared/home/alice/.gitconfig"`) {
-			t.Errorf("expected touch in script, got:\n%s", got)
+		s, err := renderSetupScript([]string{"/home/alice/.gitconfig"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
-		if !contains(got, `ln -sf "/shared/home/alice/.gitconfig" "/home/alice/.gitconfig"`) {
-			t.Errorf("expected symlink in script, got:\n%s", got)
+		if !contains(s, `src="/shared/home/alice/.gitconfig"`) {
+			t.Errorf("expected absolute src, got:\n%s", s)
+		}
+		if !contains(s, `touch "$src"`) {
+			t.Errorf("expected touch for file, got:\n%s", s)
 		}
 	})
 
-	t.Run("multiple paths joined with &&", func(t *testing.T) {
-		got := buildSharedVolumeScript([]string{"$HOME/.cache/uv/", "$HOME/.cache/pip/"})
-		parts := strings.Split(got, " && ")
-		// Each of the two paths generates 3 parts (mkdir src, mkdir dst-parent, ln), so 6 total connected by &&.
-		if len(parts) < 2 {
-			t.Errorf("expected multiple && parts, got: %s", got)
+	t.Run("multiple paths", func(t *testing.T) {
+		s, err := renderSetupScript([]string{"$HOME/.cache/uv/", "$HOME/.cache/pip/"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !contains(s, ".cache/uv") || !contains(s, ".cache/pip") {
+			t.Errorf("expected both paths in script, got:\n%s", s)
+		}
+	})
+
+	t.Run("guards against existing non-symlink", func(t *testing.T) {
+		s, err := renderSetupScript([]string{"$HOME/.cache/uv/"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !contains(s, `[ -L "$dst" ] || [ ! -e "$dst" ]`) {
+			t.Errorf("expected guard check before symlink, got:\n%s", s)
 		}
 	})
 }

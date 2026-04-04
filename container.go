@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
@@ -80,14 +81,49 @@ func buildContainerArgs(cfg Config) ([]string, error) {
 	return args, nil
 }
 
-// runSharedVolumeSetup runs the shared volume symlink script inside a running container.
-func runSharedVolumeSetup(containerName string, paths []string) error {
-	script := buildSharedVolumeScript(paths)
-	cmd := execCommand("podman", "exec", containerName, "sh", "-c", script)
+// sharedVolumeEntry holds pre-computed source and destination paths for a shared volume symlink.
+type sharedVolumeEntry struct {
+	Src   string
+	Dst   string
+	IsDir bool
+}
+
+// buildSharedVolumeEntries converts raw path strings into pre-computed entries.
+// Paths ending in '/' are directories; others are files.
+// $HOME prefixes are expanded to ${HOME} for shell runtime expansion.
+func buildSharedVolumeEntries(paths []string) []sharedVolumeEntry {
+	entries := make([]sharedVolumeEntry, 0, len(paths))
+	for _, raw := range paths {
+		isDir := len(raw) > 0 && raw[len(raw)-1] == '/'
+		dst := strings.TrimRight(raw, "/")
+		var src string
+		if strings.HasPrefix(dst, "$HOME") {
+			src = "/shared${HOME}" + dst[len("$HOME"):]
+		} else {
+			src = "/shared" + dst
+		}
+		entries = append(entries, sharedVolumeEntry{Src: src, Dst: dst, IsDir: isDir})
+	}
+	return entries
+}
+
+// setupContainer runs post-start setup inside a running container.
+// Currently this renders and pipes the shared volume setup script via stdin.
+func setupContainer(cfg Config) error {
+	if !cfg.Features.SharedVolume || len(cfg.SharedVolume.Paths) == 0 {
+		return nil
+	}
+	entries := buildSharedVolumeEntries(cfg.SharedVolume.Paths)
+	script, err := renderTemplate("setup.sh.tmpl", struct{ Entries []sharedVolumeEntry }{entries})
+	if err != nil {
+		return fmt.Errorf("render setup script: %w", err)
+	}
+	cmd := execCommand("podman", "exec", "-i", cfg.General.ContainerName, "bash")
+	cmd.Stdin = bytes.NewReader(script)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("shared volume setup: %w", err)
+		return fmt.Errorf("container setup: %w", err)
 	}
 	return nil
 }
@@ -115,13 +151,7 @@ func createContainer(cfg Config, extra []string) error {
 		return err
 	}
 
-	if cfg.Features.SharedVolume && len(cfg.SharedVolume.Paths) > 0 {
-		if err := runSharedVolumeSetup(cfg.General.ContainerName, cfg.SharedVolume.Paths); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return setupContainer(cfg)
 }
 
 // ensureContainerRunning ensures the container exists and is running,
@@ -132,7 +162,10 @@ func ensureContainerRunning(cfg Config) error {
 	}
 	if !containerRunning(cfg.General.ContainerName) {
 		fmt.Printf("Starting %s...\n", cfg.General.ContainerName)
-		return execCommand("podman", "start", cfg.General.ContainerName).Run()
+		if err := execCommand("podman", "start", cfg.General.ContainerName).Run(); err != nil {
+			return err
+		}
+		return setupContainer(cfg)
 	}
 	return nil
 }
@@ -389,7 +422,10 @@ func cmdStart(args []string) error {
 	}
 
 	fmt.Printf("Starting %s...\n", cfg.General.ContainerName)
-	return execCommand("podman", "start", cfg.General.ContainerName).Run()
+	if err := execCommand("podman", "start", cfg.General.ContainerName).Run(); err != nil {
+		return err
+	}
+	return setupContainer(cfg)
 }
 
 type connectFlags struct {
