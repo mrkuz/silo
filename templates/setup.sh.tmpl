@@ -11,6 +11,8 @@ dst="{{.Dst}}"
 mkdir -p "$src" "$(dirname "$dst")"
 if [ -L "$dst" ] || [ ! -e "$dst" ]; then
   ln -sfn "$src" "$dst"
+else
+  echo "warning: cannot link $dst -> $src (already exists)" >&2
 fi
 {{- else}}
 src="{{.Src}}"
@@ -19,6 +21,8 @@ mkdir -p "$(dirname "$src")" "$(dirname "$dst")"
 touch "$src"
 if [ -L "$dst" ] || [ ! -e "$dst" ]; then
   ln -sf "$src" "$dst"
+else
+  echo "warning: cannot link $dst -> $src (already exists)" >&2
 fi
 {{- end}}
 {{- end}}

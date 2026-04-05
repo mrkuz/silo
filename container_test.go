@@ -82,7 +82,7 @@ func TestBuildContainerArgsSharedVolume(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	joined := strings.Join(args, " ")
-	if !strings.Contains(joined, sharedVolume+":/silo/shared:Z") {
+	if !strings.Contains(joined, sharedVolumeName+":/silo/shared:Z") {
 		t.Errorf("expected shared volume mount in args: %v", args)
 	}
 }
@@ -176,7 +176,6 @@ func TestSetupContainer(t *testing.T) {
 			t.Errorf("expected podman exec silo-abc12345 bash /silo/setup.sh, got %v", *calls)
 		}
 	})
-
 }
 
 // ---- helper-function tests -----------------------------------------------
@@ -240,8 +239,8 @@ func TestEnsureChain(t *testing.T) {
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
 			"podman image exists silo-testuser":                                exec.Command("true"),
 			"podman image exists silo-abc12345":                                exec.Command("true"),
-			"podman container exists silo-abc12345":                            exec.Command("false"),
-					})
+			"podman container exists silo-abc12345":                              exec.Command("false"),
+		})
 		_, err := ensureSetup()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)

@@ -58,9 +58,10 @@ func TestRenderContainerfileWorkspace(t *testing.T) {
 
 func TestRenderContainerfileBase(t *testing.T) {
 	out, err := renderTemplate("Containerfile.base.tmpl", struct {
-		User string
-		Home string
-	}{"alice", "/home/alice"})
+		User              string
+		Home              string
+		SharedVolumeMount string
+	}{"alice", "/home/alice", "/silo/shared"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,6 +74,9 @@ func TestRenderContainerfileBase(t *testing.T) {
 	}
 	if !strings.Contains(s, "/home/alice") {
 		t.Error("expected home /home/alice in Containerfile.base output")
+	}
+	if !strings.Contains(s, "mkdir -p /silo/shared") {
+		t.Error("expected shared volume mount path in Containerfile.base output")
 	}
 	if strings.Contains(s, "ARG USER") {
 		t.Error("Containerfile.base should not contain ARG USER")
@@ -90,8 +94,9 @@ func TestHomeEmptyNixConstant(t *testing.T) {
 
 func TestRenderDevcontainerJSON(t *testing.T) {
 	tc := TemplateContext{
-		Image:        "silo-abc12345",
-		User:         "alice",
+		Image:         "silo-abc12345",
+		User:          "alice",
+		ContainerName: "silo-abc12345",
 		ContainerArgs: []string{"--cap-drop=ALL"},
 	}
 	out, err := renderTemplate("devcontainer.json.tmpl", tc)
@@ -99,6 +104,9 @@ func TestRenderDevcontainerJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(out)
+	if !strings.Contains(s, `"name": "silo-abc12345-devcontainer"`) {
+		t.Error("expected name in devcontainer.json")
+	}
 	if !strings.Contains(s, `"image": "silo-abc12345"`) {
 		t.Error("expected image in devcontainer.json")
 	}

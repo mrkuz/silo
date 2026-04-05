@@ -83,9 +83,9 @@ func cmdStatus() error {
 	return nil
 }
 
-// cmdRemove implements `silo rm [--image]`.
+// cmdRemove implements `silo rm [--force] [--image]`.
 func cmdRemove(args []string) error {
-	removeImg, err := parseRemoveFlags(args)
+	flags, err := parseRemoveFlags(args)
 	if err != nil {
 		return err
 	}
@@ -95,6 +95,9 @@ func cmdRemove(args []string) error {
 	}
 	if containerExists(cfg.General.ContainerName) {
 		if containerRunning(cfg.General.ContainerName) {
+			if !flags.force {
+				return fmt.Errorf("container %s is running", cfg.General.ContainerName)
+			}
 			if err := stopContainer(cfg.General.ContainerName); err != nil {
 				return err
 			}
@@ -106,7 +109,7 @@ func cmdRemove(args []string) error {
 	} else {
 		fmt.Printf("No container %s found.\n", cfg.General.ContainerName)
 	}
-	if removeImg {
+	if flags.image {
 		if imageExists(cfg.General.ImageName) {
 			fmt.Printf("Removing image %s...\n", cfg.General.ImageName)
 			return removeImage(cfg.General.ImageName)
@@ -155,11 +158,11 @@ func cmdCreate(args []string) error {
 	}
 
 	if flags.dryRun {
-		containerArgs, err := buildContainerArgs(cfg)
+		podmanArgs, err := buildContainerArgs(cfg)
 		if err != nil {
 			return err
 		}
-		createArgs := append([]string{"create"}, containerArgs...)
+		createArgs := append([]string{"create"}, podmanArgs...)
 		createArgs = append(createArgs, extraArgs...)
 		createArgs = append(createArgs, cfg.General.ImageName)
 		printDryRun(createArgs)
@@ -225,14 +228,21 @@ func parseConnectFlags(args []string) (connectFlags, error) {
 	return connectFlags{stop: *stop, extra: fs.Args()}, nil
 }
 
-func parseRemoveFlags(args []string) (bool, error) {
+type removeFlags struct {
+	force bool
+	image bool
+}
+
+func parseRemoveFlags(args []string) (removeFlags, error) {
 	fs := flag.NewFlagSet("silo rm", flag.ContinueOnError)
-	removeImg := fs.Bool("image", false, "Also remove the workspace image")
+	force := fs.Bool("force", false, "Stop and remove a running container")
+	f := fs.Bool("f", false, "Alias for --force")
+	image := fs.Bool("image", false, "Also remove the workspace image")
 	fs.Usage = func() {} // suppress; handled by main helpText
 	if err := fs.Parse(args); err != nil {
-		return false, err
+		return removeFlags{}, err
 	}
-	return *removeImg, nil
+	return removeFlags{force: *force || *f, image: *image}, nil
 }
 
 type createFlags struct {
@@ -250,6 +260,7 @@ func parseCreateFlags(args []string) (createFlags, error) {
 	noWorkspace := fs.Bool("no-workspace", false, "Disable workspace volume mount")
 	noSharedVolume := fs.Bool("no-shared-volume", false, "Disable shared volume")
 	force := fs.Bool("force", false, "Remove and recreate the container if it already exists")
+	f := fs.Bool("f", false, "Alias for --force")
 	dryRun := fs.Bool("dry-run", false, "Print the podman create command without running it")
 	fs.Usage = func() {} // suppress; handled by main helpText
 	if err := fs.Parse(args); err != nil {
@@ -259,7 +270,7 @@ func parseCreateFlags(args []string) (createFlags, error) {
 		nested:         *nested,
 		noWorkspace:    *noWorkspace,
 		noSharedVolume: *noSharedVolume,
-		force:          *force,
+		force:          *force || *f,
 		dryRun:         *dryRun,
 		extra:          fs.Args(),
 	}, nil
@@ -272,9 +283,10 @@ type startFlags struct {
 func parseStartFlags(args []string) (startFlags, error) {
 	fs := flag.NewFlagSet("silo start", flag.ContinueOnError)
 	force := fs.Bool("force", false, "Restart the container if it is already running")
+	f := fs.Bool("f", false, "Alias for --force")
 	fs.Usage = func() {} // suppress; handled by main helpText
 	if err := fs.Parse(args); err != nil {
 		return startFlags{}, err
 	}
-	return startFlags{force: *force}, nil
+	return startFlags{force: *force || *f}, nil
 }

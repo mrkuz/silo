@@ -38,7 +38,7 @@ func printDryRun(args []string) {
 	fmt.Println("podman " + strings.Join(quoted, " "))
 }
 
-// connectContainer attaches to a running container via podman exec.
+// connectContainer opens an interactive session inside the running container via podman exec.
 // Extra args are inserted before the container name as podman exec flags.
 func connectContainer(name, command string, extra []string) error {
 	args := append([]string{"exec", "-ti"}, extra...)
@@ -58,7 +58,7 @@ func containerArgs(nested bool) []string {
 // buildContainerArgs constructs the podman container-specific arguments from cfg,
 // without any subcommand prefix. Callers prepend "run", "-d" or "create" as needed.
 func buildContainerArgs(cfg Config) ([]string, error) {
-	cwd, err := os.Getwd()
+	hostDir, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
@@ -72,17 +72,17 @@ func buildContainerArgs(cfg Config) ([]string, error) {
 	args = append(args, "--hostname", cfg.General.ContainerName)
 	args = append(args, "--user", cfg.General.User)
 
-	// Workspace mount
+	// Workspace mount (host dir → container path)
 	if cfg.Features.Workspace {
-		dirName := filepath.Base(cwd)
-		mountPath := fmt.Sprintf("/workspace/%s/%s", cfg.General.ID, dirName)
-		args = append(args, "--volume", fmt.Sprintf("%s:%s:Z", cwd, mountPath))
-		args = append(args, "--workdir", mountPath)
+		dirName := filepath.Base(hostDir)
+		containerDir := fmt.Sprintf("/workspace/%s/%s", cfg.General.ID, dirName)
+		args = append(args, "--volume", fmt.Sprintf("%s:%s:Z", hostDir, containerDir))
+		args = append(args, "--workdir", containerDir)
 	}
 
 	// Shared volume
 	if cfg.Features.SharedVolume {
-		args = append(args, "--volume", sharedVolume+":/silo/shared:Z")
+		args = append(args, "--volume", sharedVolumeName+":"+sharedVolumeMount+":Z")
 	}
 
 	return args, nil
@@ -105,13 +105,18 @@ func buildSharedVolumeEntries(paths []string) []sharedPathEntry {
 		dst := strings.TrimRight(raw, "/")
 		var src string
 		if strings.HasPrefix(dst, "$HOME") {
-			src = "/silo/shared${HOME}" + dst[len("$HOME"):]
+			src = sharedVolumeMount + "${HOME}" + dst[len("$HOME"):]
 		} else {
-			src = "/silo/shared" + dst
+			src = sharedVolumeMount + dst
 		}
 		entries = append(entries, sharedPathEntry{Src: src, Dst: dst, IsDir: isDir})
 	}
 	return entries
+}
+
+// hasSharedPaths reports whether the config enables the shared volume with at least one path.
+func hasSharedPaths(cfg Config) bool {
+	return cfg.Features.SharedVolume && len(cfg.SharedVolume.Paths) > 0
 }
 
 const setupScriptPath = "/silo/setup.sh"
@@ -119,7 +124,7 @@ const setupScriptPath = "/silo/setup.sh"
 // copySetupScript renders the setup script and copies it into the container at /silo/setup.sh.
 // The container must exist but does not need to be running.
 func copySetupScript(cfg Config) error {
-	if !cfg.Features.SharedVolume || len(cfg.SharedVolume.Paths) == 0 {
+	if !hasSharedPaths(cfg) {
 		return nil
 	}
 	tc := newTemplateContext(cfg)
@@ -128,18 +133,19 @@ func copySetupScript(cfg Config) error {
 		return fmt.Errorf("render setup script: %w", err)
 	}
 
-	dir, err := os.MkdirTemp("", "silo-setup-*")
+	hostTmpDir, err := os.MkdirTemp("", "silo-setup-*")
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(dir)
+	defer os.RemoveAll(hostTmpDir)
 
-	src := filepath.Join(dir, "setup.sh")
-	if err := os.WriteFile(src, script, 0755); err != nil {
+	hostPath := filepath.Join(hostTmpDir, "setup.sh")
+	if err := os.WriteFile(hostPath, script, 0755); err != nil {
 		return err
 	}
 
-	cmd := execCommand("podman", "cp", src, cfg.General.ContainerName+":"+setupScriptPath)
+	containerDst := cfg.General.ContainerName + ":" + setupScriptPath
+	cmd := execCommand("podman", "cp", hostPath, containerDst)
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("copy setup script: %w", err)
@@ -150,7 +156,7 @@ func copySetupScript(cfg Config) error {
 // setupContainer runs the setup script inside a running container.
 // The script itself handles the setup-done marker.
 func setupContainer(cfg Config) error {
-	if !cfg.Features.SharedVolume || len(cfg.SharedVolume.Paths) == 0 {
+	if !hasSharedPaths(cfg) {
 		return nil
 	}
 	cmd := execCommand("podman", "exec", cfg.General.ContainerName, "bash", setupScriptPath)
@@ -165,11 +171,11 @@ func setupContainer(cfg Config) error {
 // createContainer creates a new container. It does not start it.
 // Extra args are forwarded to podman create.
 func createContainer(cfg Config, extra []string) error {
-	containerArgs, err := buildContainerArgs(cfg)
+	podmanArgs, err := buildContainerArgs(cfg)
 	if err != nil {
 		return err
 	}
-	createArgs := append([]string{"create"}, containerArgs...)
+	createArgs := append([]string{"create"}, podmanArgs...)
 	createArgs = append(createArgs, extra...)
 	createArgs = append(createArgs, cfg.General.ImageName)
 
@@ -275,4 +281,3 @@ func runInteractive(name string, args ...string) error {
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
-

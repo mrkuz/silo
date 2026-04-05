@@ -51,14 +51,17 @@ func TestParseCreateFlags(t *testing.T) {
 		wantNested         bool
 		wantNoWS           bool
 		wantNoSharedVolume bool
+		wantForce          bool
 		wantErr            bool
 	}{
-		{[]string{}, false, false, false, false},
-		{[]string{"--nested"}, true, false, false, false},
-		{[]string{"--no-workspace"}, false, true, false, false},
-		{[]string{"--no-shared-volume"}, false, false, true, false},
-		{[]string{"--nested", "--no-shared-volume"}, true, false, true, false},
-		{[]string{"--unknown"}, false, false, false, true},
+		{[]string{}, false, false, false, false, false},
+		{[]string{"--nested"}, true, false, false, false, false},
+		{[]string{"--no-workspace"}, false, true, false, false, false},
+		{[]string{"--no-shared-volume"}, false, false, true, false, false},
+		{[]string{"--nested", "--no-shared-volume"}, true, false, true, false, false},
+		{[]string{"--force"}, false, false, false, true, false},
+		{[]string{"-f"}, false, false, false, true, false},
+		{[]string{"--unknown"}, false, false, false, false, true},
 	}
 	for _, tt := range tests {
 		f, err := parseCreateFlags(tt.args)
@@ -72,9 +75,9 @@ func TestParseCreateFlags(t *testing.T) {
 			t.Errorf("parseCreateFlags(%v): unexpected error: %v", tt.args, err)
 			continue
 		}
-		if f.nested != tt.wantNested || f.noWorkspace != tt.wantNoWS || f.noSharedVolume != tt.wantNoSharedVolume {
-			t.Errorf("parseCreateFlags(%v) flags = %+v, want nested=%v noWS=%v noSharedVolume=%v",
-				tt.args, f, tt.wantNested, tt.wantNoWS, tt.wantNoSharedVolume)
+		if f.nested != tt.wantNested || f.noWorkspace != tt.wantNoWS || f.noSharedVolume != tt.wantNoSharedVolume || f.force != tt.wantForce {
+			t.Errorf("parseCreateFlags(%v) flags = %+v, want nested=%v noWS=%v noSharedVolume=%v force=%v",
+				tt.args, f, tt.wantNested, tt.wantNoWS, tt.wantNoSharedVolume, tt.wantForce)
 		}
 	}
 }
@@ -87,6 +90,7 @@ func TestParseStartFlags(t *testing.T) {
 	}{
 		{[]string{}, false, false},
 		{[]string{"--force"}, true, false},
+		{[]string{"-f"}, true, false},
 		{[]string{"--unknown"}, false, true},
 	}
 	for _, tt := range tests {
@@ -109,13 +113,17 @@ func TestParseStartFlags(t *testing.T) {
 
 func TestParseRemoveFlags(t *testing.T) {
 	tests := []struct {
-		args          []string
-		wantRemoveImg bool
-		wantErr       bool
+		args      []string
+		wantForce bool
+		wantImage bool
+		wantErr   bool
 	}{
-		{[]string{}, false, false},
-		{[]string{"--image"}, true, false},
-		{[]string{"--unknown"}, false, true},
+		{[]string{}, false, false, false},
+		{[]string{"--image"}, false, true, false},
+		{[]string{"--force"}, true, false, false},
+		{[]string{"-f"}, true, false, false},
+		{[]string{"--force", "--image"}, true, true, false},
+		{[]string{"--unknown"}, false, false, true},
 	}
 	for _, tt := range tests {
 		got, err := parseRemoveFlags(tt.args)
@@ -129,8 +137,8 @@ func TestParseRemoveFlags(t *testing.T) {
 			t.Errorf("parseRemoveFlags(%v): unexpected error: %v", tt.args, err)
 			continue
 		}
-		if got != tt.wantRemoveImg {
-			t.Errorf("parseRemoveFlags(%v) = %v, want %v", tt.args, got, tt.wantRemoveImg)
+		if got.force != tt.wantForce || got.image != tt.wantImage {
+			t.Errorf("parseRemoveFlags(%v) = %+v, want force=%v image=%v", tt.args, got, tt.wantForce, tt.wantImage)
 		}
 	}
 }
@@ -192,7 +200,23 @@ func TestCmdStatus(t *testing.T) {
 }
 
 func TestCmdRemove(t *testing.T) {
-	t.Run("running container with --image: stops, removes container and image", func(t *testing.T) {
+	t.Run("running container without --force: returns error", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		mockExecCommand(t, map[string]*exec.Cmd{
+			"podman container exists silo-abc12345":                              exec.Command("true"),
+			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
+		})
+		err := cmdRemove([]string{})
+		if err == nil {
+			t.Fatal("expected error when container is running without --force")
+		}
+		if !strings.Contains(err.Error(), "is running") {
+			t.Errorf("expected error to mention container is running, got: %v", err)
+		}
+	})
+
+	t.Run("running container with --force --image: stops, removes container and image", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
@@ -200,7 +224,7 @@ func TestCmdRemove(t *testing.T) {
 			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
 			"podman image exists silo-abc12345":                                  exec.Command("true"),
 		})
-		if err := cmdRemove([]string{"--image"}); err != nil {
+		if err := cmdRemove([]string{"--force", "--image"}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if !anyCall(calls, "podman", "stop") {
@@ -211,6 +235,24 @@ func TestCmdRemove(t *testing.T) {
 		}
 		if !anyCall(calls, "podman", "rmi", "silo-abc12345") {
 			t.Errorf("expected podman rmi, got %v", *calls)
+		}
+	})
+
+	t.Run("running container with -f: stops and removes", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman container exists silo-abc12345":                              exec.Command("true"),
+			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
+		})
+		if err := cmdRemove([]string{"-f"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !anyCall(calls, "podman", "stop") {
+			t.Errorf("expected podman stop, got %v", *calls)
+		}
+		if !anyCall(calls, "podman", "rm", "-f", "silo-abc12345") {
+			t.Errorf("expected podman rm -f, got %v", *calls)
 		}
 	})
 

@@ -31,12 +31,14 @@ var templateFuncs = template.FuncMap{
 
 // TemplateContext is the unified data object passed to every template.
 type TemplateContext struct {
-	Config           Config
-	User             string
-	Home             string
-	Image            string
-	BaseImage        string
-	System           string
+	User              string
+	Home              string
+	Image             string
+	BaseImage         string
+	ContainerName     string
+	SharedVolumeName  string
+	SharedVolumeMount string
+	System            string
 	ContainerArgs     []string
 	SharedPathEntries []sharedPathEntry
 }
@@ -45,19 +47,19 @@ type TemplateContext struct {
 func newTemplateContext(cfg Config) TemplateContext {
 	home := "/home/" + cfg.General.User
 	var entries []sharedPathEntry
-	if cfg.Features.SharedVolume && len(cfg.SharedVolume.Paths) > 0 {
+	if hasSharedPaths(cfg) {
 		entries = buildSharedVolumeEntries(cfg.SharedVolume.Paths)
-	} else {
-		entries = []sharedPathEntry{}
 	}
 	return TemplateContext{
-		Config:            cfg,
 		User:              cfg.General.User,
 		Home:              home,
 		Image:             cfg.General.ImageName,
 		BaseImage:         baseImageName(cfg.General.User),
+		ContainerName:     cfg.General.ContainerName,
+		SharedVolumeName:  sharedVolumeName,
+		SharedVolumeMount: sharedVolumeMount,
 		System:            detectNixSystem(),
-		ContainerArgs:      append(containerArgs(cfg.Features.Nested), "--hostname", cfg.General.ContainerName),
+		ContainerArgs:     append(containerArgs(cfg.Features.Nested), "--hostname", cfg.General.ContainerName),
 		SharedPathEntries: entries,
 	}
 }

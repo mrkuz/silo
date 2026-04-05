@@ -17,6 +17,7 @@ Refactor the codebase. Target: $ARGUMENTS (or the full codebase if not specified
 - Identify other potential improvements that fit the task and present them as an "Optional" section with a bullet list
 - Omit the "Optional" section if there are no suggestions
 - Optional items require explicit opt-in before applying
+- Create a task list and use it to track progress
 
 ## Skill-specific rules
 

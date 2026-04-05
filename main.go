@@ -10,14 +10,14 @@ const helpText = `silo - developer sandbox container
 Usage:
   silo [--stop] [-- args...]
   silo init
-  silo build [--base] [--force]
-  silo create [--nested] [--no-workspace] [--no-shared-volume] [--force] [--dry-run] [-- args...]
-  silo start [--force]
+  silo build [--base] [-f|--force]
+  silo create [--nested] [--no-workspace] [--no-shared-volume] [-f|--force] [--dry-run] [-- args...]
+  silo start [-f|--force]
   silo setup
   silo connect [--stop] [-- args...]
   silo exec <cmd> [args...]
   silo stop
-  silo rm [--image]
+  silo rm [-f|--force] [--image]
   silo status
   silo devcontainer
   silo help
@@ -42,22 +42,23 @@ Connect flags:
   -- ...   Pass remaining arguments to podman exec
 
 Build flags:
-  --base   Build the base and workspace image
-  --force  Remove and rebuild the image if it already exists
+  --base       Build the base and workspace image
+  -f, --force  Remove and rebuild the image if it already exists
 
 Create flags:
   --nested            Enable nested Podman containers
   --no-workspace      Disable workspace volume mount
   --no-shared-volume  Disable shared volume mount
-  --force             Remove and recreate the container if it already exists
+  -f, --force         Remove and recreate the container if it already exists
   --dry-run           Print the podman command without running it
   -- ...              Pass remaining arguments to podman
 
 Start flags:
-  --force  Restart the container if it is already running
+  -f, --force  Restart the container if it is already running
 
 Remove flags:
-  --image  Also remove the workspace image`
+  -f, --force  Stop the container if it is running before removing
+  --image      Also remove the workspace image`
 
 var commands = map[string]func([]string) error{
 	"init":         withoutArgs(cmdInit),

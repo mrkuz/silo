@@ -19,12 +19,15 @@
     }
   },
   "image": "silo-xqmrs9xj",
+  "name": "silo-xqmrs9xj-devcontainer",
   "overrideCommand": true,
   "remoteUser": "markus",
   "runArgs": [
     "--cap-drop=ALL",
     "--cap-add=NET_BIND_SERVICE",
     "--security-opt",
-    "no-new-privileges"
+    "no-new-privileges",
+    "--hostname",
+    "silo-xqmrs9xj"
   ]
 }

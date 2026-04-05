@@ -165,9 +165,10 @@ func parseBuildFlags(args []string) (buildFlags, error) {
 	fs := flag.NewFlagSet("silo build", flag.ContinueOnError)
 	base := fs.Bool("base", false, "Build the base and workspace image")
 	force := fs.Bool("force", false, "Remove and rebuild the image if it already exists")
+	f := fs.Bool("f", false, "Alias for --force")
 	fs.Usage = func() {} // suppress; handled by main helpText
 	if err := fs.Parse(args); err != nil {
 		return buildFlags{}, err
 	}
-	return buildFlags{base: *base, force: *force}, nil
+	return buildFlags{base: *base, force: *force || *f}, nil
 }

@@ -30,8 +30,8 @@ RUN addgroup -g 30000 -S nixbld && \
 
 # Shared volume directory
 
-RUN mkdir -p /silo/shared && \
-  chown {{.User}}:{{.User}} /silo /silo/shared
+RUN mkdir -p {{.SharedVolumeMount}} && \
+  chown {{.User}}:{{.User}} /silo {{.SharedVolumeMount}}
 
 # Nix configuration
 

@@ -39,6 +39,7 @@ func TestParseBuildFlags(t *testing.T) {
 		{[]string{"--base"}, true, false, false},
 		{[]string{"--force"}, false, true, false},
 		{[]string{"--base", "--force"}, true, true, false},
+		{[]string{"-f"}, false, true, false},
 		{[]string{"--unknown"}, false, false, true},
 	}
 	for _, tt := range tests {

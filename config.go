@@ -13,7 +13,8 @@ import (
 
 const siloDir = ".silo"
 const siloToml = ".silo/silo.toml"
-const sharedVolume = "silo-shared"
+const sharedVolumeName = "silo-shared"
+const sharedVolumeMount = "/silo/shared"
 
 // Config holds all persisted silo workspace configuration.
 type Config struct {
