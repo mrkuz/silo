@@ -7,18 +7,39 @@ import (
 )
 
 func TestSecurityArgsNested(t *testing.T) {
-	args := containerArgs(true)
-	if !strings.Contains(strings.Join(args, " "), "label=disable") {
+	cfg := Config{
+		General:  GeneralConfig{ContainerName: "silo-abc12345"},
+		Features: FeaturesConfig{Nested: true},
+	}
+	args := containerArgs(cfg)
+	joined := strings.Join(args, " ")
+	if !strings.Contains(joined, "--name silo-abc12345") {
+		t.Errorf("expected --name silo-abc12345 in args: %v", args)
+	}
+	if !strings.Contains(joined, "--hostname silo-abc12345") {
+		t.Errorf("expected --hostname silo-abc12345 in args: %v", args)
+	}
+	if !strings.Contains(joined, "label=disable") {
 		t.Errorf("nested mode should include label=disable, got %v", args)
 	}
-	if !strings.Contains(strings.Join(args, " "), "/dev/fuse") {
+	if !strings.Contains(joined, "/dev/fuse") {
 		t.Errorf("nested mode should include /dev/fuse, got %v", args)
 	}
 }
 
 func TestSecurityArgsNonNested(t *testing.T) {
-	args := containerArgs(false)
+	cfg := Config{
+		General:  GeneralConfig{ContainerName: "silo-abc12345"},
+		Features: FeaturesConfig{Nested: false},
+	}
+	args := containerArgs(cfg)
 	joined := strings.Join(args, " ")
+	if !strings.Contains(joined, "--name silo-abc12345") {
+		t.Errorf("expected --name silo-abc12345 in args: %v", args)
+	}
+	if !strings.Contains(joined, "--hostname silo-abc12345") {
+		t.Errorf("expected --hostname silo-abc12345 in args: %v", args)
+	}
 	if !strings.Contains(joined, "--cap-drop=ALL") {
 		t.Errorf("non-nested mode should include --cap-drop=ALL, got %v", args)
 	}
@@ -27,6 +48,21 @@ func TestSecurityArgsNonNested(t *testing.T) {
 	}
 	if strings.Contains(joined, "label=disable") {
 		t.Errorf("non-nested mode should not include label=disable, got %v", args)
+	}
+}
+
+func TestContainerArgsNameSuffix(t *testing.T) {
+	cfg := Config{
+		General:  GeneralConfig{ContainerName: "silo-abc12345"},
+		Features: FeaturesConfig{Nested: false},
+	}
+	args := containerArgs(cfg, "-dev")
+	joined := strings.Join(args, " ")
+	if !strings.Contains(joined, "--name silo-abc12345-dev") {
+		t.Errorf("expected --name with suffix in args: %v", args)
+	}
+	if !strings.Contains(joined, "--hostname silo-abc12345-dev") {
+		t.Errorf("expected --hostname with suffix in args: %v", args)
 	}
 }
 
@@ -237,9 +273,9 @@ func TestEnsureChain(t *testing.T) {
 		setupWorkspace(t, cfg)
 		setupGlobalConfig(t)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
-			"podman image exists silo-testuser":                                exec.Command("true"),
-			"podman image exists silo-abc12345":                                exec.Command("true"),
-			"podman container exists silo-abc12345":                              exec.Command("false"),
+			"podman image exists silo-testuser":     exec.Command("true"),
+			"podman image exists silo-abc12345":     exec.Command("true"),
+			"podman container exists silo-abc12345": exec.Command("false"),
 		})
 		_, err := ensureSetup()
 		if err != nil {
@@ -267,7 +303,7 @@ func TestEnsureChain(t *testing.T) {
 			"podman image exists silo-abc12345":                                  exec.Command("true"),
 			"podman container exists silo-abc12345":                              exec.Command("true"),
 			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
-			"podman exec silo-abc12345 test -f /silo/.setup-done":               exec.Command("false"),
+			"podman exec silo-abc12345 test -f /silo/.setup-done":                exec.Command("false"),
 		})
 		_, err := ensureSetup()
 		if err != nil {

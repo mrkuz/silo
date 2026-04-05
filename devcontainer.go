@@ -14,7 +14,7 @@ func cmdDevcontainer() error {
 		return err
 	}
 
-	tc := newTemplateContext(cfg)
+	tc := newTemplateContext(cfg, "-dev")
 	content, err := renderTemplate("devcontainer.json.tmpl", tc)
 	if err != nil {
 		return err

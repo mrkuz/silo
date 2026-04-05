@@ -276,7 +276,7 @@ Each image build generates a Nix flake in a temporary directory on the host and 
 
 ### VS Code devcontainer
 
-`silo devcontainer` generates a `.devcontainer.json` on the host, pointing at the workspace image. The generated name is `<container-name>-devcontainer`. The global `$XDG_CONFIG_HOME/silo/devcontainer.json` is merged with the generated file — objects merge recursively, arrays concatenate.
+`silo devcontainer` generates a `.devcontainer.json` on the host, pointing at the workspace image. The generated name is `<container-name>-dev`. The global `$XDG_CONFIG_HOME/silo/devcontainer.json` is merged with the generated file — objects merge recursively, arrays concatenate.
 
 **Important**
 

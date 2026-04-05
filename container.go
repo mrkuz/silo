@@ -47,12 +47,24 @@ func connectContainer(name, command string, extra []string) error {
 	return runInteractive("podman", args...)
 }
 
-// containerArgs returns the podman security-related flags for the given nesting mode.
-func containerArgs(nested bool) []string {
-	if nested {
-		return []string{"--security-opt", "label=disable", "--device", "/dev/fuse"}
+// containerNameWithSuffix appends at most one optional suffix to baseName.
+func containerNameWithSuffix(baseName string, suffix ...string) string {
+	if len(suffix) > 0 {
+		return baseName + suffix[0]
 	}
-	return []string{"--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"}
+	return baseName
+}
+
+// containerArgs returns common podman container flags for name/hostname and security options.
+// containerNameSuffix is appended to cfg.General.ContainerName; default is "".
+func containerArgs(cfg Config, containerNameSuffix ...string) []string {
+	containerName := containerNameWithSuffix(cfg.General.ContainerName, containerNameSuffix...)
+
+	args := []string{"--name", containerName, "--hostname", containerName}
+	if cfg.Features.Nested {
+		return append(args, "--security-opt", "label=disable", "--device", "/dev/fuse")
+	}
+	return append(args, "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges")
 }
 
 // buildContainerArgs constructs the podman container-specific arguments from cfg,
@@ -65,11 +77,7 @@ func buildContainerArgs(cfg Config) ([]string, error) {
 
 	var args []string
 
-	// Security options
-	args = append(args, containerArgs(cfg.Features.Nested)...)
-
-	args = append(args, "--name", cfg.General.ContainerName)
-	args = append(args, "--hostname", cfg.General.ContainerName)
+	args = append(args, containerArgs(cfg)...)
 	args = append(args, "--user", cfg.General.User)
 
 	// Workspace mount (host dir → container path)

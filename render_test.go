@@ -96,7 +96,7 @@ func TestRenderDevcontainerJSON(t *testing.T) {
 	tc := TemplateContext{
 		Image:         "silo-abc12345",
 		User:          "alice",
-		ContainerName: "silo-abc12345",
+		ContainerName: "silo-abc12345-dev",
 		ContainerArgs: []string{"--cap-drop=ALL"},
 	}
 	out, err := renderTemplate("devcontainer.json.tmpl", tc)
@@ -104,7 +104,7 @@ func TestRenderDevcontainerJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(out)
-	if !strings.Contains(s, `"name": "silo-abc12345-devcontainer"`) {
+	if !strings.Contains(s, `"name": "silo-abc12345-dev"`) {
 		t.Error("expected name in devcontainer.json")
 	}
 	if !strings.Contains(s, `"image": "silo-abc12345"`) {
@@ -115,6 +115,44 @@ func TestRenderDevcontainerJSON(t *testing.T) {
 	}
 	if !strings.Contains(s, `"--cap-drop=ALL"`) {
 		t.Error("expected runArgs in devcontainer.json")
+	}
+}
+
+func TestNewTemplateContextDefaultSuffix(t *testing.T) {
+	cfg := Config{
+		General: GeneralConfig{
+			User:          "alice",
+			ContainerName: "silo-abc12345",
+			ImageName:     "silo-abc12345",
+		},
+		Features: FeaturesConfig{Nested: false},
+	}
+	tc := newTemplateContext(cfg)
+	if tc.ContainerName != "silo-abc12345" {
+		t.Fatalf("expected default container name, got %q", tc.ContainerName)
+	}
+	joined := strings.Join(tc.ContainerArgs, " ")
+	if !strings.Contains(joined, "--name silo-abc12345") {
+		t.Fatalf("expected --name with default container name, got %v", tc.ContainerArgs)
+	}
+}
+
+func TestNewTemplateContextWithSuffix(t *testing.T) {
+	cfg := Config{
+		General: GeneralConfig{
+			User:          "alice",
+			ContainerName: "silo-abc12345",
+			ImageName:     "silo-abc12345",
+		},
+		Features: FeaturesConfig{Nested: false},
+	}
+	tc := newTemplateContext(cfg, "-dev")
+	if tc.ContainerName != "silo-abc12345-dev" {
+		t.Fatalf("expected suffixed container name, got %q", tc.ContainerName)
+	}
+	joined := strings.Join(tc.ContainerArgs, " ")
+	if !strings.Contains(joined, "--name silo-abc12345-dev") {
+		t.Fatalf("expected --name with suffixed container name, got %v", tc.ContainerArgs)
 	}
 }
 

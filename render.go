@@ -44,7 +44,10 @@ type TemplateContext struct {
 }
 
 // newTemplateContext builds a TemplateContext from the given Config.
-func newTemplateContext(cfg Config) TemplateContext {
+// containerNameSuffix is appended to cfg.General.ContainerName; default is "".
+func newTemplateContext(cfg Config, containerNameSuffix ...string) TemplateContext {
+	containerName := containerNameWithSuffix(cfg.General.ContainerName, containerNameSuffix...)
+
 	home := "/home/" + cfg.General.User
 	var entries []sharedPathEntry
 	if hasSharedPaths(cfg) {
@@ -55,11 +58,11 @@ func newTemplateContext(cfg Config) TemplateContext {
 		Home:              home,
 		Image:             cfg.General.ImageName,
 		BaseImage:         baseImageName(cfg.General.User),
-		ContainerName:     cfg.General.ContainerName,
+		ContainerName:     containerName,
 		SharedVolumeName:  sharedVolumeName,
 		SharedVolumeMount: sharedVolumeMount,
 		System:            detectNixSystem(),
-		ContainerArgs:     append(containerArgs(cfg.Features.Nested), "--hostname", cfg.General.ContainerName),
+		ContainerArgs:     containerArgs(cfg, containerNameSuffix...),
 		SharedPathEntries: entries,
 	}
 }
