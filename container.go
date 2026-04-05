@@ -47,8 +47,8 @@ func connectContainer(name, command string, extra []string) error {
 	return runInteractive("podman", args...)
 }
 
-// securityArgs returns the podman security-related flags for the given nesting mode.
-func securityArgs(nested bool) []string {
+// containerArgs returns the podman security-related flags for the given nesting mode.
+func containerArgs(nested bool) []string {
 	if nested {
 		return []string{"--security-opt", "label=disable", "--device", "/dev/fuse"}
 	}
@@ -66,7 +66,7 @@ func buildContainerArgs(cfg Config) ([]string, error) {
 	var args []string
 
 	// Security options
-	args = append(args, securityArgs(cfg.Features.Nested)...)
+	args = append(args, containerArgs(cfg.Features.Nested)...)
 
 	args = append(args, "--name", cfg.General.ContainerName)
 	args = append(args, "--hostname", cfg.General.ContainerName)
@@ -88,8 +88,8 @@ func buildContainerArgs(cfg Config) ([]string, error) {
 	return args, nil
 }
 
-// sharedVolumeEntry holds pre-computed source and destination paths for a shared volume symlink.
-type sharedVolumeEntry struct {
+// sharedPathEntry holds pre-computed source and destination paths for a shared volume symlink.
+type sharedPathEntry struct {
 	Src   string
 	Dst   string
 	IsDir bool
@@ -98,8 +98,8 @@ type sharedVolumeEntry struct {
 // buildSharedVolumeEntries converts raw path strings into pre-computed entries.
 // Paths ending in '/' are directories; others are files.
 // $HOME prefixes are expanded to ${HOME} for shell runtime expansion.
-func buildSharedVolumeEntries(paths []string) []sharedVolumeEntry {
-	entries := make([]sharedVolumeEntry, 0, len(paths))
+func buildSharedVolumeEntries(paths []string) []sharedPathEntry {
+	entries := make([]sharedPathEntry, 0, len(paths))
 	for _, raw := range paths {
 		isDir := len(raw) > 0 && raw[len(raw)-1] == '/'
 		dst := strings.TrimRight(raw, "/")
@@ -109,18 +109,21 @@ func buildSharedVolumeEntries(paths []string) []sharedVolumeEntry {
 		} else {
 			src = "/silo/shared" + dst
 		}
-		entries = append(entries, sharedVolumeEntry{Src: src, Dst: dst, IsDir: isDir})
+		entries = append(entries, sharedPathEntry{Src: src, Dst: dst, IsDir: isDir})
 	}
 	return entries
 }
 
 const setupScriptPath = "/silo/setup.sh"
 
-// copySetupScript renders the setup script and copies it into the container at /silo/startup.sh.
+// copySetupScript renders the setup script and copies it into the container at /silo/setup.sh.
 // The container must exist but does not need to be running.
 func copySetupScript(cfg Config) error {
-	entries := buildSharedVolumeEntries(cfg.SharedVolume.Paths)
-	script, err := renderTemplate("setup.sh.tmpl", struct{ SharedVolumeEntries []sharedVolumeEntry }{entries})
+	if !cfg.Features.SharedVolume || len(cfg.SharedVolume.Paths) == 0 {
+		return nil
+	}
+	tc := newTemplateContext(cfg)
+	script, err := renderTemplate("setup.sh.tmpl", tc)
 	if err != nil {
 		return fmt.Errorf("render setup script: %w", err)
 	}
@@ -131,7 +134,7 @@ func copySetupScript(cfg Config) error {
 	}
 	defer os.RemoveAll(dir)
 
-	src := filepath.Join(dir, "startup.sh")
+	src := filepath.Join(dir, "setup.sh")
 	if err := os.WriteFile(src, script, 0755); err != nil {
 		return err
 	}

@@ -28,21 +28,12 @@ func detectNixSystem() string {
 }
 
 // buildBaseImage builds the base image (silo-USER) using the user's home.nix.
-func buildBaseImage(tag, username string) error {
-	home := "/home/" + username
-	nixSystem := detectNixSystem()
-
-	containerfile, err := renderTemplate("Containerfile.base.tmpl", struct {
-		User string
-		Home string
-	}{username, home})
+func buildBaseImage(tag string, tc TemplateContext) error {
+	containerfile, err := renderTemplate("Containerfile.base.tmpl", tc)
 	if err != nil {
 		return err
 	}
-	flakeNix, err := renderTemplate("flake.nix.tmpl", struct {
-		User   string
-		System string
-	}{username, nixSystem})
+	flakeNix, err := renderTemplate("flake.nix.tmpl", tc)
 	if err != nil {
 		return err
 	}
@@ -67,13 +58,8 @@ func buildBaseImage(tag, username string) error {
 
 // buildWorkspaceImage builds the workspace image (tag) on top of baseImage,
 // using .silo/home.nix as the workspace overlay if present, otherwise an empty module.
-func buildWorkspaceImage(tag, baseImage, username string) error {
-	home := "/home/" + username
-	containerfile, err := renderTemplate("Containerfile.workspace.tmpl", struct {
-		BaseImage string
-		User      string
-		Home      string
-	}{baseImage, username, home})
+func buildWorkspaceImage(tag string, tc TemplateContext) error {
+	containerfile, err := renderTemplate("Containerfile.workspace.tmpl", tc)
 	if err != nil {
 		return err
 	}
@@ -133,7 +119,8 @@ func cmdBuild(args []string) error {
 		return err
 	}
 
-	baseTag := baseImageName(cfg.General.User)
+	tc := newTemplateContext(cfg)
+	baseTag := tc.BaseImage
 	wsTag := cfg.General.ImageName
 
 	if flags.base {
@@ -146,7 +133,7 @@ func cmdBuild(args []string) error {
 			return nil
 		}
 		fmt.Printf("Building base image %s...\n", baseTag)
-		if err := buildBaseImage(baseTag, cfg.General.User); err != nil {
+		if err := buildBaseImage(baseTag, tc); err != nil {
 			return err
 		}
 		// Also rebuild the workspace image on top of the new base.
@@ -154,7 +141,7 @@ func cmdBuild(args []string) error {
 			return err
 		}
 		fmt.Printf("Building workspace image %s...\n", wsTag)
-		return buildWorkspaceImage(wsTag, baseTag, cfg.General.User)
+		return buildWorkspaceImage(wsTag, tc)
 	}
 
 	proceed, err := ensureImageRemoved(wsTag, flags.force)
@@ -166,7 +153,7 @@ func cmdBuild(args []string) error {
 		return nil
 	}
 	fmt.Printf("Building workspace image %s...\n", wsTag)
-	return buildWorkspaceImage(wsTag, baseTag, cfg.General.User)
+	return buildWorkspaceImage(wsTag, tc)
 }
 
 type buildFlags struct {

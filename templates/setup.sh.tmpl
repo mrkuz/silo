@@ -4,7 +4,7 @@ set -eu
 if [ -f /silo/.setup-done ]; then
   exit 0
 fi
-{{- range .SharedVolumeEntries}}
+{{- range .SharedPathEntries}}
 {{- if .IsDir}}
 src="{{.Src}}"
 dst="{{.Dst}}"

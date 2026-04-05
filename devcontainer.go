@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 // cmdDevcontainer implements `silo devcontainer`.
@@ -15,17 +14,8 @@ func cmdDevcontainer() error {
 		return err
 	}
 
-	runArgs := securityArgs(cfg.Features.Nested)
-
-	content, err := renderTemplate("devcontainer.json.tmpl", struct {
-		Image   string
-		User    string
-		RunArgs string
-	}{
-		Image:   cfg.General.ImageName,
-		User:    cfg.General.User,
-		RunArgs: jsonStringArray(runArgs),
-	})
+	tc := newTemplateContext(cfg)
+	content, err := renderTemplate("devcontainer.json.tmpl", tc)
 	if err != nil {
 		return err
 	}
@@ -57,19 +47,6 @@ func cmdDevcontainer() error {
 	}
 	fmt.Printf("Generated %s.\n", devcontainerFile)
 	return nil
-}
-
-// jsonStringArray formats a []string as a JSON array literal.
-func jsonStringArray(arr []string) string {
-	if len(arr) == 0 {
-		return "[]"
-	}
-	parts := make([]string, len(arr))
-	for i, s := range arr {
-		b, _ := json.Marshal(s)
-		parts[i] = string(b)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
 }
 
 // loadGlobalDevcontainerJSON reads $XDG_CONFIG_HOME/silo/devcontainer.json.

@@ -7,7 +7,7 @@ import (
 )
 
 func TestSecurityArgsNested(t *testing.T) {
-	args := securityArgs(true)
+	args := containerArgs(true)
 	if !strings.Contains(strings.Join(args, " "), "label=disable") {
 		t.Errorf("nested mode should include label=disable, got %v", args)
 	}
@@ -17,7 +17,7 @@ func TestSecurityArgsNested(t *testing.T) {
 }
 
 func TestSecurityArgsNonNested(t *testing.T) {
-	args := securityArgs(false)
+	args := containerArgs(false)
 	joined := strings.Join(args, " ")
 	if !strings.Contains(joined, "--cap-drop=ALL") {
 		t.Errorf("non-nested mode should include --cap-drop=ALL, got %v", args)

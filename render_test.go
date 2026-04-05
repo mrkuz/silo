@@ -89,11 +89,12 @@ func TestHomeEmptyNixConstant(t *testing.T) {
 }
 
 func TestRenderDevcontainerJSON(t *testing.T) {
-	out, err := renderTemplate("devcontainer.json.tmpl", struct {
-		Image   string
-		User    string
-		RunArgs string
-	}{"silo-abc12345", "alice", `["--cap-drop=ALL"]`})
+	tc := TemplateContext{
+		Image:        "silo-abc12345",
+		User:         "alice",
+		ContainerArgs: []string{"--cap-drop=ALL"},
+	}
+	out, err := renderTemplate("devcontainer.json.tmpl", tc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +105,7 @@ func TestRenderDevcontainerJSON(t *testing.T) {
 	if !strings.Contains(s, `"remoteUser": "alice"`) {
 		t.Error("expected remoteUser in devcontainer.json")
 	}
-	if !strings.Contains(s, `["--cap-drop=ALL"]`) {
+	if !strings.Contains(s, `"--cap-drop=ALL"`) {
 		t.Error("expected runArgs in devcontainer.json")
 	}
 }
@@ -116,21 +117,25 @@ func TestDetectNixSystem(t *testing.T) {
 	}
 }
 
-func TestJSONStringArray(t *testing.T) {
+func TestJSONTemplateFunc(t *testing.T) {
+	fn := templateFuncs["json"].(func(any) (string, error))
 	tests := []struct {
-		input []string
+		input any
 		want  string
 	}{
-		{nil, "[]"},
+		{[]string(nil), "null"},
 		{[]string{}, "[]"},
 		{[]string{"--cap-drop=ALL"}, `["--cap-drop=ALL"]`},
-		{[]string{"a", "b"}, `["a", "b"]`},
+		{[]string{"a", "b"}, `["a","b"]`},
 		{[]string{`quo"te`}, `["quo\"te"]`},
 	}
 	for _, tt := range tests {
-		got := jsonStringArray(tt.input)
+		got, err := fn(tt.input)
+		if err != nil {
+			t.Fatalf("unexpected error for %v: %v", tt.input, err)
+		}
 		if got != tt.want {
-			t.Errorf("jsonStringArray(%v) = %q, want %q", tt.input, got, tt.want)
+			t.Errorf("json(%v) = %q, want %q", tt.input, got, tt.want)
 		}
 	}
 }

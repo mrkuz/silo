@@ -260,16 +260,17 @@ func ensureScaffoldFiles() error {
 
 // ensureImages builds the base and workspace images if they don't yet exist.
 func ensureImages(cfg Config) error {
-	base := baseImageName(cfg.General.User)
+	tc := newTemplateContext(cfg)
+	base := tc.BaseImage
 	if !imageExists(base) {
 		fmt.Printf("Building base image %s...\n", base)
-		if err := buildBaseImage(base, cfg.General.User); err != nil {
+		if err := buildBaseImage(base, tc); err != nil {
 			return fmt.Errorf("build base image: %w", err)
 		}
 	}
 	if !imageExists(cfg.General.ImageName) {
 		fmt.Printf("Building workspace image %s...\n", cfg.General.ImageName)
-		if err := buildWorkspaceImage(cfg.General.ImageName, base, cfg.General.User); err != nil {
+		if err := buildWorkspaceImage(cfg.General.ImageName, tc); err != nil {
 			return fmt.Errorf("build workspace image: %w", err)
 		}
 	}

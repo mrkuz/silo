@@ -138,7 +138,7 @@ func TestTOMLEmptyExtraArgs(t *testing.T) {
 
 func renderSetupScript(paths []string) (string, error) {
 	entries := buildSharedVolumeEntries(paths)
-	got, err := renderTemplate("setup.sh.tmpl", struct{ SharedVolumeEntries []sharedVolumeEntry }{entries})
+	got, err := renderTemplate("setup.sh.tmpl", TemplateContext{SharedPathEntries: entries})
 	if err != nil {
 		return "", err
 	}
