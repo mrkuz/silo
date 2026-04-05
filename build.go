@@ -63,6 +63,10 @@ func buildWorkspaceImage(tag string, tc TemplateContext) error {
 	if err != nil {
 		return err
 	}
+	setupScript, err := renderTemplate("setup.sh.tmpl", tc)
+	if err != nil {
+		return err
+	}
 
 	homeWorkspaceNix, err := os.ReadFile(filepath.Join(siloDir, "home.nix"))
 	if err != nil {
@@ -72,6 +76,7 @@ func buildWorkspaceImage(tag string, tc TemplateContext) error {
 	files := map[string][]byte{
 		"Containerfile":      containerfile,
 		"home-workspace.nix": homeWorkspaceNix,
+		"setup.sh":           setupScript,
 	}
 	return runBuild(tag, files)
 }

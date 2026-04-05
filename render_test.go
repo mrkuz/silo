@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -50,6 +51,15 @@ func TestRenderContainerfileWorkspace(t *testing.T) {
 	s := string(out)
 	if !strings.Contains(s, "FROM silo-alice") {
 		t.Errorf("expected FROM silo-alice in Containerfile.workspace output:\n%s", s)
+	}
+	if !strings.Contains(s, "setup.sh /silo/setup.sh") {
+		t.Errorf("expected setup.sh install in Containerfile.workspace output:\n%s", s)
+	}
+	if !strings.Contains(s, "--chmod=0755 setup.sh /silo/setup.sh") {
+		t.Errorf("expected setup.sh install with chmod flag in Containerfile.workspace output:\n%s", s)
+	}
+	if strings.Contains(s, "chmod 0755 /silo/setup.sh") {
+		t.Errorf("did not expect separate chmod step in Containerfile.workspace output:\n%s", s)
 	}
 	if strings.Contains(s, "ARG USER") {
 		t.Error("Containerfile.workspace should not contain ARG USER")
@@ -116,6 +126,49 @@ func TestRenderDevcontainerJSON(t *testing.T) {
 	if !strings.Contains(s, `"--cap-drop=ALL"`) {
 		t.Error("expected runArgs in devcontainer.json")
 	}
+	if strings.Contains(s, `"mounts"`) {
+		t.Error("did not expect mounts in devcontainer.json when shared volume is unset")
+	}
+	if strings.Contains(s, `"postStartCommand"`) {
+		t.Error("did not expect postStartCommand in devcontainer.json when shared volume is unset")
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(out, &parsed); err != nil {
+		t.Fatalf("expected valid json, got error: %v\n%s", err, s)
+	}
+	if _, ok := parsed["mounts"]; ok {
+		t.Error("did not expect mounts key in parsed devcontainer.json")
+	}
+}
+
+func TestRenderDevcontainerJSONWithSharedVolume(t *testing.T) {
+	tc := TemplateContext{
+		Image:             "silo-abc12345",
+		User:              "alice",
+		ContainerName:     "silo-abc12345-dev",
+		ContainerArgs:     []string{"--cap-drop=ALL"},
+		SharedVolumeName:  "silo-shared",
+		SharedVolumeMount: "/silo/shared",
+		SetupScript:       "/silo/setup.sh",
+	}
+	out, err := renderTemplate("devcontainer.json.tmpl", tc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(out)
+	if !strings.Contains(s, `"mounts": ["source=silo-shared,target=/silo/shared,type=volume,Z"]`) {
+		t.Error("expected mounts in devcontainer.json")
+	}
+	if !strings.Contains(s, `"postStartCommand": "bash /silo/setup.sh"`) {
+		t.Error("expected postStartCommand in devcontainer.json")
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(out, &parsed); err != nil {
+		t.Fatalf("expected valid json, got error: %v\n%s", err, s)
+	}
+	if _, ok := parsed["mounts"]; !ok {
+		t.Error("expected mounts key in parsed devcontainer.json")
+	}
 }
 
 func TestNewTemplateContextDefaultSuffix(t *testing.T) {
@@ -125,11 +178,17 @@ func TestNewTemplateContextDefaultSuffix(t *testing.T) {
 			ContainerName: "silo-abc12345",
 			ImageName:     "silo-abc12345",
 		},
-		Features: FeaturesConfig{Nested: false},
+		Features: FeaturesConfig{Nested: false, SharedVolume: true},
 	}
 	tc := newTemplateContext(cfg)
 	if tc.ContainerName != "silo-abc12345" {
 		t.Fatalf("expected default container name, got %q", tc.ContainerName)
+	}
+	if tc.SetupScript != setupScriptPath {
+		t.Fatalf("expected setup script path %q, got %q", setupScriptPath, tc.SetupScript)
+	}
+	if tc.SharedVolumeName == "" {
+		t.Fatal("expected shared volume name to be set when feature is enabled")
 	}
 	joined := strings.Join(tc.ContainerArgs, " ")
 	if !strings.Contains(joined, "--name silo-abc12345") {
@@ -153,6 +212,21 @@ func TestNewTemplateContextWithSuffix(t *testing.T) {
 	joined := strings.Join(tc.ContainerArgs, " ")
 	if !strings.Contains(joined, "--name silo-abc12345-dev") {
 		t.Fatalf("expected --name with suffixed container name, got %v", tc.ContainerArgs)
+	}
+}
+
+func TestNewTemplateContextWithoutSharedVolume(t *testing.T) {
+	cfg := Config{
+		General: GeneralConfig{
+			User:          "alice",
+			ContainerName: "silo-abc12345",
+			ImageName:     "silo-abc12345",
+		},
+		Features: FeaturesConfig{Nested: false, SharedVolume: false},
+	}
+	tc := newTemplateContext(cfg)
+	if tc.SharedVolumeName != "" {
+		t.Fatalf("expected empty shared volume name when feature disabled, got %q", tc.SharedVolumeName)
 	}
 }
 

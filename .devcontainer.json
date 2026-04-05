@@ -19,8 +19,12 @@
     }
   },
   "image": "silo-xqmrs9xj",
+  "mounts": [
+    "source=silo-shared,target=/silo/shared,type=volume,Z"
+  ],
   "name": "silo-xqmrs9xj-dev",
   "overrideCommand": true,
+  "postStartCommand": "bash /silo/setup.sh",
   "remoteUser": "markus",
   "runArgs": [
     "--name",

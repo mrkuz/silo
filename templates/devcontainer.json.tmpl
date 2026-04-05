@@ -4,4 +4,8 @@
   "remoteUser": "{{.User}}",
   "runArgs": {{json .ContainerArgs}},
   "overrideCommand": true
+  {{- if .SharedVolumeMount }},
+  "mounts": ["source={{.SharedVolumeName}},target={{.SharedVolumeMount}},type=volume,Z"],
+  "postStartCommand": "bash {{.SetupScript}}"
+  {{- end }}
 }

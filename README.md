@@ -282,7 +282,6 @@ Each image build generates a Nix flake in a temporary directory on the host and 
 
 - The `silo` container is independent from the devcontainer.
 - Lifecycle is managed by VS Code/devcontainers, not by `silo`.
-- Shared volume is not supported
 - `silo` commands (`start`/`stop`/`status`/`connect`/`rm`) target the regular workspace container, not the devcontainer.
 
 Example global `$XDG_CONFIG_HOME/silo/devcontainer.json`:

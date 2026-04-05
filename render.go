@@ -36,6 +36,7 @@ type TemplateContext struct {
 	Image             string
 	BaseImage         string
 	ContainerName     string
+	SetupScript       string
 	SharedVolumeName  string
 	SharedVolumeMount string
 	System            string
@@ -47,6 +48,12 @@ type TemplateContext struct {
 // containerNameSuffix is appended to cfg.General.ContainerName; default is "".
 func newTemplateContext(cfg Config, containerNameSuffix ...string) TemplateContext {
 	containerName := containerNameWithSuffix(cfg.General.ContainerName, containerNameSuffix...)
+	sharedVolumeNameValue := ""
+	sharedVolumeMountPoint := ""
+	if cfg.Features.SharedVolume {
+		sharedVolumeNameValue = sharedVolumeName
+		sharedVolumeMountPoint = sharedVolumeMount
+	}
 
 	home := "/home/" + cfg.General.User
 	var entries []sharedPathEntry
@@ -59,8 +66,9 @@ func newTemplateContext(cfg Config, containerNameSuffix ...string) TemplateConte
 		Image:             cfg.General.ImageName,
 		BaseImage:         baseImageName(cfg.General.User),
 		ContainerName:     containerName,
-		SharedVolumeName:  sharedVolumeName,
-		SharedVolumeMount: sharedVolumeMount,
+		SetupScript:       setupScriptPath,
+		SharedVolumeName:  sharedVolumeNameValue,
+		SharedVolumeMount: sharedVolumeMountPoint,
 		System:            detectNixSystem(),
 		ContainerArgs:     containerArgs(cfg, containerNameSuffix...),
 		SharedPathEntries: entries,

@@ -129,38 +129,6 @@ func hasSharedPaths(cfg Config) bool {
 
 const setupScriptPath = "/silo/setup.sh"
 
-// copySetupScript renders the setup script and copies it into the container at /silo/setup.sh.
-// The container must exist but does not need to be running.
-func copySetupScript(cfg Config) error {
-	if !hasSharedPaths(cfg) {
-		return nil
-	}
-	tc := newTemplateContext(cfg)
-	script, err := renderTemplate("setup.sh.tmpl", tc)
-	if err != nil {
-		return fmt.Errorf("render setup script: %w", err)
-	}
-
-	hostTmpDir, err := os.MkdirTemp("", "silo-setup-*")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(hostTmpDir)
-
-	hostPath := filepath.Join(hostTmpDir, "setup.sh")
-	if err := os.WriteFile(hostPath, script, 0755); err != nil {
-		return err
-	}
-
-	containerDst := cfg.General.ContainerName + ":" + setupScriptPath
-	cmd := execCommand("podman", "cp", hostPath, containerDst)
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("copy setup script: %w", err)
-	}
-	return nil
-}
-
 // setupContainer runs the setup script inside a running container.
 // The script itself handles the setup-done marker.
 func setupContainer(cfg Config) error {
@@ -191,7 +159,7 @@ func createContainer(cfg Config, extra []string) error {
 	if err := runVisible("podman", createArgs...); err != nil {
 		return err
 	}
-	return copySetupScript(cfg)
+	return nil
 }
 
 // startContainer starts a stopped container.
