@@ -325,7 +325,7 @@ func TestCmdStart(t *testing.T) {
 	t.Run("container not running — starts it", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
-		setupGlobalConfig(t)
+		setupUserConfig(t)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
 			"podman image exists silo-testuser":                                  exec.Command("true"),
 			"podman image exists silo-abc12345":                                  exec.Command("true"),
@@ -343,7 +343,7 @@ func TestCmdStart(t *testing.T) {
 	t.Run("already running without --force — no-op", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
-		setupGlobalConfig(t)
+		setupUserConfig(t)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
 			"podman image exists silo-testuser":                                  exec.Command("true"),
 			"podman image exists silo-abc12345":                                  exec.Command("true"),
@@ -361,7 +361,7 @@ func TestCmdStart(t *testing.T) {
 	t.Run("already running with --force — stops container", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
-		setupGlobalConfig(t)
+		setupUserConfig(t)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
 			"podman image exists silo-testuser":                                  exec.Command("true"),
 			"podman image exists silo-abc12345":                                  exec.Command("true"),
@@ -381,7 +381,7 @@ func TestCmdConnect(t *testing.T) {
 	t.Run("basic connect — runs podman exec", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
-		setupGlobalConfig(t)
+		setupUserConfig(t)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
 			"podman image exists silo-testuser":                                  exec.Command("true"),
 			"podman image exists silo-abc12345":                                  exec.Command("true"),
@@ -397,7 +397,7 @@ func TestCmdConnect(t *testing.T) {
 	t.Run("with --stop — stops container after session", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
-		setupGlobalConfig(t)
+		setupUserConfig(t)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
 			"podman image exists silo-testuser":                                  exec.Command("true"),
 			"podman image exists silo-abc12345":                                  exec.Command("true"),
@@ -415,7 +415,7 @@ func TestCmdCreateFilePersistence(t *testing.T) {
 	t.Run("--nested persists Features.Nested=true to silo.toml", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
-		setupGlobalConfig(t)
+		setupUserConfig(t)
 		mockExecCommand(t, map[string]*exec.Cmd{
 			"podman image exists silo-testuser":     exec.Command("true"),
 			"podman image exists silo-abc12345":     exec.Command("true"),
@@ -437,7 +437,7 @@ func TestCmdCreateFilePersistence(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		cfg.Features.Workspace = true
 		setupWorkspace(t, cfg)
-		setupGlobalConfig(t)
+		setupUserConfig(t)
 		mockExecCommand(t, map[string]*exec.Cmd{
 			"podman image exists silo-testuser":     exec.Command("true"),
 			"podman image exists silo-abc12345":     exec.Command("true"),
@@ -458,7 +458,7 @@ func TestCmdCreateFilePersistence(t *testing.T) {
 	t.Run("-- extra args persisted to silo.toml", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
-		setupGlobalConfig(t)
+		setupUserConfig(t)
 		mockExecCommand(t, map[string]*exec.Cmd{
 			"podman image exists silo-testuser":     exec.Command("true"),
 			"podman image exists silo-abc12345":     exec.Command("true"),
@@ -479,7 +479,7 @@ func TestCmdCreateFilePersistence(t *testing.T) {
 	t.Run("--dry-run does not write silo.toml changes", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
-		setupGlobalConfig(t)
+		setupUserConfig(t)
 		// Read original mtime to detect any write.
 		info, err := os.Stat(siloToml)
 		if err != nil {
@@ -501,8 +501,8 @@ func TestCmdCreateFilePersistence(t *testing.T) {
 }
 
 func TestCmdInit(t *testing.T) {
-	t.Run("creates workspace and scaffold files", func(t *testing.T) {
-		setupGlobalConfig(t)
+	t.Run("creates workspace and starter files", func(t *testing.T) {
+		setupUserConfig(t)
 		dir := t.TempDir()
 		orig, _ := os.Getwd()
 		t.Cleanup(func() { os.Chdir(orig) })
@@ -523,7 +523,7 @@ func TestCmdInit(t *testing.T) {
 	t.Run("idempotent — does not overwrite existing config", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
-		setupGlobalConfig(t)
+		setupUserConfig(t)
 
 		mockExecCommand(t, map[string]*exec.Cmd{})
 		if err := cmdInit(); err != nil {

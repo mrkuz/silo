@@ -266,10 +266,10 @@ func TestDefaultConfig(t *testing.T) {
 	}
 }
 
-func TestLoadGlobalConfig(t *testing.T) {
+func TestLoadSiloInTOML(t *testing.T) {
 	t.Run("returns empty config when file absent", func(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-		cfg, err := loadGlobalConfig()
+		cfg, err := loadSiloInTOML()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -281,7 +281,7 @@ func TestLoadGlobalConfig(t *testing.T) {
 	t.Run("parses connect and features from existing file", func(t *testing.T) {
 		base := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", base)
-		siloConfigPath := filepath.Join(base, "silo", "silo.toml")
+		siloConfigPath := filepath.Join(base, "silo", "silo.in.toml")
 		if err := os.MkdirAll(filepath.Dir(siloConfigPath), 0755); err != nil {
 			t.Fatal(err)
 		}
@@ -289,7 +289,7 @@ func TestLoadGlobalConfig(t *testing.T) {
 		if err := os.WriteFile(siloConfigPath, content, 0644); err != nil {
 			t.Fatal(err)
 		}
-		cfg, err := loadGlobalConfig()
+		cfg, err := loadSiloInTOML()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -302,10 +302,10 @@ func TestLoadGlobalConfig(t *testing.T) {
 	})
 }
 
-func TestGlobalConfigDir(t *testing.T) {
+func TestUserConfigDir(t *testing.T) {
 	t.Run("uses XDG_CONFIG_HOME when set", func(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", "/tmp/xdg-test")
-		got, err := globalConfigDir()
+		got, err := userConfigDir()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -316,7 +316,7 @@ func TestGlobalConfigDir(t *testing.T) {
 
 	t.Run("falls back to HOME/.config/silo", func(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", "")
-		got, err := globalConfigDir()
+		got, err := userConfigDir()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -363,7 +363,7 @@ func TestEnsureFile(t *testing.T) {
 
 func TestInitWorkspaceConfig(t *testing.T) {
 	t.Run("first run: creates .silo/silo.toml with generated ID", func(t *testing.T) {
-		setupGlobalConfig(t)
+		setupUserConfig(t)
 		setupWorkspace(t, Config{}) // write an *empty* silo.toml so setupWorkspace doesn't interfere
 		// Remove the file so we simulate a true first run.
 		os.Remove(siloToml)
@@ -382,18 +382,18 @@ func TestInitWorkspaceConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("first run: seeds Connect.Command from global config", func(t *testing.T) {
+	t.Run("first run: seeds Connect.Command from user config", func(t *testing.T) {
 		base := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", base)
-		siloGlobal := filepath.Join(base, "silo")
-		if err := os.MkdirAll(siloGlobal, 0755); err != nil {
+		siloUser := filepath.Join(base, "silo")
+		if err := os.MkdirAll(siloUser, 0755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(siloGlobal, "home.nix"), []byte(emptyHomeNix), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(siloUser, "home-user.nix"), []byte(emptyHomeNix), 0644); err != nil {
 			t.Fatal(err)
 		}
-		globalToml := filepath.Join(siloGlobal, "silo.toml")
-		if err := os.WriteFile(globalToml, []byte("[connect]\ncommand = \"/bin/fish\"\n"), 0644); err != nil {
+		userToml := filepath.Join(siloUser, "silo.in.toml")
+		if err := os.WriteFile(userToml, []byte("[connect]\ncommand = \"/bin/fish\"\n"), 0644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -416,7 +416,7 @@ func TestInitWorkspaceConfig(t *testing.T) {
 		existing := minimalConfig("deadbeef")
 		existing.Connect.Command = "/usr/bin/zsh"
 		setupWorkspace(t, existing)
-		setupGlobalConfig(t)
+		setupUserConfig(t)
 
 		cfg, err := initWorkspaceConfig()
 		if err != nil {
@@ -431,22 +431,22 @@ func TestInitWorkspaceConfig(t *testing.T) {
 	})
 }
 
-func TestEnsureScaffoldFiles(t *testing.T) {
-	t.Run("creates all three scaffold files when absent", func(t *testing.T) {
-		setupGlobalConfig(t) // sets XDG_CONFIG_HOME but writes home.nix and silo.toml there
+func TestEnsureStarterFiles(t *testing.T) {
+	t.Run("creates all three starter files when absent", func(t *testing.T) {
+		setupUserConfig(t) // sets XDG_CONFIG_HOME but writes home-user.nix and silo.in.toml there
 		setupWorkspace(t, minimalConfig("abc12345"))
-		// Remove the files ensureScaffoldFiles should create so we test from scratch.
-		dir, _ := globalConfigDir()
-		os.Remove(filepath.Join(dir, "home.nix"))
-		os.Remove(filepath.Join(dir, "devcontainer.json"))
+		// Remove the files ensureStarterFiles should create so we test from scratch.
+		dir, _ := userConfigDir()
+		os.Remove(filepath.Join(dir, "home-user.nix"))
+		os.Remove(filepath.Join(dir, "devcontainer.in.json"))
 		os.Remove(filepath.Join(siloDir, "home.nix"))
 
-		if err := ensureScaffoldFiles(); err != nil {
+		if err := ensureStarterFiles(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		for _, path := range []string{
-			filepath.Join(dir, "home.nix"),
-			filepath.Join(dir, "devcontainer.json"),
+			filepath.Join(dir, "home-user.nix"),
+			filepath.Join(dir, "devcontainer.in.json"),
 			filepath.Join(siloDir, "home.nix"),
 		} {
 			if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -455,24 +455,24 @@ func TestEnsureScaffoldFiles(t *testing.T) {
 		}
 	})
 
-	t.Run("does not overwrite existing scaffold files", func(t *testing.T) {
+	t.Run("does not overwrite existing starter files", func(t *testing.T) {
 		setupWorkspace(t, minimalConfig("abc12345"))
 		base := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", base)
 		dir := filepath.Join(base, "silo")
 		os.MkdirAll(dir, 0755)
 
-		sentinel := []byte("# my custom home.nix\n")
-		os.WriteFile(filepath.Join(dir, "home.nix"), sentinel, 0644)
-		os.WriteFile(filepath.Join(dir, "devcontainer.json"), []byte(`{"custom":true}`), 0644)
+		sentinel := []byte("# my custom home-user.nix\n")
+		os.WriteFile(filepath.Join(dir, "home-user.nix"), sentinel, 0644)
+		os.WriteFile(filepath.Join(dir, "devcontainer.in.json"), []byte(`{"custom":true}`), 0644)
 		os.WriteFile(filepath.Join(siloDir, "home.nix"), sentinel, 0644)
 
-		if err := ensureScaffoldFiles(); err != nil {
+		if err := ensureStarterFiles(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		got, _ := os.ReadFile(filepath.Join(dir, "home.nix"))
+		got, _ := os.ReadFile(filepath.Join(dir, "home-user.nix"))
 		if string(got) != string(sentinel) {
-			t.Errorf("global home.nix was overwritten")
+			t.Errorf("user home-user.nix was overwritten")
 		}
 		got, _ = os.ReadFile(filepath.Join(siloDir, "home.nix"))
 		if string(got) != string(sentinel) {

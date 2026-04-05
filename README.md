@@ -7,7 +7,7 @@ Per-directory developer sandbox containers, powered by Podman, Nix, and home-man
 ## Features
 
 - **Per-directory isolation** — each workspace gets its own container with a unique ID
-- **Nix + home-manager** — global and per-workspace `home.nix` configs
+- **Nix + home-manager** — shared `home-user.nix` and per-workspace `.silo/home.nix`
 - **Workspace mount** — the host directory is mounted inside the container automatically
 - **Shared volume** — persist package caches and other data across containers and rebuilds
 - **VS Code integration** — `silo devcontainer` generates a `.devcontainer.json`
@@ -23,7 +23,7 @@ silo
 
 See [Build and Install](#build-and-install) for installation instructions.
 
-On first run, silo scaffolds `.silo/silo.toml` and builds two images: a shared base image and a per-workspace workspace image. Then it starts the container and connects to it.
+On first run, silo creates starter files (including `.silo/silo.toml`), builds two images (a shared base image and a per-workspace workspace image), starts the container, and connects to it.
 
 See [Configuration](#configuration) to customize your workspace.
 
@@ -53,7 +53,7 @@ init → build → create → start → setup → connect
 
 | Step | Description | Output |
 |---|---|---|
-| **init** | Scaffolds `.silo/silo.toml` and `home.nix` on the host | Workspace config files |
+| **init** | Creates `.silo/silo.toml`, `.silo/home.nix`, and user files on the host | Essential files |
 | **build** | Builds the base image (shared) and the workspace image (per-workspace) | Container image |
 | **create** | Creates the container from the workspace image | Stopped container |
 | **start** | Starts the container | Running container |
@@ -91,7 +91,7 @@ Connect to the container for the current workspace. Runs the full lifecycle chai
 
 ### `silo init`
 
-Initialize workspace and global config files. Creates `.silo/silo.toml`, `.silo/home.nix`, and global scaffold files on the host. Safe to run multiple times — existing files are not overwritten.
+Initialize workspace and user files. Creates `.silo/silo.toml`, `.silo/home.nix`, and user starter files (`silo.in.toml`, `home-user.nix`, `devcontainer.in.json`) on the host. Safe to run multiple times — existing files are not overwritten.
 
 ### `silo build`
 
@@ -160,7 +160,7 @@ Generate a `.devcontainer.json` for VS Code in the current host directory. Does 
 
 ### Workspace config: `.silo/silo.toml`
 
-Created automatically on first run. Scaffolded from `$XDG_CONFIG_HOME/silo/silo.toml` if present.
+Created automatically on first run. Seeded from `$XDG_CONFIG_HOME/silo/silo.in.toml` if present.
 
 ```toml
 [general]
@@ -231,7 +231,7 @@ Example:
 }
 ```
 
-### Global config: `$XDG_CONFIG_HOME/silo/`
+### User config: `$XDG_CONFIG_HOME/silo/`
 
 On macOS the XDG spec is not followed by default, so `~/.config/silo/` is used unless `$XDG_CONFIG_HOME` is set explicitly.
 
@@ -239,9 +239,9 @@ All three files are created automatically on first run if they don't exist. See 
 
 | File | Description |
 |---|---|
-| `silo.toml` | Default values for new workspaces. `[general]` is ignored. |
-| `home.nix` | Global home-manager config baked into the base image. |
-| `devcontainer.json` | Merged into every generated `.devcontainer.json`. |
+| `silo.in.toml` | Default values for new workspaces. `[general]` is ignored. |
+| `home-user.nix` | User home-manager config baked into the base image. |
+| `devcontainer.in.json` | Merged into every generated `.devcontainer.json`. |
 
 ---
 
@@ -251,7 +251,7 @@ All three files are created automatically on first run if they don't exist. See 
 
 silo builds two OCI images using Podman:
 
-1. **Base image** (`silo-<user>`) — shared across all workspaces. Alpine with Nix and home-manager installed. The global `home.nix` is baked in.
+1. **Base image** (`silo-<user>`) — shared across all workspaces. Alpine with Nix and home-manager installed. The user `home-user.nix` is baked in.
 2. **Workspace image** (`silo-<id>`) — per-workspace, layered on top of the base. The workspace `home.nix` is applied here.
 
 Build context files are written to a temporary directory on the host and passed to `podman build`. No persistent build context is kept on disk.
@@ -272,11 +272,11 @@ If a real file or directory already exists at the target path, the symlink is sk
 
 ### Nix + home-manager
 
-Each image build generates a Nix flake in a temporary directory on the host and passes it to `podman build`. The flake wires together `nixos-unstable`, home-manager, and `home.nix` (global and workspace).
+Each image build generates a Nix flake in a temporary directory on the host and passes it to `podman build`. The flake wires together `nixos-unstable`, home-manager, `home-user.nix` (user), and `.silo/home.nix` (workspace).
 
 ### VS Code devcontainer
 
-`silo devcontainer` generates a `.devcontainer.json` on the host, pointing at the workspace image. The generated name is `<container-name>-dev`. The global `$XDG_CONFIG_HOME/silo/devcontainer.json` is merged with the generated file — objects merge recursively, arrays concatenate.
+`silo devcontainer` generates a `.devcontainer.json` on the host, pointing at the workspace image. The generated name is `<container-name>-dev`. The user `$XDG_CONFIG_HOME/silo/devcontainer.in.json` is merged with the generated file — objects merge recursively, arrays concatenate.
 
 **Important**
 
@@ -284,7 +284,7 @@ Each image build generates a Nix flake in a temporary directory on the host and 
 - Lifecycle is managed by VS Code/devcontainers, not by `silo`.
 - `silo` commands (`start`/`stop`/`status`/`connect`/`rm`) target the regular workspace container, not the devcontainer.
 
-Example global `$XDG_CONFIG_HOME/silo/devcontainer.json`:
+Example user `$XDG_CONFIG_HOME/silo/devcontainer.in.json`:
 
 ```json
 {

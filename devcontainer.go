@@ -7,17 +7,17 @@ import (
 	"path/filepath"
 )
 
-// cmdDevcontainer implements `silo devcontainer`.
+// cmdDevcontainer generates a .devcontainer.json for VS Code.
 func cmdDevcontainer() error {
 	cfg, err := requireWorkspaceConfig()
 	if err != nil {
-		return err
+		return fmt.Errorf("load workspace configuration: %w", err)
 	}
 
 	tc := newTemplateContext(cfg, "-dev")
 	content, err := renderTemplate("devcontainer.json.tmpl", tc)
 	if err != nil {
-		return err
+		return fmt.Errorf("render devcontainer.json template: %w", err)
 	}
 
 	const devcontainerFile = ".devcontainer.json"
@@ -26,16 +26,16 @@ func cmdDevcontainer() error {
 		return nil
 	}
 
-	globalDC, err := loadGlobalDevcontainerJSON()
+	userDC, err := loadDevcontainerInJSON()
 	if err != nil {
-		return fmt.Errorf("read global devcontainer.json: %w", err)
+		return fmt.Errorf("load devcontainer input file: %w", err)
 	}
-	if len(globalDC) > 0 {
+	if len(userDC) > 0 {
 		var generated map[string]any
 		if err := json.Unmarshal(content, &generated); err != nil {
 			return fmt.Errorf("parse generated devcontainer.json: %w", err)
 		}
-		merged := deepMergeJSON(globalDC, generated)
+		merged := deepMergeJSON(userDC, generated)
 		content, err = json.MarshalIndent(merged, "", "  ")
 		if err != nil {
 			return fmt.Errorf("marshal devcontainer.json: %w", err)
@@ -43,56 +43,55 @@ func cmdDevcontainer() error {
 		content = append(content, '\n')
 	}
 	if err := os.WriteFile(devcontainerFile, content, 0644); err != nil {
-		return err
+		return fmt.Errorf("write devcontainer.json: %w", err)
 	}
 	fmt.Printf("Generated %s.\n", devcontainerFile)
 	return nil
 }
 
-// loadGlobalDevcontainerJSON reads $XDG_CONFIG_HOME/silo/devcontainer.json.
+// loadDevcontainerInJSON reads the user devcontainer input file.
 // Returns an empty map if the file does not exist.
-func loadGlobalDevcontainerJSON() (map[string]any, error) {
-	dir, err := globalConfigDir()
+func loadDevcontainerInJSON() (map[string]any, error) {
+	dir, err := userConfigDir()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get user config directory: %w", err)
 	}
-	path := filepath.Join(dir, "devcontainer.json")
+	path := filepath.Join(dir, "devcontainer.in.json")
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return map[string]any{}, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read devcontainer input file: %w", err)
 	}
 	var m map[string]any
 	if err := json.Unmarshal(data, &m); err != nil {
-		return nil, fmt.Errorf("parse global devcontainer.json: %w", err)
+		return nil, fmt.Errorf("parse devcontainer input JSON: %w", err)
 	}
 	return m, nil
 }
 
-// deepMergeJSON recursively merges overlay into base and returns a new map.
-// Objects are merged key-by-key. Arrays are concatenated (base first).
-// Scalar values from overlay override base.
-func deepMergeJSON(base, overlay map[string]any) map[string]any {
+// deepMergeJSON recursively merges input into base.
+// Objects merge key-by-key, arrays concatenate, scalars from input override.
+func deepMergeJSON(base, input map[string]any) map[string]any {
 	result := make(map[string]any, len(base))
 	for k, v := range base {
 		result[k] = v
 	}
-	for k, ov := range overlay {
-		if om, ok := ov.(map[string]any); ok {
+	for k, v := range input {
+		if om, ok := v.(map[string]any); ok {
 			if bm, ok := result[k].(map[string]any); ok {
 				result[k] = deepMergeJSON(bm, om)
 				continue
 			}
 		}
-		if oa, ok := ov.([]any); ok {
+		if oa, ok := v.([]any); ok {
 			if ba, ok := result[k].([]any); ok {
 				result[k] = append(ba, oa...)
 				continue
 			}
 		}
-		result[k] = ov
+		result[k] = v
 	}
 	return result
 }

@@ -271,7 +271,7 @@ func TestEnsureChain(t *testing.T) {
 		cfg.Features.SharedVolume = true
 		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 		setupWorkspace(t, cfg)
-		setupGlobalConfig(t)
+		setupUserConfig(t)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
 			"podman image exists silo-testuser":     exec.Command("true"),
 			"podman image exists silo-abc12345":     exec.Command("true"),
@@ -297,7 +297,7 @@ func TestEnsureChain(t *testing.T) {
 		cfg.Features.SharedVolume = true
 		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 		setupWorkspace(t, cfg)
-		setupGlobalConfig(t)
+		setupUserConfig(t)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
 			"podman image exists silo-testuser":                                  exec.Command("true"),
 			"podman image exists silo-abc12345":                                  exec.Command("true"),
@@ -320,7 +320,7 @@ func TestEnsureChain(t *testing.T) {
 	t.Run("container already running — runs setup only", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
-		setupGlobalConfig(t)
+		setupUserConfig(t)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
 			"podman image exists silo-testuser":                                  exec.Command("true"),
 			"podman image exists silo-abc12345":                                  exec.Command("true"),

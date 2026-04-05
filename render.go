@@ -11,7 +11,7 @@ import (
 //go:embed templates
 var templateFiles embed.FS
 
-// emptyHomeNix is the default empty home-manager module used as a workspace overlay.
+// emptyHomeNix is the default empty home-manager module.
 const emptyHomeNix = `{
   config,
   pkgs,
@@ -29,7 +29,7 @@ var templateFuncs = template.FuncMap{
 	},
 }
 
-// TemplateContext is the unified data object passed to every template.
+// TemplateContext provides data for template rendering across devcontainer, Containerfile, and setup scripts.
 type TemplateContext struct {
 	User              string
 	Home              string
@@ -44,8 +44,8 @@ type TemplateContext struct {
 	SharedPathEntries []sharedPathEntry
 }
 
-// newTemplateContext builds a TemplateContext from the given Config.
-// containerNameSuffix is appended to cfg.General.ContainerName; default is "".
+// newTemplateContext builds a TemplateContext from Config for template rendering.
+// An optional suffix is appended to the container name.
 func newTemplateContext(cfg Config, containerNameSuffix ...string) TemplateContext {
 	containerName := containerNameWithSuffix(cfg.General.ContainerName, containerNameSuffix...)
 	sharedVolumeNameValue := ""

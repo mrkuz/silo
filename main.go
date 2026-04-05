@@ -24,7 +24,7 @@ Usage:
 
 Commands:
   (default)     Alias for connect
-  init          Initialize workspace and global config files
+  init          Initialize workspace and user files
   build         Build the workspace image
   create        Create the container
   start         Start the container

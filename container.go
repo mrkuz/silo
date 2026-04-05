@@ -10,7 +10,7 @@ import (
 
 var execCommand = exec.Command
 
-// containerRunning reports whether the named container is currently running.
+// containerRunning checks if a container is currently running.
 func containerRunning(name string) bool {
 	out, err := execCommand("podman", "container", "inspect", "--format", "{{.State.Running}}", name).Output()
 	if err != nil {
@@ -19,13 +19,13 @@ func containerRunning(name string) bool {
 	return strings.TrimSpace(string(out)) == "true"
 }
 
-// containerExists reports whether a container with the given name exists (any state).
+// containerExists checks if a container exists in any state.
 func containerExists(name string) bool {
 	return execCommand("podman", "container", "exists", name).Run() == nil
 }
 
-// printDryRun prints a podman command as it would be invoked, without running it.
-// Arguments containing spaces are quoted for clarity.
+// printDryRun prints how a podman command would be invoked (without running it).
+// Arguments with spaces or special characters are quoted for shell clarity.
 func printDryRun(args []string) {
 	quoted := make([]string, len(args))
 	for i, a := range args {
@@ -38,16 +38,18 @@ func printDryRun(args []string) {
 	fmt.Println("podman " + strings.Join(quoted, " "))
 }
 
-// connectContainer opens an interactive session inside the running container via podman exec.
-// Extra args are inserted before the container name as podman exec flags.
+// connectContainer opens an interactive session in the running container via podman exec.
 func connectContainer(name, command string, extra []string) error {
 	args := append([]string{"exec", "-ti"}, extra...)
 	args = append(args, name)
 	args = append(args, strings.Fields(command)...)
-	return runInteractive("podman", args...)
+	if err := runInteractive("podman", args...); err != nil {
+		return fmt.Errorf("connect to container: %w", err)
+	}
+	return nil
 }
 
-// containerNameWithSuffix appends at most one optional suffix to baseName.
+// containerNameWithSuffix returns baseName with an optional suffix appended.
 func containerNameWithSuffix(baseName string, suffix ...string) string {
 	if len(suffix) > 0 {
 		return baseName + suffix[0]
@@ -55,8 +57,7 @@ func containerNameWithSuffix(baseName string, suffix ...string) string {
 	return baseName
 }
 
-// containerArgs returns common podman container flags for name/hostname and security options.
-// containerNameSuffix is appended to cfg.General.ContainerName; default is "".
+// containerArgs returns podman flags for container name, hostname, and security options.
 func containerArgs(cfg Config, containerNameSuffix ...string) []string {
 	containerName := containerNameWithSuffix(cfg.General.ContainerName, containerNameSuffix...)
 
@@ -67,12 +68,12 @@ func containerArgs(cfg Config, containerNameSuffix ...string) []string {
 	return append(args, "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges")
 }
 
-// buildContainerArgs constructs the podman container-specific arguments from cfg,
-// without any subcommand prefix. Callers prepend "run", "-d" or "create" as needed.
+// buildContainerArgs returns podman container-specific arguments from cfg.
+// Callers should prepend subcommands ("create", "run") as needed.
 func buildContainerArgs(cfg Config) ([]string, error) {
 	hostDir, err := os.Getwd()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get current working directory: %w", err)
 	}
 
 	var args []string
@@ -103,9 +104,9 @@ type sharedPathEntry struct {
 	IsDir bool
 }
 
-// buildSharedVolumeEntries converts raw path strings into pre-computed entries.
-// Paths ending in '/' are directories; others are files.
-// $HOME prefixes are expanded to ${HOME} for shell runtime expansion.
+// buildSharedVolumeEntries converts path strings to entries for creating symlinks in the container.
+// Paths ending with '/' are treated as directories; others as files.
+// $HOME prefixes are expanded to ${HOME} for shell-time substitution.
 func buildSharedVolumeEntries(paths []string) []sharedPathEntry {
 	entries := make([]sharedPathEntry, 0, len(paths))
 	for _, raw := range paths {
@@ -122,7 +123,7 @@ func buildSharedVolumeEntries(paths []string) []sharedPathEntry {
 	return entries
 }
 
-// hasSharedPaths reports whether the config enables the shared volume with at least one path.
+// hasSharedPaths checks if shared volume is enabled with at least one path.
 func hasSharedPaths(cfg Config) bool {
 	return cfg.Features.SharedVolume && len(cfg.SharedVolume.Paths) > 0
 }
@@ -149,15 +150,15 @@ func setupContainer(cfg Config) error {
 func createContainer(cfg Config, extra []string) error {
 	podmanArgs, err := buildContainerArgs(cfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("build container arguments: %w", err)
 	}
 	createArgs := append([]string{"create"}, podmanArgs...)
 	createArgs = append(createArgs, extra...)
 	createArgs = append(createArgs, cfg.General.ImageName)
 
-	fmt.Printf("Creating container %s...\n", cfg.General.ContainerName)
+	fmt.Printf("Creating %s...\n", cfg.General.ContainerName)
 	if err := runVisible("podman", createArgs...); err != nil {
-		return err
+		return fmt.Errorf("create container: %w", err)
 	}
 	return nil
 }
@@ -165,44 +166,56 @@ func createContainer(cfg Config, extra []string) error {
 // startContainer starts a stopped container.
 func startContainer(name string) error {
 	fmt.Printf("Starting %s...\n", name)
-	return execCommand("podman", "start", name).Run()
+	if err := execCommand("podman", "start", name).Run(); err != nil {
+		return fmt.Errorf("start container: %w", err)
+	}
+	return nil
 }
 
 // stopContainer stops a running container immediately.
 func stopContainer(name string) error {
 	fmt.Printf("Stopping %s...\n", name)
-	return execCommand("podman", "stop", "-t", "0", name).Run()
+	if err := execCommand("podman", "stop", "-t", "0", name).Run(); err != nil {
+		return fmt.Errorf("stop container: %w", err)
+	}
+	return nil
 }
 
 // --- ensure chain: ensureSetup → ensureStarted → ensureCreated → ensureBuilt → ensureInit ---
 
-// ensureInit initializes workspace config and scaffold files.
+// ensureInit initializes workspace config and starter files.
 func ensureInit() (Config, error) {
 	cfg, err := initWorkspaceConfig()
 	if err != nil {
-		return cfg, err
+		return cfg, fmt.Errorf("initialize workspace configuration: %w", err)
 	}
-	return cfg, ensureScaffoldFiles()
+	if err := ensureStarterFiles(); err != nil {
+		return cfg, fmt.Errorf("ensure starter files: %w", err)
+	}
+	return cfg, nil
 }
 
 // ensureBuilt ensures images exist, building them if needed.
 func ensureBuilt() (Config, error) {
 	cfg, err := ensureInit()
 	if err != nil {
-		return cfg, err
+		return cfg, fmt.Errorf("initialize: %w", err)
 	}
-	return cfg, ensureImages(cfg)
+	if err := ensureImages(cfg); err != nil {
+		return cfg, fmt.Errorf("ensure images: %w", err)
+	}
+	return cfg, nil
 }
 
 // ensureCreated ensures the container exists, creating it if needed.
 func ensureCreated() (Config, error) {
 	cfg, err := ensureBuilt()
 	if err != nil {
-		return cfg, err
+		return cfg, fmt.Errorf("build images: %w", err)
 	}
 	if !containerExists(cfg.General.ContainerName) {
 		if err := createContainer(cfg, cfg.Create.ExtraArgs); err != nil {
-			return cfg, err
+			return cfg, fmt.Errorf("create container: %w", err)
 		}
 	}
 	return cfg, nil
@@ -212,11 +225,11 @@ func ensureCreated() (Config, error) {
 func ensureStarted() (Config, error) {
 	cfg, err := ensureCreated()
 	if err != nil {
-		return cfg, err
+		return cfg, fmt.Errorf("create container: %w", err)
 	}
 	if !containerRunning(cfg.General.ContainerName) {
 		if err := startContainer(cfg.General.ContainerName); err != nil {
-			return cfg, err
+			return cfg, fmt.Errorf("start container: %w", err)
 		}
 	}
 	return cfg, nil
@@ -226,19 +239,28 @@ func ensureStarted() (Config, error) {
 func ensureSetup() (Config, error) {
 	cfg, err := ensureStarted()
 	if err != nil {
-		return cfg, err
+		return cfg, fmt.Errorf("start container: %w", err)
 	}
-	return cfg, setupContainer(cfg)
+	if err := setupContainer(cfg); err != nil {
+		return cfg, fmt.Errorf("setup container: %w", err)
+	}
+	return cfg, nil
 }
 
 // removeContainer forcibly removes the named container.
 func removeContainer(name string) error {
-	return runVisible("podman", "rm", "-f", name)
+	if err := runVisible("podman", "rm", "-f", name); err != nil {
+		return fmt.Errorf("remove container: %w", err)
+	}
+	return nil
 }
 
 // removeImage removes the named image.
 func removeImage(name string) error {
-	return runVisible("podman", "rmi", name)
+	if err := runVisible("podman", "rmi", name); err != nil {
+		return fmt.Errorf("remove image: %w", err)
+	}
+	return nil
 }
 
 // runVisible runs a command with stdout and stderr connected to the terminal.

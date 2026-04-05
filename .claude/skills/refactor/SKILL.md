@@ -44,6 +44,7 @@ Apply the following refactoring passes in order:
 7. **Consistent naming**: Ensure consistent naming across code, comments, configuration, and templates
 8. **Comments**: Ensure correctness; remove unnecessary or obvious comments
 9. **Whitespace**: Clean up unnecessary blank lines and trailing whitespace
+10. **Best practices**: Apply any relevant best practices for the language and domain
 
 ## Verification
 

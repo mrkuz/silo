@@ -87,7 +87,7 @@ func TestCmdDevcontainerSharedVolume(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		cfg.Features.SharedVolume = true
 		setupWorkspace(t, cfg)
-		setupGlobalConfig(t)
+		setupUserConfig(t)
 
 		if err := cmdDevcontainer(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -115,7 +115,7 @@ func TestCmdDevcontainerSharedVolume(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		cfg.Features.SharedVolume = false
 		setupWorkspace(t, cfg)
-		setupGlobalConfig(t)
+		setupUserConfig(t)
 
 		if err := cmdDevcontainer(); err != nil {
 			t.Fatalf("unexpected error: %v", err)

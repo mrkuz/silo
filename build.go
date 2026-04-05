@@ -8,17 +8,18 @@ import (
 	"strings"
 )
 
-// imageExists reports whether a Podman image with the given name exists.
+// imageExists checks if a Podman image exists.
 func imageExists(name string) bool {
 	return execCommand("podman", "image", "exists", name).Run() == nil
 }
 
-// detectNixSystem maps the host machine architecture to a Nix system string.
+// detectNixSystem returns the Nix system identifier for the current machine architecture.
 func detectNixSystem() string {
 	out, err := execCommand("uname", "-m").Output()
 	if err != nil {
 		return "x86_64-linux"
 	}
+
 	switch strings.TrimSpace(string(out)) {
 	case "aarch64", "arm64":
 		return "aarch64-linux"
@@ -27,45 +28,47 @@ func detectNixSystem() string {
 	}
 }
 
-// buildBaseImage builds the base image (silo-USER) using the user's home.nix.
+// buildBaseImage builds the base image using the user's home-user.nix.
 func buildBaseImage(tag string, tc TemplateContext) error {
 	containerfile, err := renderTemplate("Containerfile.base.tmpl", tc)
 	if err != nil {
-		return err
+		return fmt.Errorf("render Containerfile.base template: %w", err)
 	}
 	flakeNix, err := renderTemplate("flake.nix.tmpl", tc)
 	if err != nil {
-		return err
+		return fmt.Errorf("render flake.nix template: %w", err)
 	}
 
-	configDir, err := globalConfigDir()
+	configDir, err := userConfigDir()
 	if err != nil {
-		return err
+		return fmt.Errorf("get user config directory: %w", err)
 	}
-	homeNix, err := os.ReadFile(filepath.Join(configDir, "home.nix"))
+	homeUserNix, err := os.ReadFile(filepath.Join(configDir, "home-user.nix"))
 	if err != nil {
-		return fmt.Errorf("read %s/home.nix: %w", configDir, err)
+		return fmt.Errorf("read home-user.nix: %w", err)
 	}
 
 	files := map[string][]byte{
 		"Containerfile":            containerfile,
 		"flake.nix":                flakeNix,
-		"home.nix":                 homeNix,
+		"home-user.nix":            homeUserNix,
 		"home-workspace-empty.nix": []byte(emptyHomeNix),
 	}
-	return runBuild(tag, files)
+	if err := runBuild(tag, files); err != nil {
+		return fmt.Errorf("build base image: %w", err)
+	}
+	return nil
 }
 
-// buildWorkspaceImage builds the workspace image (tag) on top of baseImage,
-// using .silo/home.nix as the workspace overlay if present, otherwise an empty module.
+// buildWorkspaceImage builds the workspace image layered on top of the base image.
 func buildWorkspaceImage(tag string, tc TemplateContext) error {
 	containerfile, err := renderTemplate("Containerfile.workspace.tmpl", tc)
 	if err != nil {
-		return err
+		return fmt.Errorf("render Containerfile.workspace template: %w", err)
 	}
 	setupScript, err := renderTemplate("setup.sh.tmpl", tc)
 	if err != nil {
-		return err
+		return fmt.Errorf("render setup.sh template: %w", err)
 	}
 
 	homeWorkspaceNix, err := os.ReadFile(filepath.Join(siloDir, "home.nix"))
@@ -78,24 +81,30 @@ func buildWorkspaceImage(tag string, tc TemplateContext) error {
 		"home-workspace.nix": homeWorkspaceNix,
 		"setup.sh":           setupScript,
 	}
-	return runBuild(tag, files)
+	if err := runBuild(tag, files); err != nil {
+		return fmt.Errorf("build workspace image: %w", err)
+	}
+	return nil
 }
 
 // runBuild writes files to a temporary directory and runs podman build.
 func runBuild(tag string, files map[string][]byte) error {
 	dir, err := os.MkdirTemp("", "silo-build-*")
 	if err != nil {
-		return err
+		return fmt.Errorf("create temporary build directory: %w", err)
 	}
 	defer os.RemoveAll(dir)
 
 	for name, content := range files {
 		if err := os.WriteFile(filepath.Join(dir, name), content, 0644); err != nil {
-			return err
+			return fmt.Errorf("write file to build directory: %w", err)
 		}
 	}
 
-	return runVisible("podman", "build", "-t", tag, dir)
+	if err := runVisible("podman", "build", "-t", tag, dir); err != nil {
+		return fmt.Errorf("run podman build: %w", err)
+	}
+	return nil
 }
 
 // ensureImageRemoved removes the image if force is set and the image exists.
@@ -116,12 +125,12 @@ func ensureImageRemoved(tag string, force bool) (bool, error) {
 func cmdBuild(args []string) error {
 	flags, err := parseBuildFlags(args)
 	if err != nil {
-		return err
+		return fmt.Errorf("parse build flags: %w", err)
 	}
 
 	cfg, err := ensureInit()
 	if err != nil {
-		return err
+		return fmt.Errorf("initialize: %w", err)
 	}
 
 	tc := newTemplateContext(cfg)
@@ -131,7 +140,7 @@ func cmdBuild(args []string) error {
 	if flags.base {
 		proceed, err := ensureImageRemoved(baseTag, flags.force)
 		if err != nil {
-			return err
+			return fmt.Errorf("check if base image exists: %w", err)
 		}
 		if !proceed {
 			fmt.Printf("Base image %s already exists.\n", baseTag)
@@ -139,26 +148,32 @@ func cmdBuild(args []string) error {
 		}
 		fmt.Printf("Building base image %s...\n", baseTag)
 		if err := buildBaseImage(baseTag, tc); err != nil {
-			return err
+			return fmt.Errorf("build base image: %w", err)
 		}
 		// Also rebuild the workspace image on top of the new base.
 		if _, err := ensureImageRemoved(wsTag, flags.force); err != nil {
-			return err
+			return fmt.Errorf("check if workspace image exists: %w", err)
 		}
 		fmt.Printf("Building workspace image %s...\n", wsTag)
-		return buildWorkspaceImage(wsTag, tc)
+		if err := buildWorkspaceImage(wsTag, tc); err != nil {
+			return fmt.Errorf("build workspace image: %w", err)
+		}
+		return nil
 	}
 
 	proceed, err := ensureImageRemoved(wsTag, flags.force)
 	if err != nil {
-		return err
+		return fmt.Errorf("check if workspace image exists: %w", err)
 	}
 	if !proceed {
 		fmt.Printf("Workspace image %s already exists.\n", wsTag)
 		return nil
 	}
 	fmt.Printf("Building workspace image %s...\n", wsTag)
-	return buildWorkspaceImage(wsTag, tc)
+	if err := buildWorkspaceImage(wsTag, tc); err != nil {
+		return fmt.Errorf("build workspace image: %w", err)
+	}
+	return nil
 }
 
 type buildFlags struct {
@@ -173,7 +188,7 @@ func parseBuildFlags(args []string) (buildFlags, error) {
 	f := fs.Bool("f", false, "Alias for --force")
 	fs.Usage = func() {} // suppress; handled by main helpText
 	if err := fs.Parse(args); err != nil {
-		return buildFlags{}, err
+		return buildFlags{}, fmt.Errorf("parse build flags: %w", err)
 	}
 	return buildFlags{base: *base, force: *force || *f}, nil
 }

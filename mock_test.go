@@ -84,10 +84,10 @@ func setupWorkspace(t *testing.T, cfg Config) string {
 	return dir
 }
 
-// setupGlobalConfig points XDG_CONFIG_HOME at a new temp directory and writes
-// the minimal files required by ensureScaffoldFiles and buildBaseImage.
+// setupUserConfig points XDG_CONFIG_HOME at a new temp directory and writes
+// the minimal files required by ensureStarterFiles and buildBaseImage.
 // Needed by any test that calls initWorkspaceConfig or ensureImages.
-func setupGlobalConfig(t *testing.T) {
+func setupUserConfig(t *testing.T) {
 	t.Helper()
 	base := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", base)
@@ -95,12 +95,12 @@ func setupGlobalConfig(t *testing.T) {
 	if err := os.MkdirAll(siloDir, 0755); err != nil {
 		t.Fatalf("mkdir silo config dir: %v", err)
 	}
-	// home.nix is read by buildBaseImage; write the minimal empty module.
-	if err := os.WriteFile(filepath.Join(siloDir, "home.nix"), []byte(emptyHomeNix), 0644); err != nil {
-		t.Fatalf("write home.nix: %v", err)
+	// home-user.nix is read by buildBaseImage; write the minimal empty module.
+	if err := os.WriteFile(filepath.Join(siloDir, "home-user.nix"), []byte(emptyHomeNix), 0644); err != nil {
+		t.Fatalf("write home-user.nix: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(siloDir, "silo.toml"), []byte{}, 0644); err != nil {
-		t.Fatalf("write silo.toml: %v", err)
+	if err := os.WriteFile(filepath.Join(siloDir, "silo.in.toml"), []byte{}, 0644); err != nil {
+		t.Fatalf("write silo.in.toml: %v", err)
 	}
 }
 

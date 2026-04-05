@@ -59,7 +59,7 @@ RUN nix profile add nixpkgs#home-manager && \
     nix-store --gc
 
 ADD --chown={{.User}}:{{.User}} flake.nix {{.Home}}/.config/home-manager/flake.nix
-ADD --chown={{.User}}:{{.User}} home.nix {{.Home}}/.config/home-manager/home.nix
+ADD --chown={{.User}}:{{.User}} home-user.nix {{.Home}}/.config/home-manager/home-user.nix
 ADD --chown={{.User}}:{{.User}} home-workspace-empty.nix {{.Home}}/.config/home-manager/home-workspace.nix
 
 RUN home-manager switch --flake $HOME/.config/home-manager && \

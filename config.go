@@ -50,7 +50,7 @@ type CreateConfig struct {
 	ExtraArgs []string `toml:"extra_args"`
 }
 
-// defaultConfig returns a fresh Config with a new random ID and current user.
+// defaultConfig returns a Config with a new random ID and current user.
 func defaultConfig() (Config, error) {
 	u, err := user.Current()
 	if err != nil {
@@ -81,7 +81,7 @@ func defaultConfig() (Config, error) {
 	}, nil
 }
 
-// generateID returns an 8-character random lowercase alphanumeric string.
+// generateID returns an 8-character random lowercase alphanumeric identifier.
 func generateID() string {
 	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
 	b := make([]byte, 8)
@@ -92,35 +92,35 @@ func generateID() string {
 	return string(b)
 }
 
-// parseTOML decodes a silo TOML config file.
+// parseTOML decodes a TOML config file.
 func parseTOML(path string) (Config, error) {
 	var c Config
 	if _, err := toml.DecodeFile(path, &c); err != nil {
-		return Config{}, err
+		return Config{}, fmt.Errorf("parse %s: %w", filepath.Base(path), err)
 	}
 	return c, nil
 }
 
-// requireWorkspaceConfig returns the workspace config, or an error if no .silo/silo.toml exists.
+// requireWorkspaceConfig returns the workspace config or an error if .silo/silo.toml is missing.
 func requireWorkspaceConfig() (Config, error) {
 	if _, err := os.Stat(siloToml); os.IsNotExist(err) {
-		return Config{}, fmt.Errorf("no .silo/silo.toml found — run silo first to initialize")
+		return Config{}, fmt.Errorf("no .silo/silo.toml found — run 'silo init' to create it")
 	}
 	cfg, err := parseTOML(siloToml)
 	if err != nil {
-		return Config{}, fmt.Errorf("read silo.toml: %w", err)
+		return Config{}, fmt.Errorf("parse workspace configuration: %w", err)
 	}
 	return cfg, nil
 }
 
-// saveWorkspaceConfig writes the config to .silo/silo.toml, creating the directory as needed.
+// saveWorkspaceConfig persists the config to .silo/silo.toml.
 func (c Config) saveWorkspaceConfig() error {
 	if err := os.MkdirAll(siloDir, 0755); err != nil {
-		return err
+		return fmt.Errorf("create .silo directory: %w", err)
 	}
 	f, err := os.Create(siloToml)
 	if err != nil {
-		return err
+		return fmt.Errorf("create .silo/silo.toml: %w", err)
 	}
 	defer f.Close()
 	if c.SharedVolume.Paths == nil {
@@ -132,74 +132,73 @@ func (c Config) saveWorkspaceConfig() error {
 	return toml.NewEncoder(f).Encode(c)
 }
 
-// globalConfigDir returns $XDG_CONFIG_HOME/silo (defaults to ~/.config/silo).
-func globalConfigDir() (string, error) {
+// userConfigDir returns $XDG_CONFIG_HOME/silo (or ~/.config/silo by default).
+func userConfigDir() (string, error) {
 	xdg := os.Getenv("XDG_CONFIG_HOME")
 	if xdg == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("get user home directory: %w", err)
 		}
 		xdg = filepath.Join(home, ".config")
 	}
 	return filepath.Join(xdg, "silo"), nil
 }
 
-// ensureFile creates the file at path with content if the file does not already exist.
-// The parent directory is created with mode 0755 if needed.
+// ensureFile creates a file with content if it does not already exist.
 func ensureFile(path string, content []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return err
+		return fmt.Errorf("create directory for file: %w", err)
 	}
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return os.WriteFile(path, content, 0644)
+		if err := os.WriteFile(path, content, 0644); err != nil {
+			return fmt.Errorf("write file: %w", err)
+		}
 	}
 	return nil
 }
 
-// ensureGlobalHomeNix creates $XDG_CONFIG_HOME/silo/home.nix if the file does not already exist.
-func ensureGlobalHomeNix() error {
-	dir, err := globalConfigDir()
+// ensureUserHomeNix creates $XDG_CONFIG_HOME/silo/home-user.nix if it does not exist.
+func ensureUserHomeNix() error {
+	dir, err := userConfigDir()
 	if err != nil {
-		return err
+		return fmt.Errorf("create home-user.nix in config directory: %w", err)
 	}
-	return ensureFile(filepath.Join(dir, "home.nix"), []byte(emptyHomeNix))
+	return ensureFile(filepath.Join(dir, "home-user.nix"), []byte(emptyHomeNix))
 }
 
-// ensureWorkspaceHomeNix creates .silo/home.nix if the file does not already exist.
+// ensureWorkspaceHomeNix creates .silo/home.nix if it does not exist.
 func ensureWorkspaceHomeNix() error {
 	return ensureFile(filepath.Join(siloDir, "home.nix"), []byte(emptyHomeNix))
 }
 
-// ensureGlobalDevcontainerJSON creates $XDG_CONFIG_HOME/silo/devcontainer.json
-// with an empty JSON object if the file does not already exist.
-func ensureGlobalDevcontainerJSON() error {
-	dir, err := globalConfigDir()
+// ensureDevcontainerInJSON creates $XDG_CONFIG_HOME/silo/devcontainer.in.json if it does not exist.
+func ensureDevcontainerInJSON() error {
+	dir, err := userConfigDir()
 	if err != nil {
-		return err
+		return fmt.Errorf("create devcontainer.in.json in config directory: %w", err)
 	}
-	return ensureFile(filepath.Join(dir, "devcontainer.json"), []byte("{}\n"))
+	return ensureFile(filepath.Join(dir, "devcontainer.in.json"), []byte("{}\n"))
 }
 
-// ensureGlobalConfig creates $XDG_CONFIG_HOME/silo/silo.toml as an empty file
-// if the file does not already exist.
-func ensureGlobalConfig() error {
-	dir, err := globalConfigDir()
+// ensureSiloInTOML creates $XDG_CONFIG_HOME/silo/silo.in.toml if it does not exist.
+func ensureSiloInTOML() error {
+	dir, err := userConfigDir()
 	if err != nil {
-		return err
+		return fmt.Errorf("create silo.in.toml in config directory: %w", err)
 	}
-	return ensureFile(filepath.Join(dir, "silo.toml"), []byte{})
+	return ensureFile(filepath.Join(dir, "silo.in.toml"), []byte{})
 }
 
-// loadGlobalConfig parses $XDG_CONFIG_HOME/silo/silo.toml.
+// loadSiloInTOML parses $XDG_CONFIG_HOME/silo/silo.in.toml.
 // The [general] section is not meaningful and is ignored.
 // Returns an empty Config if the file does not exist.
-func loadGlobalConfig() (Config, error) {
-	dir, err := globalConfigDir()
+func loadSiloInTOML() (Config, error) {
+	dir, err := userConfigDir()
 	if err != nil {
-		return Config{}, err
+		return Config{}, fmt.Errorf("get config directory to load silo.in.toml: %w", err)
 	}
-	path := filepath.Join(dir, "silo.toml")
+	path := filepath.Join(dir, "silo.in.toml")
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return Config{}, nil
 	}
@@ -211,21 +210,21 @@ func baseImageName(user string) string {
 	return "silo-" + user
 }
 
-// initWorkspaceConfig loads the workspace config, or seeds it from global defaults on first run.
+// initWorkspaceConfig initializes workspace config from defaults or user settings.
 func initWorkspaceConfig() (Config, error) {
 	var cfg Config
-	if _, statErr := os.Stat(siloToml); os.IsNotExist(statErr) {
-		// First run: seed from global config, fall back to built-in defaults.
+	if _, err := os.Stat(siloToml); os.IsNotExist(err) {
+		// First run: seed from user config, fall back to built-in defaults.
 		defaults, err := defaultConfig()
 		if err != nil {
 			return cfg, err
 		}
-		if err := ensureGlobalConfig(); err != nil {
-			return cfg, fmt.Errorf("init global silo.toml: %w", err)
+		if err := ensureSiloInTOML(); err != nil {
+			return cfg, fmt.Errorf("init user silo.in.toml: %w", err)
 		}
-		cfg, err = loadGlobalConfig()
+		cfg, err = loadSiloInTOML()
 		if err != nil {
-			return cfg, fmt.Errorf("read global silo.toml: %w", err)
+			return cfg, fmt.Errorf("load user silo.in.toml: %w", err)
 		}
 		cfg.General = defaults.General
 		if cfg.Connect.Command == "" {
@@ -242,21 +241,27 @@ func initWorkspaceConfig() (Config, error) {
 		var err error
 		cfg, err = parseTOML(siloToml)
 		if err != nil {
-			return cfg, fmt.Errorf("read silo.toml: %w", err)
+			return cfg, fmt.Errorf("load workspace silo.toml: %w", err)
 		}
 	}
 	return cfg, nil
 }
 
-// ensureScaffoldFiles ensures home.nix and devcontainer.json scaffold files exist.
-func ensureScaffoldFiles() error {
-	if err := ensureGlobalHomeNix(); err != nil {
-		return err
+// ensureStarterFiles creates default config/nix files if they do not exist.
+func ensureStarterFiles() error {
+	if err := ensureUserHomeNix(); err != nil {
+		return fmt.Errorf("ensure home-user.nix: %w", err)
 	}
 	if err := ensureWorkspaceHomeNix(); err != nil {
-		return err
+		return fmt.Errorf("ensure workspace home.nix: %w", err)
 	}
-	return ensureGlobalDevcontainerJSON()
+	if err := ensureDevcontainerInJSON(); err != nil {
+		return fmt.Errorf("ensure devcontainer.in.json: %w", err)
+	}
+	if err := ensureSiloInTOML(); err != nil {
+		return fmt.Errorf("ensure silo.in.toml: %w", err)
+	}
+	return nil
 }
 
 // ensureImages builds the base and workspace images if they don't yet exist.
