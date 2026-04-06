@@ -14,7 +14,10 @@ func cmdDevcontainer() error {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
 
-	tc := newTemplateContext(cfg, "-dev")
+	tc, err := newTemplateContext(cfg, "-dev")
+	if err != nil {
+		return fmt.Errorf("build template context: %w", err)
+	}
 	content, err := renderTemplate("devcontainer.json.tmpl", tc)
 	if err != nil {
 		return fmt.Errorf("render devcontainer.json template: %w", err)

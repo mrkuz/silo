@@ -1,7 +1,9 @@
 package main
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -63,6 +65,21 @@ func TestContainerArgsNameSuffix(t *testing.T) {
 	}
 	if !strings.Contains(joined, "--hostname silo-abc12345-dev") {
 		t.Errorf("expected --hostname with suffix in args: %v", args)
+	}
+}
+
+func TestWorkspaceMountPath(t *testing.T) {
+	cfg := Config{
+		General: GeneralConfig{ID: "abc12345"},
+	}
+	got, err := workspaceMountPath(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	cwd, _ := os.Getwd()
+	want := "/workspace/abc12345/" + filepath.Base(cwd)
+	if got != want {
+		t.Errorf("workspaceMountPath() = %q, want %q", got, want)
 	}
 }
 

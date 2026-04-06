@@ -266,7 +266,10 @@ func ensureStarterFiles() error {
 
 // ensureImages builds the base and workspace images if they don't yet exist.
 func ensureImages(cfg Config) error {
-	tc := newTemplateContext(cfg)
+	tc, err := newTemplateContext(cfg)
+	if err != nil {
+		return fmt.Errorf("build template context: %w", err)
+	}
 	base := tc.BaseImage
 	if !imageExists(base) {
 		fmt.Printf("Building base image %s...\n", base)

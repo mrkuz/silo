@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -180,7 +182,10 @@ func TestNewTemplateContextDefaultSuffix(t *testing.T) {
 		},
 		Features: FeaturesConfig{Nested: false, SharedVolume: true},
 	}
-	tc := newTemplateContext(cfg)
+	tc, err := newTemplateContext(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if tc.ContainerName != "silo-abc12345" {
 		t.Fatalf("expected default container name, got %q", tc.ContainerName)
 	}
@@ -205,7 +210,10 @@ func TestNewTemplateContextWithSuffix(t *testing.T) {
 		},
 		Features: FeaturesConfig{Nested: false},
 	}
-	tc := newTemplateContext(cfg, "-dev")
+	tc, err := newTemplateContext(cfg, "-dev")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if tc.ContainerName != "silo-abc12345-dev" {
 		t.Fatalf("expected suffixed container name, got %q", tc.ContainerName)
 	}
@@ -224,9 +232,58 @@ func TestNewTemplateContextWithoutSharedVolume(t *testing.T) {
 		},
 		Features: FeaturesConfig{Nested: false, SharedVolume: false},
 	}
-	tc := newTemplateContext(cfg)
+	tc, err := newTemplateContext(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if tc.SharedVolumeName != "" {
 		t.Fatalf("expected empty shared volume name when feature disabled, got %q", tc.SharedVolumeName)
+	}
+}
+
+func TestNewTemplateContextWorkspaceMount(t *testing.T) {
+	cfg := Config{
+		General: GeneralConfig{
+			ID:            "abc12345",
+			User:          "alice",
+			ContainerName: "silo-abc12345",
+			ImageName:     "silo-abc12345",
+		},
+		Features: FeaturesConfig{Nested: false},
+	}
+	tc, err := newTemplateContext(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cwd, _ := os.Getwd()
+	want := "/workspace/abc12345/" + filepath.Base(cwd)
+	if tc.WorkspaceMount != want {
+		t.Errorf("WorkspaceMount = %q, want %q", tc.WorkspaceMount, want)
+	}
+}
+
+func TestRenderDevcontainerJSONWorkspaceMount(t *testing.T) {
+	tc := TemplateContext{
+		Image:          "silo-abc12345",
+		User:           "alice",
+		ContainerName:  "silo-abc12345-dev",
+		ContainerArgs:  []string{"--cap-drop=ALL"},
+		WorkspaceMount: "/workspace/abc12345/myproject",
+	}
+	out, err := renderTemplate("devcontainer.json.tmpl", tc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(out, &parsed); err != nil {
+		t.Fatalf("expected valid json, got error: %v\n%s", err, out)
+	}
+	if got := parsed["workspaceFolder"]; got != "/workspace/abc12345/myproject" {
+		t.Errorf("workspaceFolder = %q, want %q", got, "/workspace/abc12345/myproject")
+	}
+	wantMount := "source=${localWorkspaceFolder},target=/workspace/abc12345/myproject,type=bind,Z"
+	if got := parsed["workspaceMount"]; got != wantMount {
+		t.Errorf("workspaceMount = %q, want %q", got, wantMount)
 	}
 }
 

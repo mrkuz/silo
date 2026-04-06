@@ -133,7 +133,10 @@ func cmdBuild(args []string) error {
 		return fmt.Errorf("initialize: %w", err)
 	}
 
-	tc := newTemplateContext(cfg)
+	tc, err := newTemplateContext(cfg)
+	if err != nil {
+		return fmt.Errorf("build template context: %w", err)
+	}
 	baseTag := tc.BaseImage
 	wsTag := cfg.General.ImageName
 

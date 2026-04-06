@@ -39,6 +39,7 @@ type TemplateContext struct {
 	SetupScript       string
 	SharedVolumeName  string
 	SharedVolumeMount string
+	WorkspaceMount    string
 	System            string
 	ContainerArgs     []string
 	SharedPathEntries []sharedPathEntry
@@ -46,7 +47,7 @@ type TemplateContext struct {
 
 // newTemplateContext builds a TemplateContext from Config for template rendering.
 // An optional suffix is appended to the container name.
-func newTemplateContext(cfg Config, containerNameSuffix ...string) TemplateContext {
+func newTemplateContext(cfg Config, containerNameSuffix ...string) (TemplateContext, error) {
 	containerName := containerNameWithSuffix(cfg.General.ContainerName, containerNameSuffix...)
 	sharedVolumeNameValue := ""
 	sharedVolumeMountPoint := ""
@@ -56,6 +57,10 @@ func newTemplateContext(cfg Config, containerNameSuffix ...string) TemplateConte
 	}
 
 	home := "/home/" + cfg.General.User
+	workspaceMount, err := workspaceMountPath(cfg)
+	if err != nil {
+		return TemplateContext{}, fmt.Errorf("resolve workspace mount path: %w", err)
+	}
 	var entries []sharedPathEntry
 	if hasSharedPaths(cfg) {
 		entries = buildSharedVolumeEntries(cfg.SharedVolume.Paths)
@@ -69,10 +74,11 @@ func newTemplateContext(cfg Config, containerNameSuffix ...string) TemplateConte
 		SetupScript:       setupScriptPath,
 		SharedVolumeName:  sharedVolumeNameValue,
 		SharedVolumeMount: sharedVolumeMountPoint,
+		WorkspaceMount:    workspaceMount,
 		System:            detectNixSystem(),
 		ContainerArgs:     containerArgs(cfg, containerNameSuffix...),
 		SharedPathEntries: entries,
-	}
+	}, nil
 }
 
 // renderTemplate parses and executes an embedded Go template with the given data.

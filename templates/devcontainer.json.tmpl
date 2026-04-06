@@ -3,7 +3,9 @@
   "image": "{{.Image}}",
   "remoteUser": "{{.User}}",
   "runArgs": {{json .ContainerArgs}},
-  "overrideCommand": true
+  "overrideCommand": true,
+  "workspaceFolder": "{{.WorkspaceMount}}",
+  "workspaceMount": "source=${localWorkspaceFolder},target={{.WorkspaceMount}},type=bind,Z"
   {{- if .SharedVolumeMount }},
   "mounts": ["source={{.SharedVolumeName}},target={{.SharedVolumeMount}},type=volume,Z"],
   "postStartCommand": "bash {{.SetupScript}}"

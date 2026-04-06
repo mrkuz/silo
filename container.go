@@ -57,6 +57,16 @@ func containerNameWithSuffix(baseName string, suffix ...string) string {
 	return baseName
 }
 
+// workspaceMountPath returns the container-side mount path for the current working directory.
+func workspaceMountPath(cfg Config) (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("get current working directory: %w", err)
+	}
+	dirName := filepath.Base(cwd)
+	return fmt.Sprintf("/workspace/%s/%s", cfg.General.ID, dirName), nil
+}
+
 // containerArgs returns podman flags for container name, hostname, and security options.
 func containerArgs(cfg Config, containerNameSuffix ...string) []string {
 	containerName := containerNameWithSuffix(cfg.General.ContainerName, containerNameSuffix...)
@@ -83,8 +93,10 @@ func buildContainerArgs(cfg Config) ([]string, error) {
 
 	// Workspace mount (host dir → container path)
 	if cfg.Features.Workspace {
-		dirName := filepath.Base(hostDir)
-		containerDir := fmt.Sprintf("/workspace/%s/%s", cfg.General.ID, dirName)
+		containerDir, err := workspaceMountPath(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("get workspace mount path: %w", err)
+		}
 		args = append(args, "--volume", fmt.Sprintf("%s:%s:Z", hostDir, containerDir))
 		args = append(args, "--workdir", containerDir)
 	}
