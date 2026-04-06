@@ -7,36 +7,41 @@ import (
 	"testing"
 )
 
-func TestParseConnectFlags(t *testing.T) {
+func TestParseRunFlags(t *testing.T) {
 	tests := []struct {
 		args     []string
 		wantStop bool
+		wantRm   bool
+		wantRmi  bool
 		wantErr  bool
 	}{
-		{[]string{}, false, false},
-		{[]string{"--stop"}, true, false},
-		{[]string{"--unknown"}, false, true},
+		{[]string{}, false, false, false, false},
+		{[]string{"--stop"}, true, false, false, false},
+		{[]string{"--rm"}, true, true, false, false},
+		{[]string{"--rmi"}, true, true, true, false},
+		{[]string{"--unknown"}, false, false, false, true},
 	}
 	for _, tt := range tests {
-		f, err := parseConnectFlags(tt.args)
+		f, err := parseRunFlags(tt.args)
 		if tt.wantErr {
 			if err == nil {
-				t.Errorf("parseConnectFlags(%v): expected error", tt.args)
+				t.Errorf("parseRunFlags(%v): expected error", tt.args)
 			}
 			continue
 		}
 		if err != nil {
-			t.Errorf("parseConnectFlags(%v): unexpected error: %v", tt.args, err)
+			t.Errorf("parseRunFlags(%v): unexpected error: %v", tt.args, err)
 			continue
 		}
-		if f.stop != tt.wantStop {
-			t.Errorf("parseConnectFlags(%v).stop = %v, want %v", tt.args, f.stop, tt.wantStop)
+		if f.stop != tt.wantStop || f.rm != tt.wantRm || f.rmi != tt.wantRmi {
+			t.Errorf("parseRunFlags(%v) = {stop:%v rm:%v rmi:%v}, want {stop:%v rm:%v rmi:%v}",
+				tt.args, f.stop, f.rm, f.rmi, tt.wantStop, tt.wantRm, tt.wantRmi)
 		}
 	}
 }
 
-func TestParseConnectFlagsExtra(t *testing.T) {
-	f, err := parseConnectFlags([]string{"--", "arg1", "arg2"})
+func TestParseRunFlagsExtra(t *testing.T) {
+	f, err := parseRunFlags([]string{"--", "arg1", "arg2"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -51,17 +56,14 @@ func TestParseCreateFlags(t *testing.T) {
 		wantNested         bool
 		wantNoWS           bool
 		wantNoSharedVolume bool
-		wantForce          bool
 		wantErr            bool
 	}{
-		{[]string{}, false, false, false, false, false},
-		{[]string{"--nested"}, true, false, false, false, false},
-		{[]string{"--no-workspace"}, false, true, false, false, false},
-		{[]string{"--no-shared-volume"}, false, false, true, false, false},
-		{[]string{"--nested", "--no-shared-volume"}, true, false, true, false, false},
-		{[]string{"--force"}, false, false, false, true, false},
-		{[]string{"-f"}, false, false, false, true, false},
-		{[]string{"--unknown"}, false, false, false, false, true},
+		{[]string{}, false, false, false, false},
+		{[]string{"--nested"}, true, false, false, false},
+		{[]string{"--no-workspace"}, false, true, false, false},
+		{[]string{"--no-shared-volume"}, false, false, true, false},
+		{[]string{"--nested", "--no-shared-volume"}, true, false, true, false},
+		{[]string{"--unknown"}, false, false, false, true},
 	}
 	for _, tt := range tests {
 		f, err := parseCreateFlags(tt.args)
@@ -75,14 +77,14 @@ func TestParseCreateFlags(t *testing.T) {
 			t.Errorf("parseCreateFlags(%v): unexpected error: %v", tt.args, err)
 			continue
 		}
-		if f.nested != tt.wantNested || f.noWorkspace != tt.wantNoWS || f.noSharedVolume != tt.wantNoSharedVolume || f.force != tt.wantForce {
-			t.Errorf("parseCreateFlags(%v) flags = %+v, want nested=%v noWS=%v noSharedVolume=%v force=%v",
-				tt.args, f, tt.wantNested, tt.wantNoWS, tt.wantNoSharedVolume, tt.wantForce)
+		if f.nested != tt.wantNested || f.noWorkspace != tt.wantNoWS || f.noSharedVolume != tt.wantNoSharedVolume {
+			t.Errorf("parseCreateFlags(%v) flags = %+v, want nested=%v noWS=%v noSharedVolume=%v",
+				tt.args, f, tt.wantNested, tt.wantNoWS, tt.wantNoSharedVolume)
 		}
 	}
 }
 
-func TestParseStartFlags(t *testing.T) {
+func TestParseRemoveFlags(t *testing.T) {
 	tests := []struct {
 		args      []string
 		wantForce bool
@@ -92,38 +94,6 @@ func TestParseStartFlags(t *testing.T) {
 		{[]string{"--force"}, true, false},
 		{[]string{"-f"}, true, false},
 		{[]string{"--unknown"}, false, true},
-	}
-	for _, tt := range tests {
-		f, err := parseStartFlags(tt.args)
-		if tt.wantErr {
-			if err == nil {
-				t.Errorf("parseStartFlags(%v): expected error", tt.args)
-			}
-			continue
-		}
-		if err != nil {
-			t.Errorf("parseStartFlags(%v): unexpected error: %v", tt.args, err)
-			continue
-		}
-		if f.force != tt.wantForce {
-			t.Errorf("parseStartFlags(%v).force = %v, want %v", tt.args, f.force, tt.wantForce)
-		}
-	}
-}
-
-func TestParseRemoveFlags(t *testing.T) {
-	tests := []struct {
-		args      []string
-		wantForce bool
-		wantImage bool
-		wantErr   bool
-	}{
-		{[]string{}, false, false, false},
-		{[]string{"--image"}, false, true, false},
-		{[]string{"--force"}, true, false, false},
-		{[]string{"-f"}, true, false, false},
-		{[]string{"--force", "--image"}, true, true, false},
-		{[]string{"--unknown"}, false, false, true},
 	}
 	for _, tt := range tests {
 		got, err := parseRemoveFlags(tt.args)
@@ -137,8 +107,8 @@ func TestParseRemoveFlags(t *testing.T) {
 			t.Errorf("parseRemoveFlags(%v): unexpected error: %v", tt.args, err)
 			continue
 		}
-		if got.force != tt.wantForce || got.image != tt.wantImage {
-			t.Errorf("parseRemoveFlags(%v) = %+v, want force=%v image=%v", tt.args, got, tt.wantForce, tt.wantImage)
+		if got.force != tt.wantForce {
+			t.Errorf("parseRemoveFlags(%v).force = %v, want %v", tt.args, got.force, tt.wantForce)
 		}
 	}
 }
@@ -216,36 +186,14 @@ func TestCmdRemove(t *testing.T) {
 		}
 	})
 
-	t.Run("running container with --force --image: stops, removes container and image", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		setupWorkspace(t, cfg)
-		calls := mockExecCommand(t, map[string]*exec.Cmd{
-			"podman container exists silo-abc12345":                              exec.Command("true"),
-			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-			"podman image exists silo-abc12345":                                  exec.Command("true"),
-		})
-		if err := cmdRemove([]string{"--force", "--image"}); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !anyCall(calls, "podman", "stop") {
-			t.Errorf("expected podman stop, got %v", *calls)
-		}
-		if !anyCall(calls, "podman", "rm", "-f", "silo-abc12345") {
-			t.Errorf("expected podman rm -f, got %v", *calls)
-		}
-		if !anyCall(calls, "podman", "rmi", "silo-abc12345") {
-			t.Errorf("expected podman rmi, got %v", *calls)
-		}
-	})
-
-	t.Run("running container with -f: stops and removes", func(t *testing.T) {
+	t.Run("running container with --force: stops and removes", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
 			"podman container exists silo-abc12345":                              exec.Command("true"),
 			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
 		})
-		if err := cmdRemove([]string{"-f"}); err != nil {
+		if err := cmdRemove([]string{"--force"}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if !anyCall(calls, "podman", "stop") {
@@ -256,7 +204,7 @@ func TestCmdRemove(t *testing.T) {
 		}
 	})
 
-	t.Run("stopped container, no --image: removes container only", func(t *testing.T) {
+	t.Run("stopped container: removes container", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
@@ -288,6 +236,133 @@ func TestCmdRemove(t *testing.T) {
 		}
 		if anyCall(calls, "podman", "rm") {
 			t.Errorf("expected no podman rm, got %v", *calls)
+		}
+	})
+}
+
+func TestParseRemoveImageFlags(t *testing.T) {
+	tests := []struct {
+		args      []string
+		wantForce bool
+		wantUser  bool
+		wantErr   bool
+	}{
+		{[]string{}, false, false, false},
+		{[]string{"--force"}, true, false, false},
+		{[]string{"-f"}, true, false, false},
+		{[]string{"--user"}, false, true, false},
+		{[]string{"--force", "--user"}, true, true, false},
+		{[]string{"-f", "--user"}, true, true, false},
+		{[]string{"--unknown"}, false, false, true},
+	}
+	for _, tt := range tests {
+		got, err := parseRemoveImageFlags(tt.args)
+		if tt.wantErr {
+			if err == nil {
+				t.Errorf("parseRemoveImageFlags(%v): expected error", tt.args)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("parseRemoveImageFlags(%v): unexpected error: %v", tt.args, err)
+			continue
+		}
+		if got.force != tt.wantForce || got.user != tt.wantUser {
+			t.Errorf("parseRemoveImageFlags(%v) = {force:%v user:%v}, want {force:%v user:%v}",
+				tt.args, got.force, got.user, tt.wantForce, tt.wantUser)
+		}
+	}
+}
+
+func TestCmdRemoveImage(t *testing.T) {
+	t.Run("removes workspace image", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-abc12345": exec.Command("true"),
+		})
+		if err := cmdRemoveImage([]string{}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !anyCall(calls, "podman", "rmi", "silo-abc12345") {
+			t.Errorf("expected podman rmi, got %v", *calls)
+		}
+	})
+
+	t.Run("image not found — no-op", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-abc12345": exec.Command("false"),
+		})
+		if err := cmdRemoveImage([]string{}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if anyCall(calls, "podman", "rmi") {
+			t.Errorf("expected no podman rmi, got %v", *calls)
+		}
+	})
+
+	t.Run("--force stops and removes container first", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman container exists silo-abc12345":                              exec.Command("true"),
+			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
+			"podman image exists silo-abc12345":                                  exec.Command("true"),
+		})
+		if err := cmdRemoveImage([]string{"--force"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !anyCall(calls, "podman", "stop", "-t", "0", "silo-abc12345") {
+			t.Errorf("expected podman stop, got %v", *calls)
+		}
+		if !anyCall(calls, "podman", "rm", "-f", "silo-abc12345") {
+			t.Errorf("expected podman rm -f, got %v", *calls)
+		}
+		if !anyCall(calls, "podman", "rmi", "silo-abc12345") {
+			t.Errorf("expected podman rmi, got %v", *calls)
+		}
+	})
+
+	t.Run("--user removes only user image", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-abc12345": exec.Command("true"),
+			"podman image exists silo-testuser": exec.Command("true"),
+		})
+		if err := cmdRemoveImage([]string{"--user"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if anyCall(calls, "podman", "rmi", "silo-abc12345") {
+			t.Errorf("expected no workspace image remove, got %v", *calls)
+		}
+		if !anyCall(calls, "podman", "rmi", "silo-testuser") {
+			t.Errorf("expected podman rmi for user image, got %v", *calls)
+		}
+		if anyCall(calls, "podman", "stop") || anyCall(calls, "podman", "rm", "-f", "silo-abc12345") {
+			t.Errorf("expected no container stop/remove, got %v", *calls)
+		}
+	})
+
+	t.Run("--force with --user still removes only user image", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-testuser": exec.Command("true"),
+		})
+		if err := cmdRemoveImage([]string{"--force", "--user"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !anyCall(calls, "podman", "rmi", "silo-testuser") {
+			t.Errorf("expected podman rmi for user image, got %v", *calls)
+		}
+		if anyCall(calls, "podman", "rmi", "silo-abc12345") {
+			t.Errorf("expected no workspace image remove, got %v", *calls)
+		}
+		if anyCall(calls, "podman", "stop") || anyCall(calls, "podman", "rm", "-f", "silo-abc12345") {
+			t.Errorf("expected no container stop/remove, got %v", *calls)
 		}
 	})
 }
@@ -332,7 +407,7 @@ func TestCmdStart(t *testing.T) {
 			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
 			"podman container exists silo-abc12345":                              exec.Command("true"),
 		})
-		if err := cmdStart([]string{}); err != nil {
+		if err := cmdStart(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if !anyCall(calls, "podman", "start", "silo-abc12345") {
@@ -340,7 +415,7 @@ func TestCmdStart(t *testing.T) {
 		}
 	})
 
-	t.Run("already running without --force — no-op", func(t *testing.T) {
+	t.Run("already running — does not restart", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
 		setupUserConfig(t)
@@ -350,29 +425,17 @@ func TestCmdStart(t *testing.T) {
 			"podman container exists silo-abc12345":                              exec.Command("true"),
 			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
 		})
-		if err := cmdStart([]string{}); err != nil {
+		if err := cmdStart(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if anyCall(calls, "podman", "start") {
+		if anyCall(calls, "podman", "stop", "-t", "0", "silo-abc12345") {
+			t.Errorf("expected no podman stop, got %v", *calls)
+		}
+		if anyCall(calls, "podman", "start", "silo-abc12345") {
 			t.Errorf("expected no podman start, got %v", *calls)
 		}
-	})
-
-	t.Run("already running with --force — stops container", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		setupWorkspace(t, cfg)
-		setupUserConfig(t)
-		calls := mockExecCommand(t, map[string]*exec.Cmd{
-			"podman image exists silo-testuser":                                  exec.Command("true"),
-			"podman image exists silo-abc12345":                                  exec.Command("true"),
-			"podman container exists silo-abc12345":                              exec.Command("true"),
-			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-		})
-		if err := cmdStart([]string{"--force"}); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !anyCall(calls, "podman", "stop", "-t", "0", "silo-abc12345") {
-			t.Errorf("expected podman stop, got %v", *calls)
+		if anyCall(calls, "podman", "exec", "silo-abc12345", "bash", "/silo/setup.sh") {
+			t.Errorf("expected no setup exec call, got %v", *calls)
 		}
 	})
 }
@@ -394,6 +457,14 @@ func TestCmdConnect(t *testing.T) {
 		}
 	})
 
+	t.Run("with arguments — returns error", func(t *testing.T) {
+		if err := cmdConnect([]string{"--stop"}); err == nil {
+			t.Fatal("expected error when passing arguments to connect")
+		}
+	})
+}
+
+func TestCmdRun(t *testing.T) {
 	t.Run("with --stop — stops container after session", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
@@ -404,14 +475,78 @@ func TestCmdConnect(t *testing.T) {
 			"podman container exists silo-abc12345":                              exec.Command("true"),
 			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
 		})
-		_ = cmdConnect([]string{"--stop"})
+		_ = cmdRun([]string{"--stop"})
 		if !anyCall(calls, "podman", "stop", "-t", "0", "silo-abc12345") {
-			t.Errorf("expected podman stop after connect, got %v", *calls)
+			t.Errorf("expected podman stop after run, got %v", *calls)
+		}
+	})
+
+	t.Run("with --rm — stops and removes container after session", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		setupUserConfig(t)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-testuser":                                  exec.Command("true"),
+			"podman image exists silo-abc12345":                                  exec.Command("true"),
+			"podman container exists silo-abc12345":                              exec.Command("true"),
+			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
+		})
+		_ = cmdRun([]string{"--rm"})
+		if !anyCall(calls, "podman", "stop", "-t", "0", "silo-abc12345") {
+			t.Errorf("expected podman stop, got %v", *calls)
+		}
+		if !anyCall(calls, "podman", "rm", "-f", "silo-abc12345") {
+			t.Errorf("expected podman rm -f, got %v", *calls)
+		}
+		if anyCall(calls, "podman", "rmi") {
+			t.Errorf("expected no podman rmi, got %v", *calls)
+		}
+	})
+
+	t.Run("with --rmi — stops, removes container, and removes image after session", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		setupUserConfig(t)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-testuser":                                  exec.Command("true"),
+			"podman image exists silo-abc12345":                                  exec.Command("true"),
+			"podman container exists silo-abc12345":                              exec.Command("true"),
+			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
+		})
+		_ = cmdRun([]string{"--rmi"})
+		if !anyCall(calls, "podman", "stop", "-t", "0", "silo-abc12345") {
+			t.Errorf("expected podman stop, got %v", *calls)
+		}
+		if !anyCall(calls, "podman", "rm", "-f", "silo-abc12345") {
+			t.Errorf("expected podman rm -f, got %v", *calls)
+		}
+		if !anyCall(calls, "podman", "rmi", "silo-abc12345") {
+			t.Errorf("expected podman rmi, got %v", *calls)
 		}
 	})
 }
 
 func TestCmdCreateFilePersistence(t *testing.T) {
+	t.Run("existing container: no remove and no create", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		setupUserConfig(t)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-testuser":     exec.Command("true"),
+			"podman image exists silo-abc12345":     exec.Command("true"),
+			"podman container exists silo-abc12345": exec.Command("true"),
+		})
+		if err := cmdCreate([]string{}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if anyCall(calls, "podman", "rm", "-f", "silo-abc12345") {
+			t.Errorf("expected no podman rm -f for existing container, got %v", *calls)
+		}
+		if anyCall(calls, "podman", "create") {
+			t.Errorf("expected no podman create for existing container, got %v", *calls)
+		}
+	})
+
 	t.Run("--nested persists Features.Nested=true to silo.toml", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)

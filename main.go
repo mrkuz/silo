@@ -8,25 +8,26 @@ import (
 const helpText = `silo - developer sandbox container
 
 Usage:
-  silo [--stop] [-- args...]
+  silo [--stop|--rm|--rmi] [-- args...]
   silo init
-  silo build [--base] [-f|--force]
-  silo create [--nested] [--no-workspace] [--no-shared-volume] [-f|--force] [--dry-run] [-- args...]
-  silo start [-f|--force]
+  silo build [--user]
+  silo create [--nested] [--no-workspace] [--no-shared-volume] [--dry-run] [-- args...]
+  silo start
   silo setup
-  silo connect [--stop] [-- args...]
+  silo connect
   silo exec <cmd> [args...]
   silo stop
-  silo rm [-f|--force] [--image]
+  silo rm [-f|--force]
+  silo rmi [-f|--force] [--user]
   silo status
   silo devcontainer
   silo devcontainer stop
-  silo devcontainer rm [-f|--force]
+  silo devcontainer rm [--force]
   silo devcontainer status
   silo help
 
 Commands:
-  (default)            Alias for connect
+  (default)            Run lifecycle and connect to the silo container
   init                 Initialize workspace and user files
   build                Build the workspace image
   create               Create the container
@@ -36,6 +37,7 @@ Commands:
   exec                 Run a command in the running container
   stop                 Stop the running container
   rm                   Remove the container
+  rmi                  Remove the workspace image
   status               Print container status
   devcontainer         Generate .devcontainer.json
   devcontainer stop    Stop the devcontainer
@@ -43,44 +45,45 @@ Commands:
   devcontainer status  Print devcontainer status
   help                 Show this help
 
-Connect flags:
-  --stop   Stop the container when the session exits
-  -- ...   Pass remaining arguments to podman exec
+Default command flags:
+  --stop  Stop the container when the session exits
+  --rm    Stop and remove the container when the session exits
+  --rmi   Stop, remove container, and remove image when the session exits
+  -- ...  Pass remaining arguments to podman exec
 
 Build flags:
-  --base       Build the base and workspace image
-  -f, --force  Remove and rebuild the image if it already exists
+  --user  Build the user image
 
 Create flags:
   --nested            Enable nested Podman containers
   --no-workspace      Disable workspace volume mount
   --no-shared-volume  Disable shared volume mount
-  -f, --force         Remove and recreate the container if it already exists
-  --dry-run           Print the podman command without running it
-  -- ...              Pass remaining arguments to podman
-
-Start flags:
-  -f, --force  Restart the container if it is already running
+  --dry-run           Print the podman create command without running it
+  -- ...              Pass remaining arguments to podman create
 
 Remove flags:
   -f, --force  Stop the container if it is running before removing
-  --image      Also remove the workspace image
+
+Remove image flags:
+  -f, --force  Stop and remove the container before removing the image
+  --user       Remove the user image
 
 Devcontainer rm flags:
-  -f, --force  Stop the container if it is running before removing`
+  --force  Stop the container if it is running before removing`
 
 var commands = map[string]func([]string) error{
-	"init":              withoutArgs(cmdInit),
-	"build":             cmdBuild,
-	"create":            cmdCreate,
-	"start":             cmdStart,
-	"setup":             withoutArgs(cmdSetup),
-	"connect":           cmdConnect,
-	"exec":              cmdExec,
-	"stop":              withoutArgs(cmdStop),
-	"rm":                cmdRemove,
-	"status":            withoutArgs(cmdStatus),
-	"devcontainer":      withoutArgs(cmdDevcontainerGenerate),
+	"init":                withoutArgs(cmdInit),
+	"build":               cmdBuild,
+	"create":              cmdCreate,
+	"start":               withoutArgs(cmdStart),
+	"setup":               withoutArgs(cmdSetup),
+	"connect":             cmdConnect,
+	"exec":                cmdExec,
+	"stop":                withoutArgs(cmdStop),
+	"rm":                  cmdRemove,
+	"rmi":                 cmdRemoveImage,
+	"status":              withoutArgs(cmdStatus),
+	"devcontainer":        withoutArgs(cmdDevcontainerGenerate),
 	"devcontainer stop":   withoutArgs(cmdDevcontainerStop),
 	"devcontainer rm":     cmdDevcontainerRemove,
 	"devcontainer status": withoutArgs(cmdDevcontainerStatus),
@@ -120,7 +123,7 @@ func main() {
 			}
 		}
 	}
-	if err := cmdConnect(os.Args[1:]); err != nil {
+	if err := cmdRun(os.Args[1:]); err != nil {
 		fatal(err)
 	}
 }

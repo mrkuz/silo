@@ -205,7 +205,7 @@ func loadSiloInTOML() (Config, error) {
 	return parseTOML(path)
 }
 
-// baseImageName returns the base image tag for the given user.
+// baseImageName returns the user image tag for the given user.
 func baseImageName(user string) string {
 	return "silo-" + user
 }
@@ -264,17 +264,17 @@ func ensureStarterFiles() error {
 	return nil
 }
 
-// ensureImages builds the base and workspace images if they don't yet exist.
+// ensureImages builds the user and workspace images if they don't yet exist.
 func ensureImages(cfg Config) error {
 	tc, err := newTemplateContext(cfg)
 	if err != nil {
 		return fmt.Errorf("build template context: %w", err)
 	}
-	base := tc.BaseImage
-	if !imageExists(base) {
-		fmt.Printf("Building base image %s...\n", base)
-		if err := buildBaseImage(base, tc); err != nil {
-			return fmt.Errorf("build base image: %w", err)
+	userImage := tc.BaseImage
+	if !imageExists(userImage) {
+		fmt.Printf("Building user image %s...\n", userImage)
+		if err := buildUserImage(userImage, tc); err != nil {
+			return fmt.Errorf("build user image: %w", err)
 		}
 	}
 	if !imageExists(cfg.General.ImageName) {

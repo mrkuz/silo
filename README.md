@@ -23,7 +23,7 @@ silo
 
 See [Build and Install](#build-and-install) for installation instructions.
 
-On first run, silo creates starter files (including `.silo/silo.toml`), builds two images (a shared base image and a per-workspace workspace image), starts the container, and connects to it.
+On first run, silo creates starter files (including `.silo/silo.toml`), builds two images (a shared user image and a per-workspace workspace image), starts the container, and connects to it.
 
 See [Configuration](#configuration) to customize your workspace.
 
@@ -54,7 +54,7 @@ init → build → create → start → setup → connect
 | Step | Description | Output |
 |---|---|---|
 | **init** | Creates `.silo/silo.toml`, `.silo/home.nix`, and user files on the host | Essential files |
-| **build** | Builds the base image (shared) and the workspace image (per-workspace) | Container image |
+| **build** | Builds the user image (shared) and the workspace image (per-workspace) | Container image |
 | **create** | Creates the container from the workspace image | Stopped container |
 | **start** | Starts the container | Running container |
 | **setup** | Configure shared volume | Configured container |
@@ -65,29 +65,39 @@ init → build → create → start → setup → connect
 ## Commands
 
 ```
-silo [--stop] [-- args...]
+silo [--stop|--rm|--rmi] [-- args...]
 silo init
-silo build [--base] [-f|--force]
-silo create [--nested] [--no-workspace] [--no-shared-volume] [-f|--force] [--dry-run] [-- args...]
-silo start [-f|--force]
+silo build [--user]
+silo create [--nested] [--no-workspace] [--no-shared-volume] [--dry-run] [-- args...]
+silo start
 silo setup
-silo connect [--stop] [-- args...]
+silo connect
 silo exec <cmd> [args...]
 silo stop
-silo rm [-f|--force] [--image]
+silo rm [-f|--force]
+silo rmi [-f|--force] [--user]
 silo status
 silo devcontainer
+silo devcontainer stop
+silo devcontainer rm [--force]
+silo devcontainer status
 silo help
 ```
 
-### `silo connect` / `silo` (default)
+### `silo` (default)
 
-Connect to the container for the current workspace. Runs the full lifecycle chain if needed. The bare `silo` invocation is an alias for `silo connect`.
+Run the full lifecycle chain if needed, then connect to the container for the current workspace.
 
 | Flag | Description |
 |---|---|
 | `--stop` | Stop the container when the session exits |
+| `--rm` | Stop and remove the container when the session exits |
+| `--rmi` | Stop, remove container, and remove image when the session exits |
 | `-- ...` | Pass remaining arguments to `podman exec` |
+
+### `silo connect`
+
+Connect to the container for the current workspace. Runs the full lifecycle chain if needed.
 
 ### `silo init`
 
@@ -95,12 +105,11 @@ Initialize workspace and user files. Creates `.silo/silo.toml`, `.silo/home.nix`
 
 ### `silo build`
 
-Build the workspace image (and optionally the base image).
+Build the workspace image if it does not exist yet. With `--user`, build the user image instead.
 
 | Flag | Description |
 |---|---|
-| `--base` | Build the base image, then the workspace image |
-| `-f`, `--force` | Remove and rebuild the image(s) if already present |
+| `--user` | Build the user image |
 
 ### `silo create`
 
@@ -111,7 +120,6 @@ Create the container without starting it. Builds images if needed.
 | `--nested` | Enable nested Podman containers (relaxes security opts, adds `/dev/fuse`) |
 | `--no-workspace` | Disable workspace volume mount |
 | `--no-shared-volume` | Disable shared volume |
-| `-f`, `--force` | Remove and recreate the container if it already exists |
 | `--dry-run` | Print the `podman create` command without running it |
 | `-- ...` | Pass remaining arguments to `podman create` |
 
@@ -119,11 +127,7 @@ Feature flags (`--nested`, `--no-workspace`, `--no-shared-volume`) and extra arg
 
 ### `silo start`
 
-Start the container and run post-start setup. Does not connect.
-
-| Flag | Description |
-|---|---|
-| `-f`, `--force` | Restart the container if it is already running |
+Start the container and run post-start setup. Does not connect. If the container is already running, this command does nothing.
 
 ### `silo setup`
 
@@ -139,12 +143,20 @@ Stop the running container (immediate, no grace period).
 
 ### `silo rm`
 
-Remove the container. Fails if the container is running unless `-f`/`--force` is given.
+Remove the container. Fails if the container is running unless `--force` is given.
 
 | Flag | Description |
 |---|---|
 | `-f`, `--force` | Stop the container if it is running before removing |
-| `--image` | Also remove the workspace image |
+
+### `silo rmi`
+
+Remove the workspace image. Optionally remove the container. With `--user`, remove the user image instead.
+
+| Flag | Description |
+|---|---|
+| `-f`, `--force` | Stop and remove the container before removing the image |
+| `--user` | Remove the user image |
 
 ### `silo status`
 
@@ -153,6 +165,22 @@ Print `Running` or `Stopped`.
 ### `silo devcontainer`
 
 Generate a `.devcontainer.json` for VS Code in the current host directory. Does nothing if `.devcontainer.json` already exists. See [VS Code devcontainer](#vs-code-devcontainer) for details.
+
+### `silo devcontainer stop`
+
+Stop the devcontainer.
+
+### `silo devcontainer rm`
+
+Remove the devcontainer. Fails if the container is running unless `--force` is given.
+
+| Flag | Description |
+|---|---|
+| `--force`, `-f` | Stop the container if it is running before removing |
+
+### `silo devcontainer status`
+
+Print `Running` or `Stopped` for the devcontainer.
 
 ---
 
@@ -240,7 +268,7 @@ All three files are created automatically on first run if they don't exist. See 
 | File | Description |
 |---|---|
 | `silo.in.toml` | Default values for new workspaces. `[general]` is ignored. |
-| `home-user.nix` | User home-manager config baked into the base image. |
+| `home-user.nix` | User home-manager config baked into the user image. |
 | `devcontainer.in.json` | Merged into every generated `.devcontainer.json`. |
 
 ---
@@ -251,8 +279,8 @@ All three files are created automatically on first run if they don't exist. See 
 
 silo builds two OCI images using Podman:
 
-1. **Base image** (`silo-<user>`) — shared across all workspaces. Alpine with Nix and home-manager installed. The user `home-user.nix` is baked in.
-2. **Workspace image** (`silo-<id>`) — per-workspace, layered on top of the base. The workspace `home.nix` is applied here.
+1. **User image** (`silo-<user>`) — shared across all workspaces. Alpine with Nix and home-manager installed. The user `home-user.nix` is baked in.
+2. **Workspace image** (`silo-<id>`) — per-workspace, layered on top of the user image. The workspace `home.nix` is applied here.
 
 Build context files are written to a temporary directory on the host and passed to `podman build`. No persistent build context is kept on disk.
 
@@ -282,7 +310,7 @@ Each image build generates a Nix flake in a temporary directory on the host and 
 
 - The `silo` container is independent from the devcontainer.
 - Lifecycle is managed by VS Code/devcontainers, not by `silo`.
-- `silo` commands (`start`/`stop`/`status`/`connect`/`rm`) target the regular workspace container, not the devcontainer.
+- `silo` commands (`start`/`stop`/`status`/`connect`/`rm`) target the regular workspace container.
 
 Example user `$XDG_CONFIG_HOME/silo/devcontainer.in.json`:
 

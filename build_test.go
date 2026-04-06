@@ -30,17 +30,13 @@ func TestImageExists(t *testing.T) {
 
 func TestParseBuildFlags(t *testing.T) {
 	tests := []struct {
-		args      []string
-		wantBase  bool
-		wantForce bool
-		wantErr   bool
+		args     []string
+		wantUser bool
+		wantErr  bool
 	}{
-		{[]string{}, false, false, false},
-		{[]string{"--base"}, true, false, false},
-		{[]string{"--force"}, false, true, false},
-		{[]string{"--base", "--force"}, true, true, false},
-		{[]string{"-f"}, false, true, false},
-		{[]string{"--unknown"}, false, false, true},
+		{[]string{}, false, false},
+		{[]string{"--user"}, true, false},
+		{[]string{"--unknown"}, false, true},
 	}
 	for _, tt := range tests {
 		f, err := parseBuildFlags(tt.args)
@@ -54,9 +50,93 @@ func TestParseBuildFlags(t *testing.T) {
 			t.Errorf("parseBuildFlags(%v): unexpected error: %v", tt.args, err)
 			continue
 		}
-		if f.base != tt.wantBase || f.force != tt.wantForce {
-			t.Errorf("parseBuildFlags(%v) = {base:%v force:%v}, want {base:%v force:%v}",
-				tt.args, f.base, f.force, tt.wantBase, tt.wantForce)
+		if f.user != tt.wantUser {
+			t.Errorf("parseBuildFlags(%v).user = %v, want %v", tt.args, f.user, tt.wantUser)
 		}
 	}
+}
+
+func TestCmdBuild(t *testing.T) {
+	t.Run("--user with existing user image: no-op", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		setupUserConfig(t)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-testuser": exec.Command("true"),
+		})
+
+		if err := cmdBuild([]string{"--user"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if anyCall(calls, "podman", "rmi", "silo-testuser") {
+			t.Errorf("expected no podman rmi for user image, got %v", *calls)
+		}
+		if anyCall(calls, "podman", "build", "-t", "silo-testuser") {
+			t.Errorf("expected no podman build for existing user image, got %v", *calls)
+		}
+	})
+
+	t.Run("--user with missing user image: builds user image", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		setupUserConfig(t)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-testuser": exec.Command("false"),
+		})
+
+		if err := cmdBuild([]string{"--user"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if anyCall(calls, "podman", "build", "-t", "silo-abc12345") {
+			t.Errorf("expected no workspace image build, got %v", *calls)
+		}
+		if !anyCall(calls, "podman", "build", "-t", "silo-testuser") {
+			t.Errorf("expected podman build -t silo-testuser, got %v", *calls)
+		}
+	})
+
+	t.Run("default with existing workspace image: no-op", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		setupUserConfig(t)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-abc12345": exec.Command("true"),
+		})
+
+		if err := cmdBuild([]string{}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if anyCall(calls, "podman", "rmi", "silo-abc12345") {
+			t.Errorf("expected no podman rmi for workspace image, got %v", *calls)
+		}
+		if anyCall(calls, "podman", "build", "-t", "silo-abc12345") {
+			t.Errorf("expected no podman build for existing workspace image, got %v", *calls)
+		}
+		if anyCall(calls, "podman", "build", "-t", "silo-testuser") {
+			t.Errorf("expected no user image build, got %v", *calls)
+		}
+	})
+
+	t.Run("default with missing workspace image: builds workspace image", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		setupUserConfig(t)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-abc12345": exec.Command("false"),
+		})
+
+		if err := cmdBuild([]string{}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if !anyCall(calls, "podman", "build", "-t", "silo-abc12345") {
+			t.Errorf("expected podman build -t silo-abc12345, got %v", *calls)
+		}
+		if anyCall(calls, "podman", "build", "-t", "silo-testuser") {
+			t.Errorf("expected no user image build, got %v", *calls)
+		}
+	})
 }

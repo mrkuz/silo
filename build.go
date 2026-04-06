@@ -28,8 +28,8 @@ func detectNixSystem() string {
 	}
 }
 
-// buildBaseImage builds the base image using the user's home-user.nix.
-func buildBaseImage(tag string, tc TemplateContext) error {
+// buildUserImage builds the user image using home-user.nix.
+func buildUserImage(tag string, tc TemplateContext) error {
 	containerfile, err := renderTemplate("Containerfile.base.tmpl", tc)
 	if err != nil {
 		return fmt.Errorf("render Containerfile.base template: %w", err)
@@ -55,12 +55,12 @@ func buildBaseImage(tag string, tc TemplateContext) error {
 		"home-workspace-empty.nix": []byte(emptyHomeNix),
 	}
 	if err := runBuild(tag, files); err != nil {
-		return fmt.Errorf("build base image: %w", err)
+		return fmt.Errorf("build user image: %w", err)
 	}
 	return nil
 }
 
-// buildWorkspaceImage builds the workspace image layered on top of the base image.
+// buildWorkspaceImage builds the workspace image layered on top of the user image.
 func buildWorkspaceImage(tag string, tc TemplateContext) error {
 	containerfile, err := renderTemplate("Containerfile.workspace.tmpl", tc)
 	if err != nil {
@@ -107,21 +107,7 @@ func runBuild(tag string, files map[string][]byte) error {
 	return nil
 }
 
-// ensureImageRemoved removes the image if force is set and the image exists.
-// If force is false and the image exists, it returns false to signal "already exists".
-// Returns true when the caller should proceed to build.
-func ensureImageRemoved(tag string, force bool) (bool, error) {
-	if !imageExists(tag) {
-		return true, nil
-	}
-	if !force {
-		return false, nil
-	}
-	fmt.Printf("Removing image %s...\n", tag)
-	return true, removeImage(tag)
-}
-
-// cmdBuild implements `silo build [--base] [--force]`.
+// cmdBuild implements `silo build [--user]`.
 func cmdBuild(args []string) error {
 	flags, err := parseBuildFlags(args)
 	if err != nil {
@@ -137,39 +123,23 @@ func cmdBuild(args []string) error {
 	if err != nil {
 		return fmt.Errorf("build template context: %w", err)
 	}
-	baseTag := tc.BaseImage
+	userTag := tc.BaseImage
 	wsTag := cfg.General.ImageName
 
-	if flags.base {
-		proceed, err := ensureImageRemoved(baseTag, flags.force)
-		if err != nil {
-			return fmt.Errorf("check if base image exists: %w", err)
-		}
-		if !proceed {
-			fmt.Printf("Base image %s already exists.\n", baseTag)
+	if flags.user {
+		if imageExists(userTag) {
+			fmt.Printf("%s already exists\n", userTag)
 			return nil
 		}
-		fmt.Printf("Building base image %s...\n", baseTag)
-		if err := buildBaseImage(baseTag, tc); err != nil {
-			return fmt.Errorf("build base image: %w", err)
-		}
-		// Also rebuild the workspace image on top of the new base.
-		if _, err := ensureImageRemoved(wsTag, flags.force); err != nil {
-			return fmt.Errorf("check if workspace image exists: %w", err)
-		}
-		fmt.Printf("Building workspace image %s...\n", wsTag)
-		if err := buildWorkspaceImage(wsTag, tc); err != nil {
-			return fmt.Errorf("build workspace image: %w", err)
+		fmt.Printf("Building user image %s...\n", userTag)
+		if err := buildUserImage(userTag, tc); err != nil {
+			return fmt.Errorf("build user image: %w", err)
 		}
 		return nil
 	}
 
-	proceed, err := ensureImageRemoved(wsTag, flags.force)
-	if err != nil {
-		return fmt.Errorf("check if workspace image exists: %w", err)
-	}
-	if !proceed {
-		fmt.Printf("Workspace image %s already exists.\n", wsTag)
+	if imageExists(wsTag) {
+		fmt.Printf("%s already exists\n", wsTag)
 		return nil
 	}
 	fmt.Printf("Building workspace image %s...\n", wsTag)
@@ -180,18 +150,15 @@ func cmdBuild(args []string) error {
 }
 
 type buildFlags struct {
-	base  bool
-	force bool
+	user bool
 }
 
 func parseBuildFlags(args []string) (buildFlags, error) {
 	fs := flag.NewFlagSet("silo build", flag.ContinueOnError)
-	base := fs.Bool("base", false, "Build the base and workspace image")
-	force := fs.Bool("force", false, "Remove and rebuild the image if it already exists")
-	f := fs.Bool("f", false, "Alias for --force")
+	user := fs.Bool("user", false, "Build only the user image")
 	fs.Usage = func() {} // suppress; handled by main helpText
 	if err := fs.Parse(args); err != nil {
 		return buildFlags{}, fmt.Errorf("parse build flags: %w", err)
 	}
-	return buildFlags{base: *base, force: *force || *f}, nil
+	return buildFlags{user: *user}, nil
 }

@@ -30,11 +30,11 @@ func cmdSetup() error {
 	return nil
 }
 
-// cmdConnect opens an interactive shell in the running container.
-func cmdConnect(args []string) error {
-	flags, err := parseConnectFlags(args)
+// cmdRun implements default `silo` invocation.
+func cmdRun(args []string) error {
+	flags, err := parseRunFlags(args)
 	if err != nil {
-		return fmt.Errorf("parse connect flags: %w", err)
+		return fmt.Errorf("parse run flags: %w", err)
 	}
 	cfg, err := ensureSetup()
 	if err != nil {
@@ -42,11 +42,33 @@ func cmdConnect(args []string) error {
 	}
 	fmt.Printf("Connecting to %s...\n", cfg.General.ContainerName)
 	err = connectContainer(cfg.General.ContainerName, cfg.Connect.Command, flags.extra)
+	// Best-effort cleanup; original session error (if any) takes precedence.
 	if flags.stop {
-		// Best-effort cleanup; original session error (if any) takes precedence.
 		stopContainer(cfg.General.ContainerName)
 	}
+	if flags.rm {
+		removeContainer(cfg.General.ContainerName)
+	}
+	if flags.rmi {
+		removeImage(cfg.General.ImageName)
+	}
 	if err != nil {
+		return fmt.Errorf("connect to container: %w", err)
+	}
+	return nil
+}
+
+// cmdConnect opens an interactive shell in the running container.
+func cmdConnect(args []string) error {
+	if len(args) > 0 {
+		return fmt.Errorf("connect does not take arguments")
+	}
+	cfg, err := ensureSetup()
+	if err != nil {
+		return fmt.Errorf("setup container: %w", err)
+	}
+	fmt.Printf("Connecting to %s...\n", cfg.General.ContainerName)
+	if err := connectContainer(cfg.General.ContainerName, cfg.Connect.Command, nil); err != nil {
 		return fmt.Errorf("connect to container: %w", err)
 	}
 	return nil
@@ -98,7 +120,7 @@ func cmdStatus() error {
 	return nil
 }
 
-// cmdRemove removes the workspace container and optionally the image.
+// cmdRemove removes the workspace container.
 func cmdRemove(args []string) error {
 	flags, err := parseRemoveFlags(args)
 	if err != nil {
@@ -124,15 +146,51 @@ func cmdRemove(args []string) error {
 	} else {
 		fmt.Printf("%s not found\n", cfg.General.ContainerName)
 	}
-	if flags.image {
-		if imageExists(cfg.General.ImageName) {
-			fmt.Printf("Removing %s...\n", cfg.General.ImageName)
-			if err := removeImage(cfg.General.ImageName); err != nil {
-				return fmt.Errorf("remove image: %w", err)
+	return nil
+}
+
+// cmdRemoveImage implements `silo rmi [--force] [--user]`.
+func cmdRemoveImage(args []string) error {
+	flags, err := parseRemoveImageFlags(args)
+	if err != nil {
+		return fmt.Errorf("parse rmi flags: %w", err)
+	}
+	cfg, err := requireWorkspaceConfig()
+	if err != nil {
+		return fmt.Errorf("load workspace configuration: %w", err)
+	}
+	if flags.user {
+		userImage := baseImageName(cfg.General.User)
+		if imageExists(userImage) {
+			fmt.Printf("Removing %s...\n", userImage)
+			if err := removeImage(userImage); err != nil {
+				return fmt.Errorf("remove user image: %w", err)
 			}
 		} else {
-			fmt.Printf("%s not found\n", cfg.General.ImageName)
+			fmt.Printf("%s not found\n", userImage)
 		}
+		return nil
+	}
+	if flags.force {
+		if containerExists(cfg.General.ContainerName) {
+			if containerRunning(cfg.General.ContainerName) {
+				if err := stopContainer(cfg.General.ContainerName); err != nil {
+					return fmt.Errorf("stop container: %w", err)
+				}
+			}
+			fmt.Printf("Removing %s...\n", cfg.General.ContainerName)
+			if err := removeContainer(cfg.General.ContainerName); err != nil {
+				return fmt.Errorf("remove container: %w", err)
+			}
+		}
+	}
+	if imageExists(cfg.General.ImageName) {
+		fmt.Printf("Removing %s...\n", cfg.General.ImageName)
+		if err := removeImage(cfg.General.ImageName); err != nil {
+			return fmt.Errorf("remove image: %w", err)
+		}
+	} else {
+		fmt.Printf("%s not found\n", cfg.General.ImageName)
 	}
 	return nil
 }
@@ -194,14 +252,8 @@ func cmdCreate(args []string) error {
 	}
 
 	if containerExists(cfg.General.ContainerName) {
-		if !flags.force {
-			fmt.Printf("Container %s already exists.\n", cfg.General.ContainerName)
-			return nil
-		}
-		fmt.Printf("Removing %s...\n", cfg.General.ContainerName)
-		if err := removeContainer(cfg.General.ContainerName); err != nil {
-			return fmt.Errorf("remove existing container: %w", err)
-		}
+		fmt.Printf("%s already exists\n", cfg.General.ContainerName)
+		return nil
 	}
 
 	if err := createContainer(cfg, extraArgs); err != nil {
@@ -210,25 +262,20 @@ func cmdCreate(args []string) error {
 	return nil
 }
 
-// cmdStart implements `silo start [--force]`.
-func cmdStart(args []string) error {
-	flags, err := parseStartFlags(args)
+// cmdStart implements `silo start`.
+func cmdStart() error {
+	cfg, err := ensureCreated()
 	if err != nil {
-		return fmt.Errorf("parse start flags: %w", err)
+		return fmt.Errorf("create container: %w", err)
 	}
-	if flags.force {
-		// Stop first if running, then let the ensure chain handle start + setup.
-		cfg, err := ensureBuilt()
-		if err != nil {
-			return fmt.Errorf("build images: %w", err)
-		}
-		if containerRunning(cfg.General.ContainerName) {
-			if err := stopContainer(cfg.General.ContainerName); err != nil {
-				return fmt.Errorf("stop container: %w", err)
-			}
-		}
+	if containerRunning(cfg.General.ContainerName) {
+		fmt.Printf("%s is already running\n", cfg.General.ContainerName)
+		return nil
 	}
-	_, err = ensureSetup()
+	if err := startContainer(cfg.General.ContainerName); err != nil {
+		return fmt.Errorf("start container: %w", err)
+	}
+	err = setupContainer(cfg)
 	if err != nil {
 		return fmt.Errorf("setup container: %w", err)
 	}
@@ -237,36 +284,55 @@ func cmdStart(args []string) error {
 
 // --- flag types and parsers ---
 
-type connectFlags struct {
+type runFlags struct {
 	stop  bool
+	rm    bool
+	rmi   bool
 	extra []string
 }
 
-func parseConnectFlags(args []string) (connectFlags, error) {
-	fs := flag.NewFlagSet("silo connect", flag.ContinueOnError)
+func parseRunFlags(args []string) (runFlags, error) {
+	fs := flag.NewFlagSet("silo", flag.ContinueOnError)
 	stop := fs.Bool("stop", false, "Stop the container when the session exits")
+	rm := fs.Bool("rm", false, "Stop and remove the container when the session exits")
+	rmi := fs.Bool("rmi", false, "Stop, remove container, and remove image when the session exits")
 	fs.Usage = func() {} // suppress; handled by main helpText
 	if err := fs.Parse(args); err != nil {
-		return connectFlags{}, fmt.Errorf("parse connect flags: %w", err)
+		return runFlags{}, fmt.Errorf("parse run flags: %w", err)
 	}
-	return connectFlags{stop: *stop, extra: fs.Args()}, nil
+	return runFlags{stop: *stop || *rm || *rmi, rm: *rm || *rmi, rmi: *rmi, extra: fs.Args()}, nil
 }
 
 type removeFlags struct {
 	force bool
-	image bool
 }
 
 func parseRemoveFlags(args []string) (removeFlags, error) {
 	fs := flag.NewFlagSet("silo rm", flag.ContinueOnError)
 	force := fs.Bool("force", false, "Stop and remove a running container")
-	f := fs.Bool("f", false, "Alias for --force")
-	image := fs.Bool("image", false, "Also remove the workspace image")
+	forceShort := fs.Bool("f", false, "")
 	fs.Usage = func() {} // suppress; handled by main helpText
 	if err := fs.Parse(args); err != nil {
 		return removeFlags{}, fmt.Errorf("parse remove flags: %w", err)
 	}
-	return removeFlags{force: *force || *f, image: *image}, nil
+	return removeFlags{force: *force || *forceShort}, nil
+}
+
+type removeImageFlags struct {
+	force bool
+	user  bool
+}
+
+func parseRemoveImageFlags(args []string) (removeImageFlags, error) {
+	fs := flag.NewFlagSet("silo rmi", flag.ContinueOnError)
+	force := fs.Bool("force", false, "Stop and remove the container before removing the image")
+	forceShort := fs.Bool("f", false, "")
+	user := fs.Bool("user", false, "Remove only the user image")
+	fs.Usage = func() {} // suppress; handled by main helpText
+	if err := fs.Parse(args); err != nil {
+		return removeImageFlags{}, fmt.Errorf("parse rmi flags: %w", err)
+	}
+	return removeImageFlags{force: *force || *forceShort, user: *user}, nil
 }
 
 type devcontainerRemoveFlags struct {
@@ -276,19 +342,18 @@ type devcontainerRemoveFlags struct {
 func parseDevcontainerRemoveFlags(args []string) (devcontainerRemoveFlags, error) {
 	fs := flag.NewFlagSet("silo devcontainer rm", flag.ContinueOnError)
 	force := fs.Bool("force", false, "Stop and remove a running container")
-	f := fs.Bool("f", false, "Alias for --force")
+	forceShort := fs.Bool("f", false, "")
 	fs.Usage = func() {} // suppress; handled by main helpText
 	if err := fs.Parse(args); err != nil {
 		return devcontainerRemoveFlags{}, fmt.Errorf("parse devcontainer rm flags: %w", err)
 	}
-	return devcontainerRemoveFlags{force: *force || *f}, nil
+	return devcontainerRemoveFlags{force: *force || *forceShort}, nil
 }
 
 type createFlags struct {
 	nested         bool
 	noWorkspace    bool
 	noSharedVolume bool
-	force          bool
 	dryRun         bool
 	extra          []string
 }
@@ -298,8 +363,6 @@ func parseCreateFlags(args []string) (createFlags, error) {
 	nested := fs.Bool("nested", false, "Enable nested Podman containers")
 	noWorkspace := fs.Bool("no-workspace", false, "Disable workspace volume mount")
 	noSharedVolume := fs.Bool("no-shared-volume", false, "Disable shared volume")
-	force := fs.Bool("force", false, "Remove and recreate the container if it already exists")
-	f := fs.Bool("f", false, "Alias for --force")
 	dryRun := fs.Bool("dry-run", false, "Print the podman create command without running it")
 	fs.Usage = func() {} // suppress; handled by main helpText
 	if err := fs.Parse(args); err != nil {
@@ -309,23 +372,7 @@ func parseCreateFlags(args []string) (createFlags, error) {
 		nested:         *nested,
 		noWorkspace:    *noWorkspace,
 		noSharedVolume: *noSharedVolume,
-		force:          *force || *f,
 		dryRun:         *dryRun,
 		extra:          fs.Args(),
 	}, nil
-}
-
-type startFlags struct {
-	force bool
-}
-
-func parseStartFlags(args []string) (startFlags, error) {
-	fs := flag.NewFlagSet("silo start", flag.ContinueOnError)
-	force := fs.Bool("force", false, "Restart the container if it is already running")
-	f := fs.Bool("f", false, "Alias for --force")
-	fs.Usage = func() {} // suppress; handled by main helpText
-	if err := fs.Parse(args); err != nil {
-		return startFlags{}, fmt.Errorf("parse start flags: %w", err)
-	}
-	return startFlags{force: *force || *f}, nil
 }

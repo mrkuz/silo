@@ -85,7 +85,7 @@ func setupWorkspace(t *testing.T, cfg Config) string {
 }
 
 // setupUserConfig points XDG_CONFIG_HOME at a new temp directory and writes
-// the minimal files required by ensureStarterFiles and buildBaseImage.
+// the minimal files required by ensureStarterFiles and buildUserImage.
 // Needed by any test that calls initWorkspaceConfig or ensureImages.
 func setupUserConfig(t *testing.T) {
 	t.Helper()
@@ -95,7 +95,7 @@ func setupUserConfig(t *testing.T) {
 	if err := os.MkdirAll(siloDir, 0755); err != nil {
 		t.Fatalf("mkdir silo config dir: %v", err)
 	}
-	// home-user.nix is read by buildBaseImage; write the minimal empty module.
+	// home-user.nix is read by buildUserImage; write the minimal empty module.
 	if err := os.WriteFile(filepath.Join(siloDir, "home-user.nix"), []byte(emptyHomeNix), 0644); err != nil {
 		t.Fatalf("write home-user.nix: %v", err)
 	}
