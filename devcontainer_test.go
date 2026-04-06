@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -89,7 +91,7 @@ func TestCmdDevcontainerSharedVolume(t *testing.T) {
 		setupWorkspace(t, cfg)
 		setupUserConfig(t)
 
-		if err := cmdDevcontainer(); err != nil {
+		if err := cmdDevcontainerGenerate(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -117,7 +119,7 @@ func TestCmdDevcontainerSharedVolume(t *testing.T) {
 		setupWorkspace(t, cfg)
 		setupUserConfig(t)
 
-		if err := cmdDevcontainer(); err != nil {
+		if err := cmdDevcontainerGenerate(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -140,3 +142,126 @@ func TestCmdDevcontainerSharedVolume(t *testing.T) {
 		}
 	})
 }
+
+func TestCmdDevcontainerStop(t *testing.T) {
+	t.Run("container running — stops it", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "true"),
+		})
+		if err := cmdDevcontainerStop(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !anyCall(calls, "podman", "stop", "-t", "0", "silo-abc12345-dev") {
+			t.Errorf("expected podman stop for dev container, got %v", *calls)
+		}
+	})
+
+	t.Run("container not running — no-op", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "false"),
+		})
+		if err := cmdDevcontainerStop(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if anyCall(calls, "podman", "stop") {
+			t.Errorf("expected no podman stop, got %v", *calls)
+		}
+	})
+}
+
+func TestCmdDevcontainerStatus(t *testing.T) {
+	t.Run("running", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		mockExecCommand(t, map[string]*exec.Cmd{
+			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "true"),
+		})
+		if err := cmdDevcontainerStatus(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("stopped", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		mockExecCommand(t, map[string]*exec.Cmd{
+			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "false"),
+		})
+		if err := cmdDevcontainerStatus(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestCmdDevcontainerRemove(t *testing.T) {
+	t.Run("running container without --force: returns error", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		mockExecCommand(t, map[string]*exec.Cmd{
+			"podman container exists silo-abc12345-dev":                              exec.Command("true"),
+			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "true"),
+		})
+		err := cmdDevcontainerRemove([]string{})
+		if err == nil {
+			t.Fatal("expected error when container is running without --force")
+		}
+		if !strings.Contains(err.Error(), "is running") {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("running container with --force: stops and removes", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman container exists silo-abc12345-dev":                              exec.Command("true"),
+			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "true"),
+		})
+		if err := cmdDevcontainerRemove([]string{"--force"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !anyCall(calls, "podman", "stop", "-t", "0", "silo-abc12345-dev") {
+			t.Errorf("expected podman stop, got %v", *calls)
+		}
+		if !anyCall(calls, "podman", "rm", "-f", "silo-abc12345-dev") {
+			t.Errorf("expected podman rm -f, got %v", *calls)
+		}
+	})
+
+	t.Run("stopped container: removes without stop", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman container exists silo-abc12345-dev":                              exec.Command("true"),
+			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "false"),
+		})
+		if err := cmdDevcontainerRemove([]string{}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if anyCall(calls, "podman", "stop") {
+			t.Errorf("expected no podman stop, got %v", *calls)
+		}
+		if !anyCall(calls, "podman", "rm", "-f", "silo-abc12345-dev") {
+			t.Errorf("expected podman rm -f, got %v", *calls)
+		}
+	})
+
+	t.Run("container absent: no remove call", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman container exists silo-abc12345-dev": exec.Command("false"),
+		})
+		if err := cmdDevcontainerRemove([]string{}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if anyCall(calls, "podman", "rm") {
+			t.Errorf("expected no podman rm, got %v", *calls)
+		}
+	})
+}
+

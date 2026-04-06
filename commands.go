@@ -269,6 +269,21 @@ func parseRemoveFlags(args []string) (removeFlags, error) {
 	return removeFlags{force: *force || *f, image: *image}, nil
 }
 
+type devcontainerRemoveFlags struct {
+	force bool
+}
+
+func parseDevcontainerRemoveFlags(args []string) (devcontainerRemoveFlags, error) {
+	fs := flag.NewFlagSet("silo devcontainer rm", flag.ContinueOnError)
+	force := fs.Bool("force", false, "Stop and remove a running container")
+	f := fs.Bool("f", false, "Alias for --force")
+	fs.Usage = func() {} // suppress; handled by main helpText
+	if err := fs.Parse(args); err != nil {
+		return devcontainerRemoveFlags{}, fmt.Errorf("parse devcontainer rm flags: %w", err)
+	}
+	return devcontainerRemoveFlags{force: *force || *f}, nil
+}
+
 type createFlags struct {
 	nested         bool
 	noWorkspace    bool

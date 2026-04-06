@@ -7,14 +7,21 @@ import (
 	"path/filepath"
 )
 
-// cmdDevcontainer generates a .devcontainer.json for VS Code.
-func cmdDevcontainer() error {
+const devContainerSuffix = "-dev"
+
+// devContainerName returns the devcontainer name for the given config.
+func devContainerName(cfg Config) string {
+	return containerNameWithSuffix(cfg.General.ContainerName, devContainerSuffix)
+}
+
+// cmdDevcontainerGenerate generates a .devcontainer.json for VS Code.
+func cmdDevcontainerGenerate() error {
 	cfg, err := requireWorkspaceConfig()
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
 
-	tc, err := newTemplateContext(cfg, "-dev")
+	tc, err := newTemplateContext(cfg, devContainerSuffix)
 	if err != nil {
 		return fmt.Errorf("build template context: %w", err)
 	}
@@ -49,6 +56,68 @@ func cmdDevcontainer() error {
 		return fmt.Errorf("write devcontainer.json: %w", err)
 	}
 	fmt.Printf("Generated %s.\n", devcontainerFile)
+	return nil
+}
+
+// cmdDevcontainerStop implements `silo devcontainer stop`.
+func cmdDevcontainerStop() error {
+	cfg, err := requireWorkspaceConfig()
+	if err != nil {
+		return fmt.Errorf("load workspace configuration: %w", err)
+	}
+	name := devContainerName(cfg)
+	if !containerRunning(name) {
+		fmt.Printf("%s is not running\n", name)
+		return nil
+	}
+	if err := stopContainer(name); err != nil {
+		return fmt.Errorf("stop container: %w", err)
+	}
+	return nil
+}
+
+// cmdDevcontainerStatus implements `silo devcontainer status`.
+func cmdDevcontainerStatus() error {
+	cfg, err := requireWorkspaceConfig()
+	if err != nil {
+		return fmt.Errorf("load workspace configuration: %w", err)
+	}
+	name := devContainerName(cfg)
+	if containerRunning(name) {
+		fmt.Println("Running")
+	} else {
+		fmt.Println("Stopped")
+	}
+	return nil
+}
+
+// cmdDevcontainerRemove implements `silo devcontainer rm [-f|--force]`.
+func cmdDevcontainerRemove(args []string) error {
+	flags, err := parseDevcontainerRemoveFlags(args)
+	if err != nil {
+		return fmt.Errorf("parse devcontainer rm flags: %w", err)
+	}
+	cfg, err := requireWorkspaceConfig()
+	if err != nil {
+		return fmt.Errorf("load workspace configuration: %w", err)
+	}
+	name := devContainerName(cfg)
+	if containerExists(name) {
+		if containerRunning(name) {
+			if !flags.force {
+				return fmt.Errorf("%s is running", name)
+			}
+			if err := stopContainer(name); err != nil {
+				return fmt.Errorf("stop container before removal: %w", err)
+			}
+		}
+		fmt.Printf("Removing %s...\n", name)
+		if err := removeContainer(name); err != nil {
+			return fmt.Errorf("remove container: %w", err)
+		}
+	} else {
+		fmt.Printf("%s not found\n", name)
+	}
 	return nil
 }
 
