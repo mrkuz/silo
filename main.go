@@ -11,7 +11,7 @@ Usage:
   silo [--stop|--rm|--rmi] [-- args...]
   silo init
   silo build [--user]
-  silo create [--nested] [--no-workspace] [--no-shared-volume] [--dry-run] [-- args...]
+  silo create [--nested] [--shared-volume] [--dry-run] [-- args...]
   silo start
   silo setup
   silo connect
@@ -56,8 +56,7 @@ Build flags:
 
 Create flags:
   --nested            Enable nested Podman containers
-  --no-workspace      Disable workspace volume mount
-  --no-shared-volume  Disable shared volume mount
+  --shared-volume     Enable shared volume mount
   --dry-run           Print the podman create command without running it
   -- ...              Pass remaining arguments to podman create
 

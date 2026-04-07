@@ -212,12 +212,8 @@ func cmdCreate(args []string) error {
 		cfg.Features.Nested = true
 		changed = true
 	}
-	if flags.noWorkspace && cfg.Features.Workspace {
-		cfg.Features.Workspace = false
-		changed = true
-	}
-	if flags.noSharedVolume && cfg.Features.SharedVolume {
-		cfg.Features.SharedVolume = false
+	if flags.sharedVolume && !cfg.Features.SharedVolume {
+		cfg.Features.SharedVolume = true
 		changed = true
 	}
 
@@ -351,28 +347,25 @@ func parseDevcontainerRemoveFlags(args []string) (devcontainerRemoveFlags, error
 }
 
 type createFlags struct {
-	nested         bool
-	noWorkspace    bool
-	noSharedVolume bool
-	dryRun         bool
-	extra          []string
+	nested       bool
+	sharedVolume bool
+	dryRun       bool
+	extra        []string
 }
 
 func parseCreateFlags(args []string) (createFlags, error) {
 	fs := flag.NewFlagSet("silo create", flag.ContinueOnError)
 	nested := fs.Bool("nested", false, "Enable nested Podman containers")
-	noWorkspace := fs.Bool("no-workspace", false, "Disable workspace volume mount")
-	noSharedVolume := fs.Bool("no-shared-volume", false, "Disable shared volume")
+	sharedVolume := fs.Bool("shared-volume", false, "Enable shared volume")
 	dryRun := fs.Bool("dry-run", false, "Print the podman create command without running it")
 	fs.Usage = func() {} // suppress; handled by main helpText
 	if err := fs.Parse(args); err != nil {
 		return createFlags{}, fmt.Errorf("parse create flags: %w", err)
 	}
 	return createFlags{
-		nested:         *nested,
-		noWorkspace:    *noWorkspace,
-		noSharedVolume: *noSharedVolume,
-		dryRun:         *dryRun,
-		extra:          fs.Args(),
+		nested:       *nested,
+		sharedVolume: *sharedVolume,
+		dryRun:       *dryRun,
+		extra:        fs.Args(),
 	}, nil
 }

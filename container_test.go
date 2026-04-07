@@ -92,7 +92,6 @@ func TestBuildContainerArgsMinimal(t *testing.T) {
 			ImageName:     "silo-abc12345",
 		},
 		Features: FeaturesConfig{
-			Workspace:    false,
 			SharedVolume: false,
 			Nested:       false,
 		},
@@ -111,8 +110,8 @@ func TestBuildContainerArgsMinimal(t *testing.T) {
 	if !strings.Contains(joined, "--user alice") {
 		t.Errorf("expected --user alice in args: %v", args)
 	}
-	if strings.Contains(joined, "--volume") {
-		t.Errorf("expected no --volume without workspace or shared volume, got: %v", args)
+	if !strings.Contains(joined, "/workspace/abc12345/") {
+		t.Errorf("expected workspace mount in args: %v", args)
 	}
 }
 
@@ -125,7 +124,6 @@ func TestBuildContainerArgsSharedVolume(t *testing.T) {
 			ImageName:     "silo-abc12345",
 		},
 		Features: FeaturesConfig{
-			Workspace:    false,
 			SharedVolume: true,
 			Nested:       false,
 		},
@@ -140,33 +138,6 @@ func TestBuildContainerArgsSharedVolume(t *testing.T) {
 	}
 }
 
-func TestBuildContainerArgsWorkspace(t *testing.T) {
-	cfg := Config{
-		General: GeneralConfig{
-			ID:            "abc12345",
-			User:          "alice",
-			ContainerName: "silo-abc12345",
-			ImageName:     "silo-abc12345",
-		},
-		Features: FeaturesConfig{
-			Workspace:    true,
-			SharedVolume: false,
-			Nested:       false,
-		},
-	}
-	args, err := buildContainerArgs(cfg)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	joined := strings.Join(args, " ")
-	if !strings.Contains(joined, "/workspace/abc12345/") {
-		t.Errorf("expected workspace mount path in args: %v", args)
-	}
-	if !strings.Contains(joined, "--workdir") {
-		t.Errorf("expected --workdir in args: %v", args)
-	}
-}
-
 func TestBuildContainerArgsNested(t *testing.T) {
 	cfg := Config{
 		General: GeneralConfig{
@@ -176,7 +147,6 @@ func TestBuildContainerArgsNested(t *testing.T) {
 			ImageName:     "silo-abc12345",
 		},
 		Features: FeaturesConfig{
-			Workspace:    false,
 			SharedVolume: false,
 			Nested:       true,
 		},

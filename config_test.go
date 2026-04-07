@@ -45,7 +45,6 @@ func TestTOMLRoundtrip(t *testing.T) {
 			ImageName:     "silo-abc12345",
 		},
 		Features: FeaturesConfig{
-			Workspace:    true,
 			SharedVolume: false,
 			Nested:       true,
 		},
@@ -108,7 +107,7 @@ func TestTOMLRoundtrip(t *testing.T) {
 func TestTOMLEmptyExtraArgs(t *testing.T) {
 	cfg := Config{
 		General:      GeneralConfig{ID: "x", User: "u", ContainerName: "silo-x", ImageName: "silo-x"},
-		Features:     FeaturesConfig{Workspace: true, SharedVolume: true, Nested: false},
+		Features:     FeaturesConfig{SharedVolume: true, Nested: false},
 		SharedVolume: SharedVolumeConfig{Paths: []string{}},
 		Connect:      ConnectConfig{Command: "/bin/sh"},
 	}
@@ -255,7 +254,7 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.Connect.Command != "/bin/sh" {
 		t.Errorf("expected command /bin/sh, got %q", cfg.Connect.Command)
 	}
-	if !cfg.Features.Workspace || !cfg.Features.SharedVolume || cfg.Features.Nested {
+	if cfg.Features.SharedVolume || cfg.Features.Nested {
 		t.Errorf("unexpected feature defaults: %+v", cfg.Features)
 	}
 	if cfg.SharedVolume.Paths == nil {
@@ -285,7 +284,7 @@ func TestLoadSiloInTOML(t *testing.T) {
 		if err := os.MkdirAll(filepath.Dir(siloConfigPath), 0755); err != nil {
 			t.Fatal(err)
 		}
-		content := []byte("[connect]\ncommand = \"/bin/fish\"\n[features]\nworkspace = true\n")
+		content := []byte("[connect]\ncommand = \"/bin/fish\"\n[features]\nnested = true\n")
 		if err := os.WriteFile(siloConfigPath, content, 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -296,8 +295,8 @@ func TestLoadSiloInTOML(t *testing.T) {
 		if cfg.Connect.Command != "/bin/fish" {
 			t.Errorf("expected command /bin/fish, got %q", cfg.Connect.Command)
 		}
-		if !cfg.Features.Workspace {
-			t.Error("expected Features.Workspace = true")
+		if !cfg.Features.Nested {
+			t.Error("expected Features.Nested = true")
 		}
 	})
 }

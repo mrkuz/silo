@@ -92,14 +92,12 @@ func buildContainerArgs(cfg Config) ([]string, error) {
 	args = append(args, "--user", cfg.General.User)
 
 	// Workspace mount (host dir → container path)
-	if cfg.Features.Workspace {
-		containerDir, err := workspaceMountPath(cfg)
-		if err != nil {
-			return nil, fmt.Errorf("get workspace mount path: %w", err)
-		}
-		args = append(args, "--volume", fmt.Sprintf("%s:%s:Z", hostDir, containerDir))
-		args = append(args, "--workdir", containerDir)
+	containerDir, err := workspaceMountPath(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("get workspace mount path: %w", err)
 	}
+	args = append(args, "--volume", fmt.Sprintf("%s:%s:Z", hostDir, containerDir))
+	args = append(args, "--workdir", containerDir)
 
 	// Shared volume
 	if cfg.Features.SharedVolume {

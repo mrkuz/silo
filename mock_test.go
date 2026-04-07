@@ -113,7 +113,7 @@ func minimalConfig(id string) Config {
 			ContainerName: "silo-" + id,
 			ImageName:     "silo-" + id,
 		},
-		Features:     FeaturesConfig{Workspace: false, SharedVolume: false, Nested: false},
+		Features:     FeaturesConfig{SharedVolume: false, Nested: false},
 		SharedVolume: SharedVolumeConfig{Paths: []string{}},
 		Connect:      ConnectConfig{Command: "/bin/sh"},
 		Create:       CreateConfig{ExtraArgs: []string{}},

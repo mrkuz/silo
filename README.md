@@ -68,7 +68,7 @@ init → build → create → start → setup → connect
 silo [--stop|--rm|--rmi] [-- args...]
 silo init
 silo build [--user]
-silo create [--nested] [--no-workspace] [--no-shared-volume] [--dry-run] [-- args...]
+silo create [--nested] [--shared-volume] [--dry-run] [-- args...]
 silo start
 silo setup
 silo connect
@@ -118,12 +118,11 @@ Create the container without starting it. Builds images if needed.
 | Flag | Description |
 |---|---|
 | `--nested` | Enable nested Podman containers (relaxes security opts, adds `/dev/fuse`) |
-| `--no-workspace` | Disable workspace volume mount |
-| `--no-shared-volume` | Disable shared volume |
+| `--shared-volume` | Enable shared volume |
 | `--dry-run` | Print the `podman create` command without running it |
 | `-- ...` | Pass remaining arguments to `podman create` |
 
-Feature flags (`--nested`, `--no-workspace`, `--no-shared-volume`) and extra arguments are persisted to `.silo/silo.toml`.
+Feature flags (`--nested`, `--shared-volume`) and extra arguments are persisted to `.silo/silo.toml`.
 
 ### `silo start`
 
@@ -201,8 +200,7 @@ image_name     = "silo-ab3f9c12"
 command = "/bin/sh"                  # Command executed when connecting to container
 
 [features]
-workspace     = true                 # Mount host directory into container
-shared_volume = true                 # Mount shared volume
+shared_volume = false                # Mount shared volume
 nested        = false                # Allow nested Podman containers
 
 [shared_volume]
@@ -225,8 +223,7 @@ extra_args = []                      # Extra arguments passed to podman create
 
 | Key | Default | Description |
 |---|---|---|
-| `workspace` | `true` | Mount the host directory into the container at `/workspace/<id>/<dirname>` |
-| `shared_volume` | `true` | Mount the `silo-shared` Podman volume at `/silo/shared` inside the container |
+| `shared_volume` | `false` | Mount the `silo-shared` Podman volume at `/silo/shared` inside the container |
 | `nested` | `false` | Enable nested Podman (adds `--device /dev/fuse`, disables SELinux label) |
 
 **`[shared_volume]`**

@@ -2,16 +2,15 @@
 command = "fish --login"
 
 [features]
-  workspace = true
-  shared_volume = true
-  nested = false
+shared_volume = true
+nested = false
 
 [shared_volume]
 paths = [
-    "$HOME/.local/share/fish/fish_history",
-    "$HOME/.cache/opencode/",
-    "$HOME/.local/share/opencode/",
-    "$HOME/.local/state/opencode/",
-    "$HOME/.cache/uv/",
-    "$HOME/.local/share/uv/"
+  "$HOME/.local/share/fish/fish_history",
+  "$HOME/.cache/opencode/",
+  "$HOME/.local/share/opencode/",
+  "$HOME/.local/state/opencode/",
+  "$HOME/.cache/uv/",
+  "$HOME/.local/share/uv/"
 ]

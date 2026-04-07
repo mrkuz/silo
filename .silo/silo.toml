@@ -5,7 +5,6 @@
   image_name = "silo-xqmrs9xj"
 
 [features]
-  workspace = true
   shared_volume = true
   nested = false
 

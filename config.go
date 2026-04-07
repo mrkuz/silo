@@ -33,7 +33,6 @@ type GeneralConfig struct {
 }
 
 type FeaturesConfig struct {
-	Workspace    bool `toml:"workspace"`
 	SharedVolume bool `toml:"shared_volume"`
 	Nested       bool `toml:"nested"`
 }
@@ -65,8 +64,7 @@ func defaultConfig() (Config, error) {
 			ImageName:     "silo-" + id,
 		},
 		Features: FeaturesConfig{
-			Workspace:    true,
-			SharedVolume: true,
+			SharedVolume: false,
 			Nested:       false,
 		},
 		SharedVolume: SharedVolumeConfig{

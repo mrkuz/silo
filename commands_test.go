@@ -52,18 +52,16 @@ func TestParseRunFlagsExtra(t *testing.T) {
 
 func TestParseCreateFlags(t *testing.T) {
 	tests := []struct {
-		args               []string
-		wantNested         bool
-		wantNoWS           bool
-		wantNoSharedVolume bool
-		wantErr            bool
+		args             []string
+		wantNested       bool
+		wantSharedVolume bool
+		wantErr          bool
 	}{
-		{[]string{}, false, false, false, false},
-		{[]string{"--nested"}, true, false, false, false},
-		{[]string{"--no-workspace"}, false, true, false, false},
-		{[]string{"--no-shared-volume"}, false, false, true, false},
-		{[]string{"--nested", "--no-shared-volume"}, true, false, true, false},
-		{[]string{"--unknown"}, false, false, false, true},
+		{[]string{}, false, false, false},
+		{[]string{"--nested"}, true, false, false},
+		{[]string{"--shared-volume"}, false, true, false},
+		{[]string{"--nested", "--shared-volume"}, true, true, false},
+		{[]string{"--unknown"}, false, false, true},
 	}
 	for _, tt := range tests {
 		f, err := parseCreateFlags(tt.args)
@@ -77,9 +75,9 @@ func TestParseCreateFlags(t *testing.T) {
 			t.Errorf("parseCreateFlags(%v): unexpected error: %v", tt.args, err)
 			continue
 		}
-		if f.nested != tt.wantNested || f.noWorkspace != tt.wantNoWS || f.noSharedVolume != tt.wantNoSharedVolume {
-			t.Errorf("parseCreateFlags(%v) flags = %+v, want nested=%v noWS=%v noSharedVolume=%v",
-				tt.args, f, tt.wantNested, tt.wantNoWS, tt.wantNoSharedVolume)
+		if f.nested != tt.wantNested || f.sharedVolume != tt.wantSharedVolume {
+			t.Errorf("parseCreateFlags(%v) flags = %+v, want nested=%v sharedVolume=%v",
+				tt.args, f, tt.wantNested, tt.wantSharedVolume)
 		}
 	}
 }
@@ -565,28 +563,6 @@ func TestCmdCreateFilePersistence(t *testing.T) {
 		}
 		if !saved.Features.Nested {
 			t.Error("expected Features.Nested=true in saved silo.toml")
-		}
-	})
-
-	t.Run("--no-workspace persists Features.Workspace=false to silo.toml", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		cfg.Features.Workspace = true
-		setupWorkspace(t, cfg)
-		setupUserConfig(t)
-		mockExecCommand(t, map[string]*exec.Cmd{
-			"podman image exists silo-testuser":     exec.Command("true"),
-			"podman image exists silo-abc12345":     exec.Command("true"),
-			"podman container exists silo-abc12345": exec.Command("false"),
-		})
-		if err := cmdCreate([]string{"--no-workspace"}); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		saved, err := parseTOML(siloToml)
-		if err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if saved.Features.Workspace {
-			t.Error("expected Features.Workspace=false in saved silo.toml")
 		}
 	})
 
