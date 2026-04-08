@@ -279,7 +279,7 @@ All three files are created automatically on first run if they don't exist. See 
 
 silo builds two OCI images using Podman:
 
-1. **User image** (`silo-<user>`) — shared across all workspaces. Alpine with Nix and home-manager installed. The user `home-user.nix` is baked in.
+1. **User image** (`silo-<user>`) — shared across all workspaces. Fedora with Nix and home-manager installed. The user `home-user.nix` is baked in.
 2. **Workspace image** (`silo-<id>`) — per-workspace, layered on top of the user image. The workspace `home.nix` is applied here.
 
 Build context files are written to a temporary directory on the host and passed to `podman build`. No persistent build context is kept on disk.

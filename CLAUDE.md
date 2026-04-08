@@ -30,7 +30,7 @@ Requires Go 1.23+ and Podman.
 - `render.go` — Embedded Go template rendering (`//go:embed templates/`)
 
 **Two-stage image build:**
-1. Base image (`silo-<user>`): Alpine Linux + Nix + home-manager
+1. Base image (`silo-<user>`): Fedora + Nix + home-manager
 2. Workspace image (`silo-<id>`): Layered on base with workspace-specific Nix packages
 
 **Configuration hierarchy** (later overrides earlier):

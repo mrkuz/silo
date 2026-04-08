@@ -78,8 +78,8 @@ func TestRenderContainerfileBase(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(out)
-	if !strings.Contains(s, "FROM alpine") {
-		t.Error("expected FROM alpine in Containerfile.base output")
+	if !strings.Contains(s, "FROM fedora:latest") {
+		t.Error("expected FROM fedora:latest in Containerfile.base output")
 	}
 	if !strings.Contains(s, "alice") {
 		t.Error("expected user alice in Containerfile.base output")

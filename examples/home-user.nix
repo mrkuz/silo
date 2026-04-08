@@ -30,6 +30,7 @@ in
       watch
       wdiff
       wget
+      which
       # C
       gcc
       pkgconf

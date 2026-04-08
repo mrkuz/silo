@@ -1,31 +1,52 @@
-FROM alpine
+FROM fedora:latest
+
+# See: https://github.com/containers/image_build/blob/main/podman/Containerfile
+
+RUN dnf -y makecache && \
+    dnf -y update && \
+    rpm --setcaps shadow-utils 2>/dev/null && \
+    dnf -y install \
+      bash \
+      ca-certificates \
+      coreutils \
+      curl \
+      shadow-utils \
+      sudo \
+      util-linux \
+      xz && \
+    dnf clean all && \
+    rm -fv /etc/machine-id /var/lib/systemd/random-seed /var/lib/dnf/repos/*/countme && \
+    rm -fv /usr/lib/systemd/profile.d/* && \
+    rm -rf /var/cache /var/log/dnf* /var/log/hawkey.log /var/log/yum.*
 
 # User setup
 
-RUN apk add --no-cache \
-  bash coreutils shadow-uidmap sudo xz && \
-  rm -rf /var/cache/apk/*
-
-RUN adduser -D {{.User}} && \
-  adduser {{.User}} wheel && \
+RUN groupadd --gid 1000 {{.User}} && \
+  useradd --uid 1000 --gid 1000 -m -s /bin/bash {{.User}} && \
+  usermod -aG wheel {{.User}} && \
   echo '%wheel ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/wheel && \
   chmod 0440 /etc/sudoers.d/wheel
 
-# Rootless containers
+# Enable rootless containers
 
-RUN echo "{{.User}}:100000:65536" >> /etc/subuid && \
-    echo "{{.User}}:100000:65536" >> /etc/subgid
+RUN echo -e "root:1:65535\n{{.User}}:1:999\n{{.User}}:1001:64535" > /etc/subuid && \
+    echo -e "root:1:65535\n{{.User}}:1:999\n{{.User}}:1001:64535" > /etc/subgid
 
 ENV _CONTAINERS_USERNS_CONFIGURED=""
 
 # Nix build users (see: https://hub.docker.com/r/nixos/nix/dockerfile/)
 
-RUN addgroup -g 30000 -S nixbld && \
+RUN mkdir -p /var/empty && \
+  groupadd --gid 30000 nixbld && \
   for i in $(seq 1 30); do \
-    adduser -S -D -h /var/empty \
-      -g "Nix build user $i" \
-      -u $((30000 + i)) \
-      -G nixbld nixbld$i ; \
+    useradd \
+      --uid $((30000 + i)) \
+      --gid nixbld \
+      --home-dir /var/empty \
+      --no-create-home \
+      --shell /usr/sbin/nologin \
+      --comment "Nix build user $i" \
+      nixbld$i ; \
   done
 
 # Shared volume directory
@@ -50,7 +71,7 @@ USER {{.User}}
 WORKDIR {{.Home}}
 ENV USER={{.User}}
 
-RUN sh <(wget -O- https://nixos.org/nix/install) --no-daemon
+RUN curl -L https://nixos.org/nix/install | sh -s -- --no-daemon
 ENV PATH={{.Home}}/.nix-profile/bin:{{.Home}}/.nix-profile/sbin:$PATH
 
 # Install home-manager
