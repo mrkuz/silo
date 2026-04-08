@@ -127,7 +127,9 @@ func (c Config) saveWorkspaceConfig() error {
 	if c.Create.ExtraArgs == nil {
 		c.Create.ExtraArgs = []string{}
 	}
-	return toml.NewEncoder(f).Encode(c)
+	enc := toml.NewEncoder(f)
+	enc.Indent = ""
+	return enc.Encode(c)
 }
 
 // userConfigDir returns $XDG_CONFIG_HOME/silo (or ~/.config/silo by default).

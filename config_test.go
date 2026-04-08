@@ -11,7 +11,9 @@ import (
 
 // tomlEncode is a test helper that encodes a Config to a file using BurntSushi/toml.
 func tomlEncode(f *os.File, c Config) error {
-	return toml.NewEncoder(f).Encode(c)
+	enc := toml.NewEncoder(f)
+	enc.Indent = ""
+	return enc.Encode(c)
 }
 
 func TestGenerateID(t *testing.T) {
@@ -478,6 +480,57 @@ func TestEnsureStarterFiles(t *testing.T) {
 			t.Errorf("workspace home.nix was overwritten")
 		}
 	})
+}
+
+func TestSaveWorkspaceConfigTOMLFormat(t *testing.T) {
+	dir := t.TempDir()
+	orig, _ := os.Getwd()
+	t.Cleanup(func() { os.Chdir(orig) })
+	os.Chdir(dir)
+
+	cfg := minimalConfig("abc12345")
+	cfg.Connect.Command = "fish --login"
+	cfg.Features.SharedVolume = true
+	cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/", "$HOME/.local/share/opencode/"}
+	if err := cfg.saveWorkspaceConfig(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	raw, err := os.ReadFile(siloToml)
+	if err != nil {
+		t.Fatalf("read silo.toml: %v", err)
+	}
+	assertTOMLFormat(t, string(raw))
+}
+
+// assertTOMLFormat checks that s follows silo's TOML style:
+//   - no tab characters anywhere
+//   - keys are not indented; only array string elements use exactly 2-space indent
+//   - a blank line precedes each [section] header
+func assertTOMLFormat(t *testing.T, s string) {
+	t.Helper()
+	if strings.ContainsRune(s, '\t') {
+		t.Error("TOML must not contain tab characters")
+	}
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		switch {
+		case line == "" || line == "]":
+			// blank lines and closing brackets are fine
+		case strings.HasPrefix(line, "["):
+			// section header: must be preceded by a blank line (except first)
+			if i > 0 && lines[i-1] != "" {
+				t.Errorf("line %d: expected blank line before section header, got %q", i+1, lines[i-1])
+			}
+		case strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t"):
+			// indented line: must be a quoted array element with exactly 2 spaces
+			if !strings.HasPrefix(strings.TrimSpace(line), `"`) {
+				t.Errorf("line %d: unexpected indent on non-array line: %q", i+1, line)
+			} else if !strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "   ") {
+				t.Errorf("line %d: array element must use exactly 2-space indent, got %q", i+1, line)
+			}
+		}
+	}
 }
 
 func TestSaveWorkspaceConfigNilGuards(t *testing.T) {
