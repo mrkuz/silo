@@ -6,12 +6,13 @@ RUN apk add --no-cache \
   bash coreutils shadow-uidmap sudo xz && \
   rm -rf /var/cache/apk/*
 
-RUN adduser -D {{.User}} && \
+RUN addgroup -g 1000 {{.User}} && \
+  adduser -D -u 1000 -G {{.User}} {{.User}} && \
   adduser {{.User}} wheel && \
   echo '%wheel ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/wheel && \
   chmod 0440 /etc/sudoers.d/wheel
 
-# Rootless containers
+# Enable rootless containers
 
 RUN echo "{{.User}}:100000:65536" >> /etc/subuid && \
     echo "{{.User}}:100000:65536" >> /etc/subgid
