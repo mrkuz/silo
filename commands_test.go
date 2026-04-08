@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -242,16 +243,13 @@ func TestParseRemoveImageFlags(t *testing.T) {
 	tests := []struct {
 		args      []string
 		wantForce bool
-		wantUser  bool
 		wantErr   bool
 	}{
-		{[]string{}, false, false, false},
-		{[]string{"--force"}, true, false, false},
-		{[]string{"-f"}, true, false, false},
-		{[]string{"--user"}, false, true, false},
-		{[]string{"--force", "--user"}, true, true, false},
-		{[]string{"-f", "--user"}, true, true, false},
-		{[]string{"--unknown"}, false, false, true},
+		{[]string{}, false, false},
+		{[]string{"--force"}, true, false},
+		{[]string{"-f"}, true, false},
+		{[]string{"--user"}, false, true},
+		{[]string{"--unknown"}, false, true},
 	}
 	for _, tt := range tests {
 		got, err := parseRemoveImageFlags(tt.args)
@@ -265,9 +263,9 @@ func TestParseRemoveImageFlags(t *testing.T) {
 			t.Errorf("parseRemoveImageFlags(%v): unexpected error: %v", tt.args, err)
 			continue
 		}
-		if got.force != tt.wantForce || got.user != tt.wantUser {
-			t.Errorf("parseRemoveImageFlags(%v) = {force:%v user:%v}, want {force:%v user:%v}",
-				tt.args, got.force, got.user, tt.wantForce, tt.wantUser)
+		if got.force != tt.wantForce {
+			t.Errorf("parseRemoveImageFlags(%v) = {force:%v}, want {force:%v}",
+				tt.args, got.force, tt.wantForce)
 		}
 	}
 }
@@ -323,46 +321,40 @@ func TestCmdRemoveImage(t *testing.T) {
 		}
 	})
 
-	t.Run("--user removes only user image", func(t *testing.T) {
+}
+
+func TestCmdUserRmi(t *testing.T) {
+	t.Run("removes user image when present", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
-			"podman image exists silo-abc12345": exec.Command("true"),
 			"podman image exists silo-testuser": exec.Command("true"),
 		})
-		if err := cmdRemoveImage([]string{"--user"}); err != nil {
+		if err := cmdUserRmi(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
-		}
-		if anyCall(calls, "podman", "rmi", "silo-abc12345") {
-			t.Errorf("expected no workspace image remove, got %v", *calls)
 		}
 		if !anyCall(calls, "podman", "rmi", "silo-testuser") {
 			t.Errorf("expected podman rmi for user image, got %v", *calls)
 		}
-		if anyCall(calls, "podman", "stop") || anyCall(calls, "podman", "rm", "-f", "silo-abc12345") {
-			t.Errorf("expected no container stop/remove, got %v", *calls)
+		if anyCall(calls, "podman", "rmi", "silo-abc12345") {
+			t.Errorf("expected no workspace image remove, got %v", *calls)
 		}
 	})
 
-	t.Run("--force with --user still removes only user image", func(t *testing.T) {
+	t.Run("user image absent — no-op", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
-			"podman image exists silo-testuser": exec.Command("true"),
+			"podman image exists silo-testuser": exec.Command("false"),
 		})
-		if err := cmdRemoveImage([]string{"--force", "--user"}); err != nil {
+		if err := cmdUserRmi(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !anyCall(calls, "podman", "rmi", "silo-testuser") {
-			t.Errorf("expected podman rmi for user image, got %v", *calls)
-		}
-		if anyCall(calls, "podman", "rmi", "silo-abc12345") {
-			t.Errorf("expected no workspace image remove, got %v", *calls)
-		}
-		if anyCall(calls, "podman", "stop") || anyCall(calls, "podman", "rm", "-f", "silo-abc12345") {
-			t.Errorf("expected no container stop/remove, got %v", *calls)
+		if anyCall(calls, "podman", "rmi") {
+			t.Errorf("expected no podman rmi, got %v", *calls)
 		}
 	})
+
 }
 
 func TestCmdExec(t *testing.T) {
@@ -612,8 +604,10 @@ func TestCmdCreateFilePersistence(t *testing.T) {
 }
 
 func TestCmdInit(t *testing.T) {
-	t.Run("creates workspace and starter files", func(t *testing.T) {
-		setupUserConfig(t)
+	t.Run("creates workspace and user starter files", func(t *testing.T) {
+		// Point XDG_CONFIG_HOME at a fresh empty directory (no starter files).
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
 		dir := t.TempDir()
 		orig, _ := os.Getwd()
 		t.Cleanup(func() { os.Chdir(orig) })
@@ -628,6 +622,13 @@ func TestCmdInit(t *testing.T) {
 		}
 		if _, err := os.Stat(".silo/home.nix"); os.IsNotExist(err) {
 			t.Error("expected .silo/home.nix to be created")
+		}
+		// User files should also be created — silo init delegates to ensureUserFiles.
+		userDir := filepath.Join(base, "silo")
+		for _, name := range []string{"home-user.nix", "devcontainer.in.json", "silo.in.toml"} {
+			if _, err := os.Stat(filepath.Join(userDir, name)); os.IsNotExist(err) {
+				t.Errorf("expected user file %s to be created by silo init", name)
+			}
 		}
 	})
 
@@ -648,6 +649,55 @@ func TestCmdInit(t *testing.T) {
 			t.Errorf("expected ID abc12345, got %q", saved.General.ID)
 		}
 	})
+}
+
+func TestCmdUserInit(t *testing.T) {
+	t.Run("creates all user starter files when absent", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		if err := cmdUserInit(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		userDir := filepath.Join(base, "silo")
+		for _, name := range []string{"home-user.nix", "devcontainer.in.json", "silo.in.toml"} {
+			if _, err := os.Stat(filepath.Join(userDir, name)); os.IsNotExist(err) {
+				t.Errorf("expected %s to be created", name)
+			}
+		}
+	})
+
+	t.Run("does not overwrite existing files", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		userDir := filepath.Join(base, "silo")
+		if err := os.MkdirAll(userDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		sentinel := []byte("# custom\n")
+		existing := filepath.Join(userDir, "home-user.nix")
+		if err := os.WriteFile(existing, sentinel, 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := cmdUserInit(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		got, err := os.ReadFile(existing)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != string(sentinel) {
+			t.Errorf("existing home-user.nix was overwritten")
+		}
+		// The other two files should still be created.
+		if _, err := os.Stat(filepath.Join(userDir, "devcontainer.in.json")); os.IsNotExist(err) {
+			t.Error("expected devcontainer.in.json to be created alongside existing file")
+		}
+		if _, err := os.Stat(filepath.Join(userDir, "silo.in.toml")); os.IsNotExist(err) {
+			t.Error("expected silo.in.toml to be created alongside existing file")
+		}
+	})
+
 }
 
 func TestCmdSetup(t *testing.T) {

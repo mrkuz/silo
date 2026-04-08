@@ -23,7 +23,7 @@ silo
 
 See [Build and Install](#build-and-install) for installation instructions.
 
-On first run, silo creates starter files (including `.silo/silo.toml`), builds two images (a shared user image and a per-workspace workspace image), starts the container, and connects to it.
+On first run, silo creates starter files (including `.silo/silo.toml`), builds the shared user image and workspace image, starts the container, and connects to it.
 
 See [Configuration](#configuration) to customize your workspace.
 
@@ -53,8 +53,8 @@ init → build → create → start → setup → connect
 
 | Step | Description | Output |
 |---|---|---|
-| **init** | Creates `.silo/silo.toml`, `.silo/home.nix`, and user files on the host | Essential files |
-| **build** | Builds the user image (shared) and the workspace image (per-workspace) | Container image |
+| **init** | Creates `.silo/silo.toml`, `.silo/home.nix`, and the user files via `silo user init` | Workspace + user files |
+| **build** | Ensures the user image exists, then builds the workspace image if needed | Container image |
 | **create** | Creates the container from the workspace image | Stopped container |
 | **start** | Starts the container | Running container |
 | **setup** | Configure shared volume | Configured container |
@@ -67,7 +67,7 @@ init → build → create → start → setup → connect
 ```
 silo [--stop|--rm|--rmi] [-- args...]
 silo init
-silo build [--user]
+silo build
 silo create [--nested] [--shared-volume] [--dry-run] [-- args...]
 silo start
 silo setup
@@ -75,8 +75,11 @@ silo connect
 silo exec <cmd> [args...]
 silo stop
 silo rm [-f|--force]
-silo rmi [-f|--force] [--user]
+silo rmi [-f|--force]
 silo status
+silo user init
+silo user build
+silo user rmi
 silo devcontainer
 silo devcontainer stop
 silo devcontainer rm [--force]
@@ -101,15 +104,11 @@ Connect to the container for the current workspace. Runs the full lifecycle chai
 
 ### `silo init`
 
-Initialize workspace and user files. Creates `.silo/silo.toml`, `.silo/home.nix`, and user starter files (`silo.in.toml`, `home-user.nix`, `devcontainer.in.json`) on the host. Safe to run multiple times — existing files are not overwritten.
+Initialize workspace files. Creates `.silo/silo.toml` and `.silo/home.nix` on the host, then delegates to `silo user init` to create user files under `$XDG_CONFIG_HOME/silo/`.
 
 ### `silo build`
 
-Build the workspace image if it does not exist yet. With `--user`, build the user image instead.
-
-| Flag | Description |
-|---|---|
-| `--user` | Build the user image |
+Ensure the user image exists, then build the workspace image if it does not exist yet.
 
 ### `silo create`
 
@@ -150,12 +149,23 @@ Remove the container. Fails if the container is running unless `--force` is give
 
 ### `silo rmi`
 
-Remove the workspace image. Optionally remove the container. With `--user`, remove the user image instead.
+Remove the workspace image. Optionally remove the container.
 
 | Flag | Description |
 |---|---|
 | `-f`, `--force` | Stop and remove the container before removing the image |
-| `--user` | Remove the user image |
+
+### `silo user init`
+
+Create user starter files (`home-user.nix`, `silo.in.toml`, `devcontainer.in.json`) under `$XDG_CONFIG_HOME/silo/`.
+
+### `silo user build`
+
+Build the user image if it does not exist yet.
+
+### `silo user rmi`
+
+Remove the user image.
 
 ### `silo status`
 

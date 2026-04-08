@@ -219,9 +219,6 @@ func initWorkspaceConfig() (Config, error) {
 		if err != nil {
 			return cfg, err
 		}
-		if err := ensureSiloInTOML(); err != nil {
-			return cfg, fmt.Errorf("init user silo.in.toml: %w", err)
-		}
 		cfg, err = loadSiloInTOML()
 		if err != nil {
 			return cfg, fmt.Errorf("load user silo.in.toml: %w", err)
@@ -247,13 +244,12 @@ func initWorkspaceConfig() (Config, error) {
 	return cfg, nil
 }
 
-// ensureStarterFiles creates default config/nix files if they do not exist.
-func ensureStarterFiles() error {
+// ensureUserFiles silently creates user starter files if they do not exist.
+// Shared by `silo init` (via ensureInit) and `silo user init` (via cmdUserInit,
+// which wraps this with a warn-on-existing message).
+func ensureUserFiles() error {
 	if err := ensureUserHomeNix(); err != nil {
 		return fmt.Errorf("ensure home-user.nix: %w", err)
-	}
-	if err := ensureWorkspaceHomeNix(); err != nil {
-		return fmt.Errorf("ensure workspace home.nix: %w", err)
 	}
 	if err := ensureDevcontainerInJSON(); err != nil {
 		return fmt.Errorf("ensure devcontainer.in.json: %w", err)
@@ -264,18 +260,54 @@ func ensureStarterFiles() error {
 	return nil
 }
 
+// ensureUserImage builds the shared user image if it does not exist.
+func ensureUserImage(tc TemplateContext) error {
+	userImage := tc.BaseImage
+	if imageExists(userImage) {
+		return nil
+	}
+	fmt.Printf("Building user image %s...\n", userImage)
+	if err := buildUserImage(userImage, tc); err != nil {
+		return fmt.Errorf("build user image: %w", err)
+	}
+	return nil
+}
+
+// ensureWorkspaceFiles silently creates workspace starter files if they do not exist.
+func ensureWorkspaceFiles() error {
+	if err := ensureWorkspaceHomeNix(); err != nil {
+		return fmt.Errorf("ensure workspace home.nix: %w", err)
+	}
+	return nil
+}
+
+// userStarterFile describes a single user-config starter file.
+type userStarterFile struct {
+	path    string
+	content []byte
+}
+
+// userStarterFiles returns the list of user starter files that `silo user init` writes.
+func userStarterFiles() ([]userStarterFile, error) {
+	dir, err := userConfigDir()
+	if err != nil {
+		return nil, fmt.Errorf("get user config directory: %w", err)
+	}
+	return []userStarterFile{
+		{filepath.Join(dir, "home-user.nix"), []byte(emptyHomeNix)},
+		{filepath.Join(dir, "devcontainer.in.json"), []byte("{}\n")},
+		{filepath.Join(dir, "silo.in.toml"), []byte{}},
+	}, nil
+}
+
 // ensureImages builds the user and workspace images if they don't yet exist.
 func ensureImages(cfg Config) error {
 	tc, err := newTemplateContext(cfg)
 	if err != nil {
 		return fmt.Errorf("build template context: %w", err)
 	}
-	userImage := tc.BaseImage
-	if !imageExists(userImage) {
-		fmt.Printf("Building user image %s...\n", userImage)
-		if err := buildUserImage(userImage, tc); err != nil {
-			return fmt.Errorf("build user image: %w", err)
-		}
+	if err := ensureUserImage(tc); err != nil {
+		return err
 	}
 	if !imageExists(cfg.General.ImageName) {
 		fmt.Printf("Building workspace image %s...\n", cfg.General.ImageName)

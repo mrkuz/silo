@@ -193,14 +193,19 @@ func stopContainer(name string) error {
 
 // --- ensure chain: ensureSetup → ensureStarted → ensureCreated → ensureBuilt → ensureInit ---
 
-// ensureInit initializes workspace config and starter files.
+// ensureInit initializes workspace config, workspace starter files, and
+// user starter files. It delegates user-file creation to ensureUserFiles so
+// `silo init` and `silo user init` share a single implementation.
 func ensureInit() (Config, error) {
 	cfg, err := initWorkspaceConfig()
 	if err != nil {
 		return cfg, fmt.Errorf("initialize workspace configuration: %w", err)
 	}
-	if err := ensureStarterFiles(); err != nil {
-		return cfg, fmt.Errorf("ensure starter files: %w", err)
+	if err := ensureWorkspaceFiles(); err != nil {
+		return cfg, fmt.Errorf("ensure workspace files: %w", err)
+	}
+	if err := ensureUserFiles(); err != nil {
+		return cfg, fmt.Errorf("ensure user files: %w", err)
 	}
 	return cfg, nil
 }

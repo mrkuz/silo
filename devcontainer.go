@@ -83,11 +83,7 @@ func cmdDevcontainerStatus() error {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
 	name := devContainerName(cfg)
-	if containerRunning(name) {
-		fmt.Println("Running")
-	} else {
-		fmt.Println("Stopped")
-	}
+	printRunningStatus(containerRunning(name))
 	return nil
 }
 
@@ -102,21 +98,8 @@ func cmdDevcontainerRemove(args []string) error {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
 	name := devContainerName(cfg)
-	if containerExists(name) {
-		if containerRunning(name) {
-			if !flags.force {
-				return fmt.Errorf("%s is running", name)
-			}
-			if err := stopContainer(name); err != nil {
-				return fmt.Errorf("stop container before removal: %w", err)
-			}
-		}
-		fmt.Printf("Removing %s...\n", name)
-		if err := removeContainer(name); err != nil {
-			return fmt.Errorf("remove container: %w", err)
-		}
-	} else {
-		fmt.Printf("%s not found\n", name)
+	if err := removeNamedContainer(name, flags.force); err != nil {
+		return err
 	}
 	return nil
 }

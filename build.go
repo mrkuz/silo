@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -107,37 +106,20 @@ func runBuild(tag string, files map[string][]byte) error {
 	return nil
 }
 
-// cmdBuild implements `silo build [--user]`.
-func cmdBuild(args []string) error {
-	flags, err := parseBuildFlags(args)
-	if err != nil {
-		return fmt.Errorf("parse build flags: %w", err)
-	}
-
+// cmdBuild implements `silo build`. Builds the workspace image if missing.
+func cmdBuild() error {
 	cfg, err := ensureInit()
 	if err != nil {
 		return fmt.Errorf("initialize: %w", err)
 	}
-
 	tc, err := newTemplateContext(cfg)
 	if err != nil {
 		return fmt.Errorf("build template context: %w", err)
 	}
-	userTag := tc.BaseImage
-	wsTag := cfg.General.ImageName
-
-	if flags.user {
-		if imageExists(userTag) {
-			fmt.Printf("%s already exists\n", userTag)
-			return nil
-		}
-		fmt.Printf("Building user image %s...\n", userTag)
-		if err := buildUserImage(userTag, tc); err != nil {
-			return fmt.Errorf("build user image: %w", err)
-		}
-		return nil
+	if err := ensureUserImage(tc); err != nil {
+		return err
 	}
-
+	wsTag := cfg.General.ImageName
 	if imageExists(wsTag) {
 		fmt.Printf("%s already exists\n", wsTag)
 		return nil
@@ -149,16 +131,22 @@ func cmdBuild(args []string) error {
 	return nil
 }
 
-type buildFlags struct {
-	user bool
-}
-
-func parseBuildFlags(args []string) (buildFlags, error) {
-	fs := flag.NewFlagSet("silo build", flag.ContinueOnError)
-	user := fs.Bool("user", false, "Build only the user image")
-	fs.Usage = func() {} // suppress; handled by main helpText
-	if err := fs.Parse(args); err != nil {
-		return buildFlags{}, fmt.Errorf("parse build flags: %w", err)
+// cmdUserBuild implements `silo user build`. Builds the user image if missing.
+func cmdUserBuild() error {
+	cfg, err := ensureInit()
+	if err != nil {
+		return fmt.Errorf("initialize: %w", err)
 	}
-	return buildFlags{user: *user}, nil
+	tc, err := newTemplateContext(cfg)
+	if err != nil {
+		return fmt.Errorf("build template context: %w", err)
+	}
+	if imageExists(tc.BaseImage) {
+		fmt.Printf("%s already exists\n", tc.BaseImage)
+		return nil
+	}
+	if err := ensureUserImage(tc); err != nil {
+		return err
+	}
+	return nil
 }

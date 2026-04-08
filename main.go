@@ -10,7 +10,7 @@ const helpText = `silo - developer sandbox container
 Usage:
   silo [--stop|--rm|--rmi] [-- args...]
   silo init
-  silo build [--user]
+  silo build
   silo create [--nested] [--shared-volume] [--dry-run] [-- args...]
   silo start
   silo setup
@@ -18,8 +18,11 @@ Usage:
   silo exec <cmd> [args...]
   silo stop
   silo rm [-f|--force]
-  silo rmi [-f|--force] [--user]
+  silo rmi [-f|--force]
   silo status
+  silo user init
+  silo user build
+  silo user rmi
   silo devcontainer
   silo devcontainer stop
   silo devcontainer rm [--force]
@@ -28,7 +31,7 @@ Usage:
 
 Commands:
   (default)            Run lifecycle and connect to the silo container
-  init                 Initialize workspace and user files
+  init                 Initialize user and workspace files
   build                Build the workspace image
   create               Create the container
   start                Start the container
@@ -39,6 +42,9 @@ Commands:
   rm                   Remove the container
   rmi                  Remove the workspace image
   status               Print container status
+  user init            Create user files
+  user build           Build the user image
+  user rmi             Remove the user image
   devcontainer         Generate .devcontainer.json
   devcontainer stop    Stop the devcontainer
   devcontainer rm      Remove the devcontainer
@@ -51,9 +57,6 @@ Default command flags:
   --rmi   Stop, remove container, and remove image when the session exits
   -- ...  Pass remaining arguments to podman exec
 
-Build flags:
-  --user  Build the user image
-
 Create flags:
   --nested            Enable nested Podman containers
   --shared-volume     Enable shared volume mount
@@ -65,14 +68,13 @@ Remove flags:
 
 Remove image flags:
   -f, --force  Stop and remove the container before removing the image
-  --user       Remove the user image
 
 Devcontainer rm flags:
   --force  Stop the container if it is running before removing`
 
 var commands = map[string]func([]string) error{
 	"init":                withoutArgs(cmdInit),
-	"build":               cmdBuild,
+	"build":               withoutArgs(cmdBuild),
 	"create":              cmdCreate,
 	"start":               withoutArgs(cmdStart),
 	"setup":               withoutArgs(cmdSetup),
@@ -82,6 +84,9 @@ var commands = map[string]func([]string) error{
 	"rm":                  cmdRemove,
 	"rmi":                 cmdRemoveImage,
 	"status":              withoutArgs(cmdStatus),
+	"user init":           withoutArgs(cmdUserInit),
+	"user build":          withoutArgs(cmdUserBuild),
+	"user rmi":            withoutArgs(cmdUserRmi),
 	"devcontainer":        withoutArgs(cmdDevcontainerGenerate),
 	"devcontainer stop":   withoutArgs(cmdDevcontainerStop),
 	"devcontainer rm":     cmdDevcontainerRemove,

@@ -432,50 +432,59 @@ func TestInitWorkspaceConfig(t *testing.T) {
 	})
 }
 
-func TestEnsureStarterFiles(t *testing.T) {
-	t.Run("creates all three starter files when absent", func(t *testing.T) {
-		setupUserConfig(t) // sets XDG_CONFIG_HOME but writes home-user.nix and silo.in.toml there
-		setupWorkspace(t, minimalConfig("abc12345"))
-		// Remove the files ensureStarterFiles should create so we test from scratch.
-		dir, _ := userConfigDir()
-		os.Remove(filepath.Join(dir, "home-user.nix"))
-		os.Remove(filepath.Join(dir, "devcontainer.in.json"))
-		os.Remove(filepath.Join(siloDir, "home.nix"))
-
-		if err := ensureStarterFiles(); err != nil {
+func TestEnsureUserFiles(t *testing.T) {
+	t.Run("creates user files when absent", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		if err := ensureUserFiles(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		for _, path := range []string{
-			filepath.Join(dir, "home-user.nix"),
-			filepath.Join(dir, "devcontainer.in.json"),
-			filepath.Join(siloDir, "home.nix"),
-		} {
-			if _, err := os.Stat(path); os.IsNotExist(err) {
-				t.Errorf("expected %s to be created", path)
+		dir := filepath.Join(base, "silo")
+		for _, name := range []string{"home-user.nix", "devcontainer.in.json", "silo.in.toml"} {
+			if _, err := os.Stat(filepath.Join(dir, name)); os.IsNotExist(err) {
+				t.Errorf("expected %s to be created", name)
 			}
 		}
 	})
 
-	t.Run("does not overwrite existing starter files", func(t *testing.T) {
-		setupWorkspace(t, minimalConfig("abc12345"))
+	t.Run("does not overwrite existing files", func(t *testing.T) {
 		base := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", base)
 		dir := filepath.Join(base, "silo")
 		os.MkdirAll(dir, 0755)
-
-		sentinel := []byte("# my custom home-user.nix\n")
+		sentinel := []byte("# custom\n")
 		os.WriteFile(filepath.Join(dir, "home-user.nix"), sentinel, 0644)
-		os.WriteFile(filepath.Join(dir, "devcontainer.in.json"), []byte(`{"custom":true}`), 0644)
-		os.WriteFile(filepath.Join(siloDir, "home.nix"), sentinel, 0644)
 
-		if err := ensureStarterFiles(); err != nil {
+		if err := ensureUserFiles(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		got, _ := os.ReadFile(filepath.Join(dir, "home-user.nix"))
 		if string(got) != string(sentinel) {
-			t.Errorf("user home-user.nix was overwritten")
+			t.Errorf("home-user.nix was overwritten")
 		}
-		got, _ = os.ReadFile(filepath.Join(siloDir, "home.nix"))
+	})
+}
+
+func TestEnsureWorkspaceFiles(t *testing.T) {
+	t.Run("creates workspace home.nix when absent", func(t *testing.T) {
+		setupWorkspace(t, minimalConfig("abc12345"))
+		os.Remove(filepath.Join(siloDir, "home.nix"))
+		if err := ensureWorkspaceFiles(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(siloDir, "home.nix")); os.IsNotExist(err) {
+			t.Error("expected .silo/home.nix to be created")
+		}
+	})
+
+	t.Run("does not overwrite existing .silo/home.nix", func(t *testing.T) {
+		setupWorkspace(t, minimalConfig("abc12345"))
+		sentinel := []byte("# custom\n")
+		os.WriteFile(filepath.Join(siloDir, "home.nix"), sentinel, 0644)
+		if err := ensureWorkspaceFiles(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		got, _ := os.ReadFile(filepath.Join(siloDir, "home.nix"))
 		if string(got) != string(sentinel) {
 			t.Errorf("workspace home.nix was overwritten")
 		}
