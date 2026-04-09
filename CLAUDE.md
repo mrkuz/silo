@@ -9,10 +9,10 @@ Silo is a Go CLI tool for creating per-directory developer sandbox containers po
 ## Build and Test Commands
 
 ```bash
-go build .              # Build binary
-go install .            # Install to $GOPATH/bin
-go test ./...           # Run all tests
-go test -run TestName   # Run a single test
+go build .             # Build binary
+go install .           # Install to $GOPATH/bin
+go test ./...          # Run all tests
+go test -run TestName  # Run a single test
 ```
 
 Requires Go 1.23+ and Podman.
@@ -23,40 +23,62 @@ Requires Go 1.23+ and Podman.
 
 **Key files:**
 - `main.go` — CLI entry point and command dispatcher
-- `config.go` — Configuration management (TOML-based, two-tier: user + workspace) and workspace initialization (`initWorkspaceConfig`)
-- `container.go` — Podman container lifecycle (create, start, stop, exec, connect, rm, status)
-- `build.go` — Two-stage image build (base image + workspace image)
+- `commands.go` — Command implementations (`cmdInit`, `cmdCreate`, etc.)
+- `config.go` — TOML configuration management (user + workspace tier) and workspace initialization
+- `container.go` — Podman container lifecycle and the `ensure*` chain
+- `build.go` — Two-stage image build (user image + workspace image)
 - `devcontainer.go` — VS Code devcontainer.json generation with recursive JSON merge
 - `render.go` — Embedded Go template rendering (`//go:embed templates/`)
 
-**Two-stage image build:**
-1. Base image (`silo-<user>`): Alpine Linux + Nix + home-manager
-2. Workspace image (`silo-<id>`): Layered on base with workspace-specific Nix packages
+**Lifecycle chain** (each step depends on the ones before it):
+```
+init → build → create → start → setup → connect
+```
+
+**`silo init` flags** use tri-state booleans (`--nested`/`--no-nested`, `--shared-volume`/`--no-shared-volume`). Flags not provided leave the config value unchanged; provided flags override the `silo.in.toml` default. Config is written only on first run.
+
+**The `ensure*` chain** in `container.go` provides lazy initialization:
+- `ensureInit` → initializes config and creates starter files
+- `ensureBuilt` → ensures images exist (builds if missing)
+- `ensureCreated` → ensures container exists (creates if missing)
+- `ensureStarted` → ensures container is running
+- `ensureSetup` → runs post-start shared volume configuration
 
 **Configuration hierarchy** (later overrides earlier):
 1. Built-in defaults
-2. User config at `$XDG_CONFIG_HOME/silo/`
+2. User config at `$XDG_CONFIG_HOME/silo/silo.in.toml`
 3. Workspace config at `.silo/silo.toml`
 4. Runtime flags
 
-**Templates** in `templates/` are embedded into the binary via `//go:embed` and rendered with `text/template`.
+**Templates** in `templates/` are embedded via `//go:embed` and rendered with `text/template`.
 
-**Shared volume mounts:** The `silo-shared` named volume is mounted at `/shared` as a single bind. Paths in `[shared_volume]` become symlinks from the target path to a mirrored location under `/shared` (e.g. `$HOME/.cache/uv/` → `/shared/home/user/.cache/uv/`). The symlink script runs via `podman exec` after the container starts. A trailing slash means directory; no slash means file.
+**Two-stage image build:**
+1. User image (`silo-<user>`): Alpine + Nix + home-manager, shared across workspaces
+2. Workspace image (`silo-<id>`): Layered on user image with workspace-specific `home.nix`
 
-**Devcontainer merge:** `silo devcontainer` merges `$XDG_CONFIG_HOME/silo/devcontainer.in.json` into the generated output — objects merge recursively (key-by-key), arrays concatenate (base first), scalars from input win.
+**Shared volume:** The `silo-shared` named volume is mounted at `/silo/shared`. Paths in `[shared_volume]` become symlinks under `/silo/shared/` (trailing `/` = directory). The symlink script runs via `podman exec` after container start.
+
+**Devcontainer merge:** `silo devcontainer` recursively merges `$XDG_CONFIG_HOME/silo/devcontainer.in.json` into generated `.devcontainer.json`.
 
 **Only external dependency:** `github.com/BurntSushi/toml`
 
+## TOML Style
+
+Match the formatting in `examples/silo.in.toml`:
+- Unindented keys (no leading spaces)
+- 2-space array elements
+- Blank line between tables
+
 ## Testing
 
-Tests use a mock runner (`mock_test.go`) to stub out Podman commands. The `var execCommand = exec.Command` seam in `container.go` is swapped by `mockExecCommand` in tests, which records all calls and returns preset responses keyed by the full command string.
+Tests use a mock runner (`mock_test.go`) to stub Podman commands. The `var execCommand = exec.Command` seam in `container.go` is swapped by `mockExecCommand` in tests, which records calls and returns preset responses keyed by the full command string.
 
-**Do not use `t.Parallel()`** — tests call `os.Chdir` to a temp workspace, which is process-global. The `setupWorkspace` helper handles chdir and cleanup.
+**Do not use `t.Parallel()`** — tests call `os.Chdir` to a temp workspace, which is process-global. Use `setupWorkspace` for chdir and cleanup.
 
 Key test helpers in `mock_test.go`:
-- `mockExecCommand(t, responses)` — installs the mock, returns `*[]cmdCall` recorder
+- `mockExecCommand(t, responses)` — installs mock, returns `*[]cmdCall` recorder
 - `setupWorkspace(t, cfg)` — creates temp dir with `.silo/silo.toml`, chdirs into it
-- `setupUserConfig(t)` — sets `XDG_CONFIG_HOME` to a temp dir with starter files (`home-user.nix`, `silo.in.toml`, etc.)
+- `setupUserConfig(t)` — sets `XDG_CONFIG_HOME` to temp dir with starter files
 - `minimalConfig(id)` — returns a test-ready `Config` struct
 
-Check existing patterns in `*_test.go` files before adding new tests.
+Check existing patterns in `*_test.go` before adding new tests.
