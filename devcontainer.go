@@ -55,7 +55,7 @@ func cmdDevcontainerGenerate() error {
 	if err := os.WriteFile(devcontainerFile, content, 0644); err != nil {
 		return fmt.Errorf("write devcontainer.json: %w", err)
 	}
-	fmt.Printf("Generated %s.\n", devcontainerFile)
+	fmt.Printf("Generated %s\n", devcontainerFile)
 	return nil
 }
 

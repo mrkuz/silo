@@ -66,9 +66,9 @@ init → build → create → start → setup → connect
 
 ```
 silo [--stop|--rm|--rmi] [-- args...]
-silo init
+silo init [--nested|--no-nested] [--shared-volume|--no-shared-volume]
 silo build
-silo create [--nested] [--shared-volume] [--dry-run] [-- args...]
+silo create [--dry-run] [-- args...]
 silo start
 silo setup
 silo connect
@@ -106,6 +106,15 @@ Connect to the container for the current workspace. Runs the full lifecycle chai
 
 Initialize workspace files. Creates `.silo/silo.toml` and `.silo/home.nix` on the host, then delegates to `silo user init` to create user files under `$XDG_CONFIG_HOME/silo/`.
 
+Writes config only on first run. If a flag is not provided, the default from `silo.in.toml` is used; if that's also unset, built-in defaults apply.
+
+| Flag | Description |
+|---|---|
+| `--nested` | Enable nested Podman containers |
+| `--no-nested` | Disable nested Podman containers |
+| `--shared-volume` | Enable shared volume |
+| `--no-shared-volume` | Disable shared volume |
+
 ### `silo build`
 
 Ensure the user image exists, then build the workspace image if it does not exist yet.
@@ -116,12 +125,10 @@ Create the container without starting it. Builds images if needed.
 
 | Flag | Description |
 |---|---|
-| `--nested` | Enable nested Podman containers (relaxes security opts, adds `/dev/fuse`) |
-| `--shared-volume` | Enable shared volume |
 | `--dry-run` | Print the `podman create` command without running it |
 | `-- ...` | Pass remaining arguments to `podman create` |
 
-Feature flags (`--nested`, `--shared-volume`) and extra arguments are persisted to `.silo/silo.toml`.
+`extra_args` is updated automatically when extra arguments are passed to `silo create`.
 
 ### `silo start`
 

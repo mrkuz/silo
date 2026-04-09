@@ -211,17 +211,19 @@ func baseImageName(user string) string {
 }
 
 // initWorkspaceConfig initializes workspace config from defaults or user settings.
-func initWorkspaceConfig() (Config, error) {
+// Returns (cfg, firstRun, error). On first run, cfg is built from defaults and silo.in.toml.
+// On subsequent runs, cfg is loaded from silo.toml. Does NOT save — caller must save on first run.
+func initWorkspaceConfig() (Config, bool, error) {
 	var cfg Config
 	if _, err := os.Stat(siloToml); os.IsNotExist(err) {
 		// First run: seed from user config, fall back to built-in defaults.
 		defaults, err := defaultConfig()
 		if err != nil {
-			return cfg, err
+			return cfg, false, err
 		}
 		cfg, err = loadSiloInTOML()
 		if err != nil {
-			return cfg, fmt.Errorf("load user silo.in.toml: %w", err)
+			return cfg, false, fmt.Errorf("load user silo.in.toml: %w", err)
 		}
 		cfg.General = defaults.General
 		if cfg.Connect.Command == "" {
@@ -230,18 +232,16 @@ func initWorkspaceConfig() (Config, error) {
 		if cfg.Features == (FeaturesConfig{}) {
 			cfg.Features = defaults.Features
 		}
-		if err := cfg.saveWorkspaceConfig(); err != nil {
-			return cfg, fmt.Errorf("save silo.toml: %w", err)
-		}
+		return cfg, true, nil
 	} else {
 		// Subsequent runs: use workspace config as-is.
 		var err error
 		cfg, err = parseTOML(siloToml)
 		if err != nil {
-			return cfg, fmt.Errorf("load workspace silo.toml: %w", err)
+			return cfg, false, fmt.Errorf("load workspace silo.toml: %w", err)
 		}
+		return cfg, false, nil
 	}
-	return cfg, nil
 }
 
 // ensureUserFiles silently creates user starter files if they do not exist.

@@ -48,7 +48,11 @@ type TemplateContext struct {
 // newTemplateContext builds a TemplateContext from Config for template rendering.
 // An optional suffix is appended to the container name.
 func newTemplateContext(cfg Config, containerNameSuffix ...string) (TemplateContext, error) {
-	containerName := containerNameWithSuffix(cfg.General.ContainerName, containerNameSuffix...)
+	suffix := ""
+	if len(containerNameSuffix) > 0 {
+		suffix = containerNameSuffix[0]
+	}
+	containerName := containerNameWithSuffix(cfg.General.ContainerName, suffix)
 	sharedVolumeNameValue := ""
 	sharedVolumeMountPoint := ""
 	if cfg.Features.SharedVolume {

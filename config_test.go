@@ -370,16 +370,15 @@ func TestInitWorkspaceConfig(t *testing.T) {
 		os.Remove(siloToml)
 		os.Remove(siloDir) // remove dir too so it is recreated
 
-		cfg, err := initWorkspaceConfig()
+		cfg, firstRun, err := initWorkspaceConfig()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+		if !firstRun {
+			t.Error("expected firstRun=true on first run")
+		}
 		if len(cfg.General.ID) != 8 {
 			t.Errorf("expected 8-char ID, got %q", cfg.General.ID)
-		}
-		// .silo/silo.toml must have been written.
-		if _, err := os.Stat(siloToml); os.IsNotExist(err) {
-			t.Error(".silo/silo.toml was not created on first run")
 		}
 	})
 
@@ -404,9 +403,12 @@ func TestInitWorkspaceConfig(t *testing.T) {
 		t.Cleanup(func() { os.Chdir(orig) })
 		os.Chdir(dir)
 
-		cfg, err := initWorkspaceConfig()
+		cfg, firstRun, err := initWorkspaceConfig()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if !firstRun {
+			t.Error("expected firstRun=true on first run")
 		}
 		if cfg.Connect.Command != "/bin/fish" {
 			t.Errorf("expected seeded command /bin/fish, got %q", cfg.Connect.Command)
@@ -419,9 +421,12 @@ func TestInitWorkspaceConfig(t *testing.T) {
 		setupWorkspace(t, existing)
 		setupUserConfig(t)
 
-		cfg, err := initWorkspaceConfig()
+		cfg, firstRun, err := initWorkspaceConfig()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if firstRun {
+			t.Error("expected firstRun=false on subsequent run")
 		}
 		if cfg.General.ID != "deadbeef" {
 			t.Errorf("expected ID deadbeef, got %q", cfg.General.ID)

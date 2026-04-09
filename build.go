@@ -108,9 +108,9 @@ func runBuild(tag string, files map[string][]byte) error {
 
 // cmdBuild implements `silo build`. Builds the workspace image if missing.
 func cmdBuild() error {
-	cfg, err := ensureInit()
+	cfg, _, err := ensureInit()
 	if err != nil {
-		return fmt.Errorf("initialize: %w", err)
+		return fmt.Errorf("initialize workspace: %w", err)
 	}
 	tc, err := newTemplateContext(cfg)
 	if err != nil {
@@ -133,9 +133,9 @@ func cmdBuild() error {
 
 // cmdUserBuild implements `silo user build`. Builds the user image if missing.
 func cmdUserBuild() error {
-	cfg, err := ensureInit()
+	cfg, _, err := ensureInit()
 	if err != nil {
-		return fmt.Errorf("initialize: %w", err)
+		return fmt.Errorf("initialize workspace: %w", err)
 	}
 	tc, err := newTemplateContext(cfg)
 	if err != nil {

@@ -53,16 +53,11 @@ func TestParseRunFlagsExtra(t *testing.T) {
 
 func TestParseCreateFlags(t *testing.T) {
 	tests := []struct {
-		args             []string
-		wantNested       bool
-		wantSharedVolume bool
-		wantErr          bool
+		args    []string
+		wantErr bool
 	}{
-		{[]string{}, false, false, false},
-		{[]string{"--nested"}, true, false, false},
-		{[]string{"--shared-volume"}, false, true, false},
-		{[]string{"--nested", "--shared-volume"}, true, true, false},
-		{[]string{"--unknown"}, false, false, true},
+		{[]string{}, false},
+		{[]string{"--unknown"}, true},
 	}
 	for _, tt := range tests {
 		f, err := parseCreateFlags(tt.args)
@@ -76,9 +71,8 @@ func TestParseCreateFlags(t *testing.T) {
 			t.Errorf("parseCreateFlags(%v): unexpected error: %v", tt.args, err)
 			continue
 		}
-		if f.nested != tt.wantNested || f.sharedVolume != tt.wantSharedVolume {
-			t.Errorf("parseCreateFlags(%v) flags = %+v, want nested=%v sharedVolume=%v",
-				tt.args, f, tt.wantNested, tt.wantSharedVolume)
+		if f.dryRun != false || len(f.extra) != 0 {
+			t.Errorf("parseCreateFlags(%v) = %+v, want empty flags", tt.args, f)
 		}
 	}
 }
@@ -537,27 +531,6 @@ func TestCmdCreateFilePersistence(t *testing.T) {
 		}
 	})
 
-	t.Run("--nested persists Features.Nested=true to silo.toml", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		setupWorkspace(t, cfg)
-		setupUserConfig(t)
-		mockExecCommand(t, map[string]*exec.Cmd{
-			"podman image exists silo-testuser":     exec.Command("true"),
-			"podman image exists silo-abc12345":     exec.Command("true"),
-			"podman container exists silo-abc12345": exec.Command("false"),
-		})
-		if err := cmdCreate([]string{"--nested"}); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		saved, err := parseTOML(siloToml)
-		if err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if !saved.Features.Nested {
-			t.Error("expected Features.Nested=true in saved silo.toml")
-		}
-	})
-
 	t.Run("-- extra args persisted to silo.toml", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
@@ -590,7 +563,7 @@ func TestCmdCreateFilePersistence(t *testing.T) {
 		}
 		origMod := info.ModTime()
 		mockExecCommand(t, map[string]*exec.Cmd{})
-		if err := cmdCreate([]string{"--nested", "--dry-run"}); err != nil {
+		if err := cmdCreate([]string{"--dry-run"}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		info, err = os.Stat(siloToml)
@@ -614,7 +587,7 @@ func TestCmdInit(t *testing.T) {
 		os.Chdir(dir)
 
 		mockExecCommand(t, map[string]*exec.Cmd{})
-		if err := cmdInit(); err != nil {
+		if err := cmdInit([]string{}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if _, err := os.Stat(siloToml); os.IsNotExist(err) {
@@ -638,7 +611,7 @@ func TestCmdInit(t *testing.T) {
 		setupUserConfig(t)
 
 		mockExecCommand(t, map[string]*exec.Cmd{})
-		if err := cmdInit(); err != nil {
+		if err := cmdInit([]string{}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		saved, err := parseTOML(siloToml)
@@ -647,6 +620,115 @@ func TestCmdInit(t *testing.T) {
 		}
 		if saved.General.ID != "abc12345" {
 			t.Errorf("expected ID abc12345, got %q", saved.General.ID)
+		}
+	})
+
+	t.Run("--nested and --shared-volume persist to silo.toml", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		dir := t.TempDir()
+		orig, _ := os.Getwd()
+		t.Cleanup(func() { os.Chdir(orig) })
+		os.Chdir(dir)
+
+		mockExecCommand(t, map[string]*exec.Cmd{})
+		if err := cmdInit([]string{"--nested", "--shared-volume"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		saved, err := parseTOML(siloToml)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if !saved.Features.Nested {
+			t.Error("expected Features.Nested=true")
+		}
+		if !saved.Features.SharedVolume {
+			t.Error("expected Features.SharedVolume=true")
+		}
+	})
+
+	t.Run("--no-nested and --no-shared-volume set features to false", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		dir := t.TempDir()
+		orig, _ := os.Getwd()
+		t.Cleanup(func() { os.Chdir(orig) })
+		os.Chdir(dir)
+
+		mockExecCommand(t, map[string]*exec.Cmd{})
+		if err := cmdInit([]string{"--no-nested", "--no-shared-volume"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		saved, err := parseTOML(siloToml)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if saved.Features.Nested {
+			t.Error("expected Features.Nested=false")
+		}
+		if saved.Features.SharedVolume {
+			t.Error("expected Features.SharedVolume=false")
+		}
+	})
+
+	t.Run("subsequent run does not modify config", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		cfg.Features.Nested = true
+		cfg.Features.SharedVolume = true
+		setupWorkspace(t, cfg)
+		setupUserConfig(t)
+
+		// Read original mtime to detect any write.
+		info, err := os.Stat(siloToml)
+		if err != nil {
+			t.Fatalf("stat: %v", err)
+		}
+		origMod := info.ModTime()
+
+		mockExecCommand(t, map[string]*exec.Cmd{})
+		if err := cmdInit([]string{"--nested"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		info, err = os.Stat(siloToml)
+		if err != nil {
+			t.Fatalf("stat after init: %v", err)
+		}
+		if !info.ModTime().Equal(origMod) {
+			t.Error("silo.toml was modified on subsequent run (expected no write)")
+		}
+	})
+
+	t.Run("first run with silo.in.toml defaults", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		siloUser := filepath.Join(base, "silo")
+		if err := os.MkdirAll(siloUser, 0755); err != nil {
+			t.Fatal(err)
+		}
+		// Write silo.in.toml with shared_volume=true
+		userToml := filepath.Join(siloUser, "silo.in.toml")
+		if err := os.WriteFile(userToml, []byte("[features]\nshared_volume = true\nnested = false\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		dir := t.TempDir()
+		orig, _ := os.Getwd()
+		t.Cleanup(func() { os.Chdir(orig) })
+		os.Chdir(dir)
+
+		mockExecCommand(t, map[string]*exec.Cmd{})
+		if err := cmdInit([]string{}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		saved, err := parseTOML(siloToml)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if saved.Features.SharedVolume != true {
+			t.Errorf("expected Features.SharedVolume=true from silo.in.toml, got false")
+		}
+		if saved.Features.Nested != false {
+			t.Errorf("expected Features.Nested=false from silo.in.toml, got true")
 		}
 	})
 }

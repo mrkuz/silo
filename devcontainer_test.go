@@ -264,4 +264,3 @@ func TestCmdDevcontainerRemove(t *testing.T) {
 		}
 	})
 }
-

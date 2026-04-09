@@ -5,13 +5,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
+	"slices"
 )
 
 // cmdInit implements `silo init`. Creates workspace files only.
 // Use `silo user init` to create user files.
-func cmdInit() error {
-	var err error
+func cmdInit(args []string) error {
+	flags, err := parseInitFlags(args)
+	if err != nil {
+		return fmt.Errorf("parse init flags: %w", err)
+	}
 	initPaths := []string{siloToml, filepath.Join(siloDir, "home.nix")}
 	for _, p := range initPaths {
 		if err := printInitFileStatus(p); err != nil {
@@ -19,9 +22,22 @@ func cmdInit() error {
 		}
 	}
 
-	_, err = ensureInit()
+	cfg, firstRun, err := ensureInit()
 	if err != nil {
 		return fmt.Errorf("initialize workspace: %w", err)
+	}
+
+	// Apply feature flags only on first run and only if explicitly set
+	if firstRun {
+		if flags.nested != nil {
+			cfg.Features.Nested = *flags.nested
+		}
+		if flags.sharedVolume != nil {
+			cfg.Features.SharedVolume = *flags.sharedVolume
+		}
+		if err := cfg.saveWorkspaceConfig(); err != nil {
+			return fmt.Errorf("save silo.toml: %w", err)
+		}
 	}
 	return nil
 }
@@ -166,9 +182,13 @@ func printRunningStatus(isRunning bool) {
 	fmt.Println("Stopped")
 }
 
+func printNotFound(name string) {
+	fmt.Printf("%s not found\n", name)
+}
+
 func removeNamedContainer(name string, force bool) error {
 	if !containerExists(name) {
-		fmt.Printf("%s not found\n", name)
+		printNotFound(name)
 		return nil
 	}
 	if containerRunning(name) {
@@ -212,17 +232,15 @@ func cmdRemoveImage(args []string) error {
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
-	if flags.force {
-		if containerExists(cfg.General.ContainerName) {
-			if containerRunning(cfg.General.ContainerName) {
-				if err := stopContainer(cfg.General.ContainerName); err != nil {
-					return fmt.Errorf("stop container: %w", err)
-				}
+	if flags.force && containerExists(cfg.General.ContainerName) {
+		if containerRunning(cfg.General.ContainerName) {
+			if err := stopContainer(cfg.General.ContainerName); err != nil {
+				return fmt.Errorf("stop container: %w", err)
 			}
-			fmt.Printf("Removing %s...\n", cfg.General.ContainerName)
-			if err := removeContainer(cfg.General.ContainerName); err != nil {
-				return fmt.Errorf("remove container: %w", err)
-			}
+		}
+		fmt.Printf("Removing %s...\n", cfg.General.ContainerName)
+		if err := removeContainer(cfg.General.ContainerName); err != nil {
+			return fmt.Errorf("remove container: %w", err)
 		}
 	}
 	if imageExists(cfg.General.ImageName) {
@@ -231,7 +249,7 @@ func cmdRemoveImage(args []string) error {
 			return fmt.Errorf("remove image: %w", err)
 		}
 	} else {
-		fmt.Printf("%s not found\n", cfg.General.ImageName)
+		printNotFound(cfg.General.ImageName)
 	}
 	return nil
 }
@@ -247,22 +265,12 @@ func cmdCreate(args []string) error {
 		return fmt.Errorf("build images: %w", err)
 	}
 
-	// Apply feature flags to cfg; persist to silo.toml only when not a dry run.
-	changed := false
-	if flags.nested && !cfg.Features.Nested {
-		cfg.Features.Nested = true
-		changed = true
-	}
-	if flags.sharedVolume && !cfg.Features.SharedVolume {
-		cfg.Features.SharedVolume = true
-		changed = true
-	}
-
 	// Resolve extra args: CLI wins over stored value; update stored value when CLI provides args.
 	var extraArgs []string
+	changed := false
 	if len(flags.extra) > 0 {
 		extraArgs = flags.extra
-		if strings.Join(flags.extra, "\x00") != strings.Join(cfg.Create.ExtraArgs, "\x00") {
+		if !slices.Equal(flags.extra, cfg.Create.ExtraArgs) {
 			cfg.Create.ExtraArgs = flags.extra
 			changed = true
 		}
@@ -340,28 +348,24 @@ func parseRunFlags(args []string) (runFlags, error) {
 	return runFlags{stop: *stop || *rm || *rmi, rm: *rm || *rmi, rmi: *rmi, extra: fs.Args()}, nil
 }
 
-type removeFlags struct {
+type forceFlags struct {
 	force bool
 }
 
-func parseRemoveFlags(args []string) (removeFlags, error) {
+func parseRemoveFlags(args []string) (forceFlags, error) {
 	force, err := parseForceFlag(args, "silo rm", "Stop and remove a running container", "parse remove flags")
 	if err != nil {
-		return removeFlags{}, err
+		return forceFlags{}, err
 	}
-	return removeFlags{force: force}, nil
+	return forceFlags{force: force}, nil
 }
 
-type removeImageFlags struct {
-	force bool
-}
-
-func parseRemoveImageFlags(args []string) (removeImageFlags, error) {
+func parseRemoveImageFlags(args []string) (forceFlags, error) {
 	force, err := parseForceFlag(args, "silo rmi", "Stop and remove the container before removing the image", "parse rmi flags")
 	if err != nil {
-		return removeImageFlags{}, err
+		return forceFlags{}, err
 	}
-	return removeImageFlags{force: force}, nil
+	return forceFlags{force: force}, nil
 }
 
 // cmdUserRmi implements `silo user rmi`. Removes the user image.
@@ -377,7 +381,7 @@ func cmdUserRmi() error {
 			return fmt.Errorf("remove user image: %w", err)
 		}
 	} else {
-		fmt.Printf("%s not found\n", userImage)
+		printNotFound(userImage)
 	}
 	return nil
 }
@@ -405,26 +409,56 @@ func parseForceFlag(args []string, name, usage, context string) (bool, error) {
 	return *force || *forceShort, nil
 }
 
+type initFlags struct {
+	nested       *bool
+	sharedVolume *bool
+}
+
+func parseInitFlags(args []string) (initFlags, error) {
+	fs := flag.NewFlagSet("silo init", flag.ContinueOnError)
+	nested := fs.Bool("nested", false, "Enable nested Podman containers")
+	noNested := fs.Bool("no-nested", false, "Disable nested Podman containers")
+	sharedVolume := fs.Bool("shared-volume", false, "Enable shared volume")
+	noSharedVolume := fs.Bool("no-shared-volume", false, "Disable shared volume")
+	fs.Usage = func() {}
+	if err := fs.Parse(args); err != nil {
+		return initFlags{}, fmt.Errorf("parse init flags: %w", err)
+	}
+	var nestedVal, svVal *bool
+	if *noNested {
+		v := false
+		nestedVal = &v
+	} else if *nested {
+		v := true
+		nestedVal = &v
+	}
+	if *noSharedVolume {
+		v := false
+		svVal = &v
+	} else if *sharedVolume {
+		v := true
+		svVal = &v
+	}
+	return initFlags{
+		nested:       nestedVal,
+		sharedVolume: svVal,
+	}, nil
+}
+
 type createFlags struct {
-	nested       bool
-	sharedVolume bool
-	dryRun       bool
-	extra        []string
+	dryRun bool
+	extra  []string
 }
 
 func parseCreateFlags(args []string) (createFlags, error) {
 	fs := flag.NewFlagSet("silo create", flag.ContinueOnError)
-	nested := fs.Bool("nested", false, "Enable nested Podman containers")
-	sharedVolume := fs.Bool("shared-volume", false, "Enable shared volume")
 	dryRun := fs.Bool("dry-run", false, "Print the podman create command without running it")
 	fs.Usage = func() {} // suppress; handled by main helpText
 	if err := fs.Parse(args); err != nil {
 		return createFlags{}, fmt.Errorf("parse create flags: %w", err)
 	}
 	return createFlags{
-		nested:       *nested,
-		sharedVolume: *sharedVolume,
-		dryRun:       *dryRun,
-		extra:        fs.Args(),
+		dryRun: *dryRun,
+		extra:  fs.Args(),
 	}, nil
 }

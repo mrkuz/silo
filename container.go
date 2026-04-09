@@ -49,12 +49,12 @@ func connectContainer(name, command string, extra []string) error {
 	return nil
 }
 
-// containerNameWithSuffix returns baseName with an optional suffix appended.
-func containerNameWithSuffix(baseName string, suffix ...string) string {
-	if len(suffix) > 0 {
-		return baseName + suffix[0]
+// containerNameWithSuffix returns baseName with suffix appended if non-empty.
+func containerNameWithSuffix(baseName, suffix string) string {
+	if suffix == "" {
+		return baseName
 	}
-	return baseName
+	return baseName + suffix
 }
 
 // workspaceMountPath returns the container-side mount path for the current working directory.
@@ -69,7 +69,11 @@ func workspaceMountPath(cfg Config) (string, error) {
 
 // containerArgs returns podman flags for container name, hostname, and security options.
 func containerArgs(cfg Config, containerNameSuffix ...string) []string {
-	containerName := containerNameWithSuffix(cfg.General.ContainerName, containerNameSuffix...)
+	suffix := ""
+	if len(containerNameSuffix) > 0 {
+		suffix = containerNameSuffix[0]
+	}
+	containerName := containerNameWithSuffix(cfg.General.ContainerName, suffix)
 
 	args := []string{"--name", containerName, "--hostname", containerName}
 	if cfg.Features.Nested {
@@ -196,25 +200,25 @@ func stopContainer(name string) error {
 // ensureInit initializes workspace config, workspace starter files, and
 // user starter files. It delegates user-file creation to ensureUserFiles so
 // `silo init` and `silo user init` share a single implementation.
-func ensureInit() (Config, error) {
-	cfg, err := initWorkspaceConfig()
+func ensureInit() (Config, bool, error) {
+	cfg, firstRun, err := initWorkspaceConfig()
 	if err != nil {
-		return cfg, fmt.Errorf("initialize workspace configuration: %w", err)
+		return cfg, firstRun, fmt.Errorf("initialize workspace configuration: %w", err)
 	}
 	if err := ensureWorkspaceFiles(); err != nil {
-		return cfg, fmt.Errorf("ensure workspace files: %w", err)
+		return cfg, firstRun, fmt.Errorf("ensure workspace files: %w", err)
 	}
 	if err := ensureUserFiles(); err != nil {
-		return cfg, fmt.Errorf("ensure user files: %w", err)
+		return cfg, firstRun, fmt.Errorf("ensure user files: %w", err)
 	}
-	return cfg, nil
+	return cfg, firstRun, nil
 }
 
 // ensureBuilt ensures images exist, building them if needed.
 func ensureBuilt() (Config, error) {
-	cfg, err := ensureInit()
+	cfg, _, err := ensureInit()
 	if err != nil {
-		return cfg, fmt.Errorf("initialize: %w", err)
+		return cfg, fmt.Errorf("initialize workspace: %w", err)
 	}
 	if err := ensureImages(cfg); err != nil {
 		return cfg, fmt.Errorf("ensure images: %w", err)

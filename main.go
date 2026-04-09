@@ -1,3 +1,4 @@
+// silo is a CLI tool for creating per-directory developer sandbox containers.
 package main
 
 import (
@@ -9,9 +10,9 @@ const helpText = `silo - developer sandbox container
 
 Usage:
   silo [--stop|--rm|--rmi] [-- args...]
-  silo init
+  silo init [--nested|--no-nested] [--shared-volume|--no-shared-volume]
   silo build
-  silo create [--nested] [--shared-volume] [--dry-run] [-- args...]
+  silo create [--dry-run] [-- args...]
   silo start
   silo setup
   silo connect
@@ -57,11 +58,15 @@ Default command flags:
   --rmi   Stop, remove container, and remove image when the session exits
   -- ...  Pass remaining arguments to podman exec
 
+Init flags:
+  --nested             Enable nested Podman containers
+  --no-nested          Disable nested Podman containers
+  --shared-volume      Enable shared volume mount
+  --no-shared-volume   Disable shared volume mount
+
 Create flags:
-  --nested            Enable nested Podman containers
-  --shared-volume     Enable shared volume mount
-  --dry-run           Print the podman create command without running it
-  -- ...              Pass remaining arguments to podman create
+  --dry-run  Print the podman create command without running it
+  -- ...     Pass remaining arguments to podman create
 
 Remove flags:
   -f, --force  Stop the container if it is running before removing
@@ -73,7 +78,7 @@ Devcontainer rm flags:
   --force  Stop the container if it is running before removing`
 
 var commands = map[string]func([]string) error{
-	"init":                withoutArgs(cmdInit),
+	"init":                cmdInit,
 	"build":               withoutArgs(cmdBuild),
 	"create":              cmdCreate,
 	"start":               withoutArgs(cmdStart),
