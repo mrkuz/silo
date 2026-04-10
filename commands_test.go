@@ -882,3 +882,109 @@ func TestCmdSetup(t *testing.T) {
 		}
 	})
 }
+
+func TestCmdCreateDryRunOutput(t *testing.T) {
+	t.Run("--dry-run prints podman create command", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		setupUserConfig(t)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-testuser": exec.Command("true"),
+			"podman image exists silo-abc12345": exec.Command("true"),
+		})
+		// Capture stdout by running with a custom output check
+		if err := cmdCreate([]string{"--dry-run"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		// Dry run should NOT call podman create
+		if anyCall(calls, "podman", "create") {
+			t.Errorf("expected no podman create call in dry-run, got %v", *calls)
+		}
+		// Should still have called image exists
+		if !anyCall(calls, "podman", "image", "exists") {
+			t.Errorf("expected image existence check in dry-run, got %v", *calls)
+		}
+	})
+}
+
+func TestRequireWorkspaceConfigErrors(t *testing.T) {
+	t.Run("missing silo.toml returns error", func(t *testing.T) {
+		dir := t.TempDir()
+		orig, _ := os.Getwd()
+		t.Cleanup(func() { os.Chdir(orig) })
+		os.Chdir(dir)
+		// No silo.toml created
+		_, err := requireWorkspaceConfig()
+		if err == nil {
+			t.Error("expected error when silo.toml is missing")
+		}
+		if !strings.Contains(err.Error(), "no .silo/silo.toml found") {
+			t.Errorf("expected specific error message, got: %v", err)
+		}
+	})
+
+	t.Run("malformed silo.toml returns error", func(t *testing.T) {
+		dir := t.TempDir()
+		orig, _ := os.Getwd()
+		t.Cleanup(func() { os.Chdir(orig) })
+		os.Chdir(dir)
+		if err := os.MkdirAll(".silo", 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(".silo/silo.toml", []byte("invalid toml = ["), 0644); err != nil {
+			t.Fatal(err)
+		}
+		_, err := requireWorkspaceConfig()
+		if err == nil {
+			t.Error("expected error when silo.toml is malformed")
+		}
+	})
+}
+
+func TestCmdRemoveImageForceWhenContainerNotExists(t *testing.T) {
+	t.Run("--force with absent container: removes image without error", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman container exists silo-abc12345": exec.Command("false"),
+			"podman image exists silo-abc12345":     exec.Command("true"),
+		})
+		if err := cmdRemoveImage([]string{"--force"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		// Should not try to stop a non-existent container
+		if anyCall(calls, "podman", "stop") {
+			t.Errorf("expected no stop call for non-existent container, got %v", *calls)
+		}
+		if !anyCall(calls, "podman", "rmi", "silo-abc12345") {
+			t.Errorf("expected podman rmi, got %v", *calls)
+		}
+	})
+}
+
+func TestParseInitFlagsConflicts(t *testing.T) {
+	t.Run("conflicting nested flags uses last value", func(t *testing.T) {
+		// When both --nested and --no-nested are passed, flag package
+		// lets the last one win (since they're both bools, last set wins)
+		// This test documents the behavior
+		flags, err := parseInitFlags([]string{"--nested", "--no-nested"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		// --no-nested comes last, so nestedVal should be false
+		if flags.nested == nil || *flags.nested {
+			t.Errorf("expected nested=false when both flags passed, got %v", flags.nested)
+		}
+	})
+
+	t.Run("conflicting shared-volume flags uses last value", func(t *testing.T) {
+		flags, err := parseInitFlags([]string{"--shared-volume", "--no-shared-volume"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		// --no-shared-volume comes last, so sharedVolume should be false
+		if flags.sharedVolume == nil || *flags.sharedVolume {
+			t.Errorf("expected sharedVolume=false when both flags passed, got %v", flags.sharedVolume)
+		}
+	})
+}

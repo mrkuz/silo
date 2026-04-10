@@ -1,7 +1,9 @@
 package main
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 )
 
@@ -132,3 +134,27 @@ func TestCmdBuild(t *testing.T) {
 		}
 	})
 }
+
+func TestBuildWorkspaceImageWithMissingHomeNix(t *testing.T) {
+	t.Run("uses emptyHomeNix when home.nix is absent", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		setupUserConfig(t)
+		// Remove home.nix to simulate missing file
+		os.Remove(filepath.Join(siloDir, "home.nix"))
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-testuser": exec.Command("false"),
+			"podman image exists silo-abc12345": exec.Command("false"),
+		})
+		if err := cmdBuild(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !anyCall(calls, "podman", "build", "-t", "silo-abc12345") {
+			t.Errorf("expected workspace image build even without home.nix, got %v", *calls)
+		}
+	})
+}
+
+// TestEnsureImagesBuildFailure and TestEnsureBuiltFailure are not feasible to test
+// because runBuild uses os.MkdirTemp producing dynamic build directory paths.
+// The mock cannot match the full command string with dynamic paths.

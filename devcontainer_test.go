@@ -264,3 +264,112 @@ func TestCmdDevcontainerRemove(t *testing.T) {
 		}
 	})
 }
+
+func TestLoadDevcontainerInJSONMalformed(t *testing.T) {
+	t.Run("malformed JSON returns error", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		siloDir := filepath.Join(base, "silo")
+		if err := os.MkdirAll(siloDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(siloDir, "devcontainer.in.json")
+		if err := os.WriteFile(path, []byte("{invalid json"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		_, err := loadDevcontainerInJSON()
+		if err == nil {
+			t.Error("expected error for malformed JSON")
+		}
+	})
+}
+
+func TestCmdDevcontainerGenerateMerge(t *testing.T) {
+	t.Run("generates merged devcontainer when user provides devcontainer.in.json", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		setupUserConfig(t)
+
+		// Write a user devcontainer.in.json with custom settings
+		base := os.Getenv("XDG_CONFIG_HOME")
+		userDevcontainer := filepath.Join(base, "silo", "devcontainer.in.json")
+		userConfig := `{
+			"customProperty": "user-value",
+			"mergeProperty": "from-user"
+		}`
+		if err := os.WriteFile(userDevcontainer, []byte(userConfig), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := cmdDevcontainerGenerate(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		data, err := os.ReadFile(".devcontainer.json")
+		if err != nil {
+			t.Fatalf("read .devcontainer.json: %v", err)
+		}
+
+		var parsed map[string]any
+		if err := json.Unmarshal(data, &parsed); err != nil {
+			t.Fatalf("expected valid json, got error: %v\n%s", err, string(data))
+		}
+
+		// User's custom property should be preserved
+		if parsed["customProperty"] != "user-value" {
+			t.Errorf("expected customProperty from user config, got %v", parsed["customProperty"])
+		}
+		// User's mergeProperty should be preserved (overlaid by generated)
+		if parsed["mergeProperty"] != "from-user" {
+			t.Errorf("expected mergeProperty from user config, got %v", parsed["mergeProperty"])
+		}
+	})
+}
+
+func TestCmdDevcontainerGenerateExistingFile(t *testing.T) {
+	t.Run("existing .devcontainer.json is not overwritten", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		setupUserConfig(t)
+		// Pre-create .devcontainer.json
+		existing := []byte(`{"name": "custom"}`)
+		if err := os.WriteFile(".devcontainer.json", existing, 0644); err != nil {
+			t.Fatal(err)
+		}
+		mockExecCommand(t, map[string]*exec.Cmd{})
+		if err := cmdDevcontainerGenerate(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		got, err := os.ReadFile(".devcontainer.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != string(existing) {
+			t.Errorf("expected existing file to be preserved, got %s", string(got))
+		}
+	})
+}
+
+func TestDeepMergeJSONMalformedInput(t *testing.T) {
+	t.Run("scalar replaces object", func(t *testing.T) {
+		base := map[string]any{"k": map[string]any{"x": 1.0}}
+		overlay := map[string]any{"k": "string"}
+		got := deepMergeJSON(base, overlay)
+		if got["k"] != "string" {
+			t.Errorf("expected overlay scalar to win, got %v", got["k"])
+		}
+	})
+
+	t.Run("object replaces scalar", func(t *testing.T) {
+		base := map[string]any{"k": "string"}
+		overlay := map[string]any{"k": map[string]any{"x": 1.0}}
+		got := deepMergeJSON(base, overlay)
+		obj, ok := got["k"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected merged object, got %v", got["k"])
+		}
+		if obj["x"] != 1.0 {
+			t.Errorf("expected x=1, got %v", obj["x"])
+		}
+	})
+}

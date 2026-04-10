@@ -301,6 +301,22 @@ func TestLoadSiloInTOML(t *testing.T) {
 			t.Error("expected Features.Nested = true")
 		}
 	})
+
+	t.Run("malformed TOML returns error", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		siloConfigPath := filepath.Join(base, "silo", "silo.in.toml")
+		if err := os.MkdirAll(filepath.Dir(siloConfigPath), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(siloConfigPath, []byte("invalid = [toml"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		_, err := loadSiloInTOML()
+		if err == nil {
+			t.Error("expected error for malformed TOML")
+		}
+	})
 }
 
 func TestUserConfigDir(t *testing.T) {
@@ -466,6 +482,42 @@ func TestEnsureUserFiles(t *testing.T) {
 		got, _ := os.ReadFile(filepath.Join(dir, "home-user.nix"))
 		if string(got) != string(sentinel) {
 			t.Errorf("home-user.nix was overwritten")
+		}
+	})
+}
+
+func TestEnsureUserFilesError(t *testing.T) {
+	t.Run("returns error when user config directory cannot be created", func(t *testing.T) {
+		// Set XDG_CONFIG_HOME to a path in a non-existent directory to force failure
+		t.Setenv("XDG_CONFIG_HOME", "/nonexistent/deeply/nested/path")
+		err := ensureUserFiles()
+		if err == nil {
+			t.Error("expected error when user config directory is inaccessible")
+		}
+	})
+}
+
+func TestEnsureInitError(t *testing.T) {
+	t.Run("returns error when workspace files cannot be created", func(t *testing.T) {
+		// Create a read-only directory to force ensureWorkspaceFiles to fail
+		dir := t.TempDir()
+		orig, _ := os.Getwd()
+		t.Cleanup(func() { os.Chdir(orig) })
+		os.Chdir(dir)
+
+		// Create .silo as a file (not directory) to cause mkdirall to fail
+		if err := os.WriteFile(siloDir, []byte("x"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		// Make it read-only
+		if err := os.Chmod(siloDir, 0444); err != nil {
+			t.Fatal(err)
+		}
+
+		setupUserConfig(t)
+		_, _, err := ensureInit()
+		if err == nil {
+			t.Error("expected error when workspace files cannot be created")
 		}
 	})
 }

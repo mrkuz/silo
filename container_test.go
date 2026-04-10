@@ -365,3 +365,177 @@ func TestEnsureChain(t *testing.T) {
 		}
 	})
 }
+
+func TestEnsureCreatedCreatesContainer(t *testing.T) {
+	t.Run("container doesn't exist — creates it", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		setupUserConfig(t)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-testuser":     exec.Command("true"),
+			"podman image exists silo-abc12345":     exec.Command("true"),
+			"podman container exists silo-abc12345": exec.Command("false"),
+		})
+		_, err := ensureCreated()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !anyCall(calls, "podman", "create") {
+			t.Errorf("expected podman create, got %v", *calls)
+		}
+	})
+}
+
+func TestEnsureStartedStartsStoppedContainer(t *testing.T) {
+	t.Run("container exists but stopped — starts it", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		setupUserConfig(t)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-testuser":                                  exec.Command("true"),
+			"podman image exists silo-abc12345":                                  exec.Command("true"),
+			"podman container exists silo-abc12345":                              exec.Command("true"),
+			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
+		})
+		_, err := ensureStarted()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !anyCall(calls, "podman", "start", "silo-abc12345") {
+			t.Errorf("expected podman start, got %v", *calls)
+		}
+	})
+}
+
+func TestStartContainerError(t *testing.T) {
+	t.Run("podman start failure", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		// Mock podman start to fail
+		mockExecCommand(t, map[string]*exec.Cmd{
+			"podman start silo-abc12345": exec.Command("false"),
+		})
+		err := startContainer("silo-abc12345")
+		if err == nil {
+			t.Error("expected error when podman start fails")
+		}
+	})
+}
+
+func TestStopContainerError(t *testing.T) {
+	t.Run("podman stop failure", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		// Mock podman stop to fail
+		mockExecCommand(t, map[string]*exec.Cmd{
+			"podman stop -t 0 silo-abc12345": exec.Command("false"),
+		})
+		err := stopContainer("silo-abc12345")
+		if err == nil {
+			t.Error("expected error when podman stop fails")
+		}
+	})
+}
+
+func TestHasSharedPaths(t *testing.T) {
+	t.Run("shared volume enabled with paths", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		cfg.Features.SharedVolume = true
+		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
+		if !hasSharedPaths(cfg) {
+			t.Error("expected hasSharedPaths=true")
+		}
+	})
+
+	t.Run("shared volume enabled but paths empty", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		cfg.Features.SharedVolume = true
+		cfg.SharedVolume.Paths = []string{}
+		if hasSharedPaths(cfg) {
+			t.Error("expected hasSharedPaths=false when paths is empty")
+		}
+	})
+
+	t.Run("shared volume disabled", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		cfg.Features.SharedVolume = false
+		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
+		if hasSharedPaths(cfg) {
+			t.Error("expected hasSharedPaths=false when feature disabled")
+		}
+	})
+}
+
+// TestEnsureCreatedError is not feasible to test because createContainer calls
+// buildContainerArgs which uses os.Getwd() producing dynamic volume mount paths.
+// The mock cannot match the full command string with dynamic paths.
+
+func TestEnsureStartedError(t *testing.T) {
+	t.Run("startContainer failure returns error", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		setupUserConfig(t)
+		// Container exists but stopped, and podman start fails
+		mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-testuser":                                  exec.Command("true"),
+			"podman image exists silo-abc12345":                                  exec.Command("true"),
+			"podman container exists silo-abc12345":                              exec.Command("true"),
+			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
+			"podman start silo-abc12345":                                        exec.Command("false"),
+		})
+		_, err := ensureStarted()
+		if err == nil {
+			t.Error("expected error when startContainer fails")
+		}
+	})
+}
+
+func TestEnsureSetupError(t *testing.T) {
+	t.Run("setupContainer failure returns error", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		cfg.Features.SharedVolume = true
+		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
+		setupWorkspace(t, cfg)
+		setupUserConfig(t)
+		// Container running but setup script fails
+		mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-testuser":                                  exec.Command("true"),
+			"podman image exists silo-abc12345":                                  exec.Command("true"),
+			"podman container exists silo-abc12345":                              exec.Command("true"),
+			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
+			"podman exec silo-abc12345 bash /silo/setup.sh":                    exec.Command("false"),
+		})
+		_, err := ensureSetup()
+		if err == nil {
+			t.Error("expected error when setupContainer fails")
+		}
+	})
+}
+
+func TestRemoveContainerError(t *testing.T) {
+	t.Run("removeContainer returns error on podman rm failure", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		mockExecCommand(t, map[string]*exec.Cmd{
+			"podman rm -f silo-abc12345": exec.Command("false"),
+		})
+		err := removeContainer("silo-abc12345")
+		if err == nil {
+			t.Error("expected error when removeContainer fails")
+		}
+	})
+}
+
+func TestRemoveImageError(t *testing.T) {
+	t.Run("removeImage returns error on podman rmi failure", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		setupWorkspace(t, cfg)
+		mockExecCommand(t, map[string]*exec.Cmd{
+			"podman rmi silo-abc12345": exec.Command("false"),
+		})
+		err := removeImage("silo-abc12345")
+		if err == nil {
+			t.Error("expected error when removeImage fails")
+		}
+	})
+}

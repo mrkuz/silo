@@ -12,7 +12,7 @@ Usage:
   silo [--stop|--rm|--rmi] [-- args...]
   silo init [--nested|--no-nested] [--shared-volume|--no-shared-volume]
   silo build
-  silo create [--dry-run] [-- args...]
+  silo create [--dry-run]
   silo start
   silo setup
   silo connect
