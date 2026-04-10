@@ -116,6 +116,6 @@ func minimalConfig(id string) Config {
 		Features:     FeaturesConfig{SharedVolume: false, Nested: false},
 		SharedVolume: SharedVolumeConfig{Paths: []string{}},
 		Connect:      ConnectConfig{Command: "/bin/sh"},
-		Create:       CreateConfig{ExtraArgs: []string{}},
+		Create:       CreateConfig{Arguments: []string{}},
 	}
 }

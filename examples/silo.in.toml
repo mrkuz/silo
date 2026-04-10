@@ -14,3 +14,6 @@ paths = [
   "$HOME/.cache/uv/",
   "$HOME/.local/share/uv/"
 ]
+
+[create]
+arguments = []

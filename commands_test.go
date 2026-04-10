@@ -71,7 +71,7 @@ func TestParseCreateFlags(t *testing.T) {
 			t.Errorf("parseCreateFlags(%v): unexpected error: %v", tt.args, err)
 			continue
 		}
-		if f.dryRun != false || len(f.extra) != 0 {
+		if f.dryRun != false {
 			t.Errorf("parseCreateFlags(%v) = %+v, want empty flags", tt.args, f)
 		}
 	}
@@ -531,27 +531,6 @@ func TestCmdCreateFilePersistence(t *testing.T) {
 		}
 	})
 
-	t.Run("-- extra args persisted to silo.toml", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		setupWorkspace(t, cfg)
-		setupUserConfig(t)
-		mockExecCommand(t, map[string]*exec.Cmd{
-			"podman image exists silo-testuser":     exec.Command("true"),
-			"podman image exists silo-abc12345":     exec.Command("true"),
-			"podman container exists silo-abc12345": exec.Command("false"),
-		})
-		if err := cmdCreate([]string{"--", "--memory", "512m"}); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		saved, err := parseTOML(siloToml)
-		if err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if len(saved.Create.ExtraArgs) != 2 || saved.Create.ExtraArgs[0] != "--memory" || saved.Create.ExtraArgs[1] != "512m" {
-			t.Errorf("expected ExtraArgs [--memory 512m], got %v", saved.Create.ExtraArgs)
-		}
-	})
-
 	t.Run("--dry-run does not write silo.toml changes", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
@@ -645,6 +624,12 @@ func TestCmdInit(t *testing.T) {
 		if !saved.Features.SharedVolume {
 			t.Error("expected Features.SharedVolume=true")
 		}
+		if len(saved.Create.Arguments) != 4 {
+			t.Errorf("expected 4 create arguments, got %v", saved.Create.Arguments)
+		}
+		if saved.Create.Arguments[0] != "--security-opt" || saved.Create.Arguments[1] != "label=disable" {
+			t.Errorf("expected nested create arguments, got %v", saved.Create.Arguments)
+		}
 	})
 
 	t.Run("--no-nested and --no-shared-volume set features to false", func(t *testing.T) {
@@ -668,6 +653,12 @@ func TestCmdInit(t *testing.T) {
 		}
 		if saved.Features.SharedVolume {
 			t.Error("expected Features.SharedVolume=false")
+		}
+		if len(saved.Create.Arguments) != 4 {
+			t.Errorf("expected 4 create arguments, got %v", saved.Create.Arguments)
+		}
+		if saved.Create.Arguments[0] != "--cap-drop=ALL" {
+			t.Errorf("expected non-nested create arguments, got %v", saved.Create.Arguments)
 		}
 	})
 
@@ -729,6 +720,83 @@ func TestCmdInit(t *testing.T) {
 		}
 		if saved.Features.Nested != false {
 			t.Errorf("expected Features.Nested=false from silo.in.toml, got true")
+		}
+	})
+
+	t.Run("silo.in.toml [create].arguments prepended before defaults (--no-nested)", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		siloUser := filepath.Join(base, "silo")
+		if err := os.MkdirAll(siloUser, 0755); err != nil {
+			t.Fatal(err)
+		}
+		userToml := filepath.Join(siloUser, "silo.in.toml")
+		if err := os.WriteFile(userToml, []byte("[create]\narguments = [\"--memory\", \"512m\"]\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		dir := t.TempDir()
+		orig, _ := os.Getwd()
+		t.Cleanup(func() { os.Chdir(orig) })
+		os.Chdir(dir)
+
+		mockExecCommand(t, map[string]*exec.Cmd{})
+		if err := cmdInit([]string{}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		saved, err := parseTOML(siloToml)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		// User args prepended, non-nested defaults appended
+		want := []string{"--memory", "512m", "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"}
+		if len(saved.Create.Arguments) != len(want) {
+			t.Errorf("expected %d arguments, got %v", len(want), saved.Create.Arguments)
+		}
+		for i, w := range want {
+			if saved.Create.Arguments[i] != w {
+				t.Errorf("Create.Arguments[%d] = %q, want %q", i, saved.Create.Arguments[i], w)
+			}
+		}
+	})
+
+	t.Run("silo.in.toml [create].arguments prepended before defaults (--nested)", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		siloUser := filepath.Join(base, "silo")
+		if err := os.MkdirAll(siloUser, 0755); err != nil {
+			t.Fatal(err)
+		}
+		userToml := filepath.Join(siloUser, "silo.in.toml")
+		if err := os.WriteFile(userToml, []byte("[create]\narguments = [\"--memory\", \"512m\"]\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		dir := t.TempDir()
+		orig, _ := os.Getwd()
+		t.Cleanup(func() { os.Chdir(orig) })
+		os.Chdir(dir)
+
+		mockExecCommand(t, map[string]*exec.Cmd{})
+		if err := cmdInit([]string{"--nested"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		saved, err := parseTOML(siloToml)
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if !saved.Features.Nested {
+			t.Error("expected Features.Nested=true")
+		}
+		// User args prepended, nested defaults appended
+		want := []string{"--memory", "512m", "--security-opt", "label=disable", "--device", "/dev/fuse"}
+		if len(saved.Create.Arguments) != len(want) {
+			t.Errorf("expected %d arguments, got %v", len(want), saved.Create.Arguments)
+		}
+		for i, w := range want {
+			if saved.Create.Arguments[i] != w {
+				t.Errorf("Create.Arguments[%d] = %q, want %q", i, saved.Create.Arguments[i], w)
+			}
 		}
 	})
 }

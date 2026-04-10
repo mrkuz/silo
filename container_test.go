@@ -8,9 +8,9 @@ import (
 	"testing"
 )
 
-func TestSecurityArgsNested(t *testing.T) {
+func TestContainerArgsBasic(t *testing.T) {
 	cfg := Config{
-		General:  GeneralConfig{ContainerName: "silo-abc12345"},
+		General:  GeneralConfig{ContainerName: "silo-abc12345", User: "testuser"},
 		Features: FeaturesConfig{Nested: true},
 	}
 	args := containerArgs(cfg)
@@ -21,17 +21,18 @@ func TestSecurityArgsNested(t *testing.T) {
 	if !strings.Contains(joined, "--hostname silo-abc12345") {
 		t.Errorf("expected --hostname silo-abc12345 in args: %v", args)
 	}
-	if !strings.Contains(joined, "label=disable") {
-		t.Errorf("nested mode should include label=disable, got %v", args)
+	if !strings.Contains(joined, "--user testuser") {
+		t.Errorf("expected --user testuser in args: %v", args)
 	}
-	if !strings.Contains(joined, "/dev/fuse") {
-		t.Errorf("nested mode should include /dev/fuse, got %v", args)
+	// Security args are no longer in containerArgs — they live in Create.Arguments
+	if strings.Contains(joined, "label=disable") || strings.Contains(joined, "/dev/fuse") {
+		t.Errorf("security args should not be in containerArgs, got %v", args)
 	}
 }
 
-func TestSecurityArgsNonNested(t *testing.T) {
+func TestContainerArgsNonNested(t *testing.T) {
 	cfg := Config{
-		General:  GeneralConfig{ContainerName: "silo-abc12345"},
+		General:  GeneralConfig{ContainerName: "silo-abc12345", User: "testuser"},
 		Features: FeaturesConfig{Nested: false},
 	}
 	args := containerArgs(cfg)
@@ -42,14 +43,9 @@ func TestSecurityArgsNonNested(t *testing.T) {
 	if !strings.Contains(joined, "--hostname silo-abc12345") {
 		t.Errorf("expected --hostname silo-abc12345 in args: %v", args)
 	}
-	if !strings.Contains(joined, "--cap-drop=ALL") {
-		t.Errorf("non-nested mode should include --cap-drop=ALL, got %v", args)
-	}
-	if !strings.Contains(joined, "no-new-privileges") {
-		t.Errorf("non-nested mode should include no-new-privileges, got %v", args)
-	}
-	if strings.Contains(joined, "label=disable") {
-		t.Errorf("non-nested mode should not include label=disable, got %v", args)
+	// Security args are no longer in containerArgs — they live in Create.Arguments
+	if strings.Contains(joined, "--cap-drop") || strings.Contains(joined, "no-new-privileges") {
+		t.Errorf("security args should not be in containerArgs, got %v", args)
 	}
 }
 
@@ -115,6 +111,36 @@ func TestBuildContainerArgsMinimal(t *testing.T) {
 	}
 }
 
+func TestBuildContainerArgsNoDuplicateFlags(t *testing.T) {
+	cfg := Config{
+		General: GeneralConfig{
+			ID:            "abc12345",
+			User:          "alice",
+			ContainerName: "silo-abc12345",
+			ImageName:     "silo-abc12345",
+		},
+		Features: FeaturesConfig{
+			SharedVolume: true,
+			Nested:       false,
+		},
+	}
+	args, err := buildContainerArgs(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Check for duplicate flag-value pairs (e.g., --user alice --user alice)
+	seen := make(map[string]bool)
+	for i := 0; i < len(args)-1; i++ {
+		if strings.HasPrefix(args[i], "--") {
+			pair := args[i] + " " + args[i+1]
+			if seen[pair] {
+				t.Errorf("duplicate flag-value pair %s in args: %v", pair, args)
+			}
+			seen[pair] = true
+		}
+	}
+}
+
 func TestBuildContainerArgsSharedVolume(t *testing.T) {
 	cfg := Config{
 		General: GeneralConfig{
@@ -138,30 +164,46 @@ func TestBuildContainerArgsSharedVolume(t *testing.T) {
 	}
 }
 
-func TestBuildContainerArgsNested(t *testing.T) {
-	cfg := Config{
-		General: GeneralConfig{
-			ID:            "abc12345",
-			User:          "alice",
-			ContainerName: "silo-abc12345",
-			ImageName:     "silo-abc12345",
-		},
-		Features: FeaturesConfig{
-			SharedVolume: false,
-			Nested:       true,
-		},
-	}
-	args, err := buildContainerArgs(cfg)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	joined := strings.Join(args, " ")
-	if !strings.Contains(joined, "label=disable") {
-		t.Errorf("expected nested security args, got: %v", args)
+// ---- Create.Arguments tests ------------------------------------------------
+
+func TestCreateContainerArguments(t *testing.T) {
+	cfg := minimalConfig("abc12345")
+	cfg.Create.Arguments = []string{"--memory", "512m"}
+	calls := mockExecCommand(t, map[string]*exec.Cmd{})
+	_ = createContainer(cfg, cfg.Create.Arguments)
+	if !anyCall(calls, "podman", "create", "--memory", "512m") {
+		t.Errorf("expected --memory 512m in podman create call, got %v", *calls)
 	}
 }
 
-// ---- setupContainer tests ------------------------------------------------
+func TestCreateContainerArgumentsNested(t *testing.T) {
+	cfg := minimalConfig("abc12345")
+	cfg.Create.Arguments = []string{"--security-opt", "label=disable", "--device", "/dev/fuse"}
+	calls := mockExecCommand(t, map[string]*exec.Cmd{})
+	_ = createContainer(cfg, cfg.Create.Arguments)
+	if !anyCall(calls, "podman", "create", "--security-opt", "label=disable") {
+		t.Errorf("expected --security-opt label=disable in podman create call, got %v", *calls)
+	}
+	if !anyCall(calls, "podman", "create", "--device", "/dev/fuse") {
+		t.Errorf("expected --device /dev/fuse in podman create call, got %v", *calls)
+	}
+}
+
+func TestCreateContainerArgumentsNonNested(t *testing.T) {
+	cfg := minimalConfig("abc12345")
+	cfg.Create.Arguments = []string{"--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"}
+	calls := mockExecCommand(t, map[string]*exec.Cmd{})
+	_ = createContainer(cfg, cfg.Create.Arguments)
+	if !anyCall(calls, "podman", "create", "--cap-drop=ALL") {
+		t.Errorf("expected --cap-drop=ALL in podman create call, got %v", *calls)
+	}
+	if !anyCall(calls, "podman", "create", "--cap-add=NET_BIND_SERVICE") {
+		t.Errorf("expected --cap-add=NET_BIND_SERVICE in podman create call, got %v", *calls)
+	}
+	if !anyCall(calls, "podman", "create", "--security-opt", "no-new-privileges") {
+		t.Errorf("expected --security-opt no-new-privileges in podman create call, got %v", *calls)
+	}
+}
 
 func TestSetupContainer(t *testing.T) {
 	t.Run("skipped when shared volume disabled", func(t *testing.T) {
@@ -322,14 +364,4 @@ func TestEnsureChain(t *testing.T) {
 			t.Errorf("expected no create or start, got %v", *calls)
 		}
 	})
-}
-
-func TestCreateContainerExtraArgs(t *testing.T) {
-	cfg := minimalConfig("abc12345")
-	cfg.Create.ExtraArgs = []string{"--memory", "512m"}
-	calls := mockExecCommand(t, map[string]*exec.Cmd{})
-	_ = createContainer(cfg, cfg.Create.ExtraArgs)
-	if !anyCall(calls, "podman", "create", "--memory", "512m") {
-		t.Errorf("expected --memory 512m in podman create call, got %v", *calls)
-	}
 }

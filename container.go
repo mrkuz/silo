@@ -67,7 +67,8 @@ func workspaceMountPath(cfg Config) (string, error) {
 	return fmt.Sprintf("/workspace/%s/%s", cfg.General.ID, dirName), nil
 }
 
-// containerArgs returns podman flags for container name, hostname, and security options.
+// containerArgs returns podman flags for container name, hostname, and basic settings.
+// Security and capability args are stored in [create].arguments in silo.toml.
 func containerArgs(cfg Config, containerNameSuffix ...string) []string {
 	suffix := ""
 	if len(containerNameSuffix) > 0 {
@@ -76,10 +77,9 @@ func containerArgs(cfg Config, containerNameSuffix ...string) []string {
 	containerName := containerNameWithSuffix(cfg.General.ContainerName, suffix)
 
 	args := []string{"--name", containerName, "--hostname", containerName}
-	if cfg.Features.Nested {
-		return append(args, "--security-opt", "label=disable", "--device", "/dev/fuse")
-	}
-	return append(args, "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges")
+	args = append(args, "--user", cfg.General.User)
+
+	return args
 }
 
 // buildContainerArgs returns podman container-specific arguments from cfg.
@@ -93,7 +93,6 @@ func buildContainerArgs(cfg Config) ([]string, error) {
 	var args []string
 
 	args = append(args, containerArgs(cfg)...)
-	args = append(args, "--user", cfg.General.User)
 
 	// Workspace mount (host dir → container path)
 	containerDir, err := workspaceMountPath(cfg)
@@ -233,7 +232,7 @@ func ensureCreated() (Config, error) {
 		return cfg, fmt.Errorf("build images: %w", err)
 	}
 	if !containerExists(cfg.General.ContainerName) {
-		if err := createContainer(cfg, cfg.Create.ExtraArgs); err != nil {
+		if err := createContainer(cfg, cfg.Create.Arguments); err != nil {
 			return cfg, fmt.Errorf("create container: %w", err)
 		}
 	}

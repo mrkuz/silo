@@ -46,7 +46,7 @@ type ConnectConfig struct {
 }
 
 type CreateConfig struct {
-	ExtraArgs []string `toml:"extra_args"`
+	Arguments []string `toml:"arguments"`
 }
 
 // defaultConfig returns a Config with a new random ID and current user.
@@ -74,7 +74,7 @@ func defaultConfig() (Config, error) {
 			Command: "/bin/sh",
 		},
 		Create: CreateConfig{
-			ExtraArgs: []string{},
+			Arguments: []string{},
 		},
 	}, nil
 }
@@ -124,8 +124,8 @@ func (c Config) saveWorkspaceConfig() error {
 	if c.SharedVolume.Paths == nil {
 		c.SharedVolume.Paths = []string{}
 	}
-	if c.Create.ExtraArgs == nil {
-		c.Create.ExtraArgs = []string{}
+	if c.Create.Arguments == nil {
+		c.Create.Arguments = []string{}
 	}
 	enc := toml.NewEncoder(f)
 	enc.Indent = ""

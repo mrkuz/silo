@@ -77,7 +77,7 @@ silo connect    # Connect to container (triggers missing steps automatically)
 silo [--stop|--rm|--rmi] [-- args...]
 silo init [--nested|--no-nested] [--shared-volume|--no-shared-volume]
 silo build
-silo create [--dry-run] [-- args...]
+silo create [--dry-run]
 silo start
 silo setup
 silo connect
@@ -124,14 +124,7 @@ Ensure the user image exists, then build the workspace image if it does not exis
 
 ### `silo create`
 
-Create the container without starting it. Builds images if needed.
-
-| Flag | Description |
-|---|---|
-| `--dry-run` | Print the `podman create` command without running it |
-| `-- ...` | Pass remaining arguments to `podman create` |
-
-`extra_args` in `.silo/silo.toml` is updated automatically when extra arguments are passed to `silo create`.
+Create the container without starting it. Builds images if needed. Additional arguments can be set in `.silo/silo.toml` under `[create].arguments`.
 
 ### `silo start`
 
@@ -251,7 +244,12 @@ paths = [
 ]
 
 [create]
-extra_args = []                      # Extra arguments passed to podman create
+arguments = [
+  "--cap-drop=ALL",
+  "--cap-add=NET_BIND_SERVICE",
+  "--security-opt",
+  "no-new-privileges",
+]
 ```
 
 **`[general]`**
@@ -274,7 +272,7 @@ extra_args = []                      # Extra arguments passed to podman create
 | Key | Default | Description |
 |---|---|---|
 | `shared_volume` | `false` | Mount the `silo-shared` Podman volume at `/silo/shared` inside the container |
-| `nested` | `false` | Enable nested Podman (adds `--device /dev/fuse`, disables SELinux label) |
+| `nested` | `false` | Enable nested Podman |
 
 **`[shared_volume]`**
 
@@ -286,7 +284,7 @@ extra_args = []                      # Extra arguments passed to podman create
 
 | Key | Default | Description |
 |---|---|---|
-| `extra_args` | `[]` | Extra arguments appended to `podman create`. Updated automatically when extra arguments are passed to `silo create`. |
+| `arguments` | computed | Arguments appended to `podman create`. Set by `silo init` based on enabled features. User-provided arguments in `silo.in.toml` are prepended. |
 
 ### Workspace config: `.silo/home.nix`
 
@@ -336,7 +334,7 @@ The named Podman volume `silo-shared` is mounted at `/silo/shared` inside every 
 For paths listed in `[shared_volume]`, a symlink inside the container pointing to `/silo/shared/` is created on every container start. A trailing slash marks a directory; no trailing slash marks a file. `$HOME` is expanded inside the container.
 
 Example: `$HOME/.cache/uv/` creates a symlink from `$HOME/.cache/uv` to `/silo/shared/home/alice/.cache/uv` inside the container.
-x
+
 If a real file or directory already exists at the target path, the symlink is skipped and a warning is printed.
 
 ### Nix + home-manager

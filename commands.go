@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 )
 
 // cmdInit implements `silo init`. Creates workspace files only.
@@ -35,6 +34,15 @@ func cmdInit(args []string) error {
 		if flags.sharedVolume != nil {
 			cfg.Features.SharedVolume = *flags.sharedVolume
 		}
+		// Compute default [create].arguments based on Features.Nested
+		var defaultArgs []string
+		if cfg.Features.Nested {
+			defaultArgs = []string{"--security-opt", "label=disable", "--device", "/dev/fuse"}
+		} else {
+			defaultArgs = []string{"--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"}
+		}
+		// Concatenate: user-provided args first (from silo.in.toml), defaults appended
+		cfg.Create.Arguments = append(cfg.Create.Arguments, defaultArgs...)
 		if err := cfg.saveWorkspaceConfig(); err != nil {
 			return fmt.Errorf("save silo.toml: %w", err)
 		}
@@ -265,18 +273,7 @@ func cmdCreate(args []string) error {
 		return fmt.Errorf("build images: %w", err)
 	}
 
-	// Resolve extra args: CLI wins over stored value; update stored value when CLI provides args.
-	var extraArgs []string
-	changed := false
-	if len(flags.extra) > 0 {
-		extraArgs = flags.extra
-		if !slices.Equal(flags.extra, cfg.Create.ExtraArgs) {
-			cfg.Create.ExtraArgs = flags.extra
-			changed = true
-		}
-	} else {
-		extraArgs = cfg.Create.ExtraArgs
-	}
+	extraArgs := cfg.Create.Arguments
 
 	if flags.dryRun {
 		podmanArgs, err := buildContainerArgs(cfg)
@@ -288,12 +285,6 @@ func cmdCreate(args []string) error {
 		createArgs = append(createArgs, cfg.General.ImageName)
 		printDryRun(createArgs)
 		return nil
-	}
-
-	if changed {
-		if err := cfg.saveWorkspaceConfig(); err != nil {
-			return fmt.Errorf("save silo.toml: %w", err)
-		}
 	}
 
 	if containerExists(cfg.General.ContainerName) {
@@ -447,7 +438,6 @@ func parseInitFlags(args []string) (initFlags, error) {
 
 type createFlags struct {
 	dryRun bool
-	extra  []string
 }
 
 func parseCreateFlags(args []string) (createFlags, error) {
@@ -457,8 +447,5 @@ func parseCreateFlags(args []string) (createFlags, error) {
 	if err := fs.Parse(args); err != nil {
 		return createFlags{}, fmt.Errorf("parse create flags: %w", err)
 	}
-	return createFlags{
-		dryRun: *dryRun,
-		extra:  fs.Args(),
-	}, nil
+	return createFlags{dryRun: *dryRun}, nil
 }

@@ -57,7 +57,7 @@ func TestTOMLRoundtrip(t *testing.T) {
 			Command: "/bin/sh",
 		},
 		Create: CreateConfig{
-			ExtraArgs: []string{"--memory", "512m"},
+			Arguments: []string{"--memory", "512m"},
 		},
 	}
 
@@ -96,17 +96,17 @@ func TestTOMLRoundtrip(t *testing.T) {
 			t.Errorf("SharedVolume.Paths[%d]: got %q, want %q", i, parsed.SharedVolume.Paths[i], want)
 		}
 	}
-	if len(parsed.Create.ExtraArgs) != len(original.Create.ExtraArgs) {
-		t.Fatalf("Create.ExtraArgs len: got %d, want %d", len(parsed.Create.ExtraArgs), len(original.Create.ExtraArgs))
+	if len(parsed.Create.Arguments) != len(original.Create.Arguments) {
+		t.Fatalf("Create.Arguments len: got %d, want %d", len(parsed.Create.Arguments), len(original.Create.Arguments))
 	}
-	for i, want := range original.Create.ExtraArgs {
-		if parsed.Create.ExtraArgs[i] != want {
-			t.Errorf("Create.ExtraArgs[%d]: got %q, want %q", i, parsed.Create.ExtraArgs[i], want)
+	for i, want := range original.Create.Arguments {
+		if parsed.Create.Arguments[i] != want {
+			t.Errorf("Create.Arguments[%d]: got %q, want %q", i, parsed.Create.Arguments[i], want)
 		}
 	}
 }
 
-func TestTOMLEmptyExtraArgs(t *testing.T) {
+func TestTOMLEmptyArguments(t *testing.T) {
 	cfg := Config{
 		General:      GeneralConfig{ID: "x", User: "u", ContainerName: "silo-x", ImageName: "silo-x"},
 		Features:     FeaturesConfig{SharedVolume: true, Nested: false},
@@ -132,8 +132,8 @@ func TestTOMLEmptyExtraArgs(t *testing.T) {
 	if parsed.Connect.Command != "/bin/sh" {
 		t.Errorf("expected command /bin/sh, got %q", parsed.Connect.Command)
 	}
-	if len(parsed.Create.ExtraArgs) != 0 {
-		t.Errorf("expected empty ExtraArgs, got %v", parsed.Create.ExtraArgs)
+	if len(parsed.Create.Arguments) != 0 {
+		t.Errorf("expected empty Arguments, got %v", parsed.Create.Arguments)
 	}
 }
 
@@ -262,8 +262,8 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.SharedVolume.Paths == nil {
 		t.Error("expected non-nil SharedVolume.Paths")
 	}
-	if cfg.Create.ExtraArgs == nil {
-		t.Error("expected non-nil Create.ExtraArgs")
+	if cfg.Create.Arguments == nil {
+		t.Error("expected non-nil Create.Arguments")
 	}
 }
 
@@ -557,7 +557,7 @@ func TestSaveWorkspaceConfigNilGuards(t *testing.T) {
 
 	cfg := minimalConfig("abc12345")
 	cfg.SharedVolume.Paths = nil
-	cfg.Create.ExtraArgs = nil
+	cfg.Create.Arguments = nil
 	if err := cfg.saveWorkspaceConfig(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -568,7 +568,7 @@ func TestSaveWorkspaceConfigNilGuards(t *testing.T) {
 	if parsed.SharedVolume.Paths == nil {
 		t.Error("SharedVolume.Paths should not be nil after save")
 	}
-	if parsed.Create.ExtraArgs == nil {
-		t.Error("Create.ExtraArgs should not be nil after save")
+	if parsed.Create.Arguments == nil {
+		t.Error("Create.Arguments should not be nil after save")
 	}
 }
