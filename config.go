@@ -309,11 +309,12 @@ func ensureImages(cfg Config) error {
 	if err := ensureUserImage(tc); err != nil {
 		return err
 	}
-	if !imageExists(cfg.General.ImageName) {
-		fmt.Printf("Building workspace image %s...\n", cfg.General.ImageName)
-		if err := buildWorkspaceImage(cfg.General.ImageName, tc); err != nil {
-			return fmt.Errorf("build workspace image: %w", err)
-		}
+	if imageExists(cfg.General.ImageName) {
+		return nil
+	}
+	fmt.Printf("Building workspace image %s...\n", cfg.General.ImageName)
+	if err := buildWorkspaceImage(cfg.General.ImageName, tc); err != nil {
+		return fmt.Errorf("build workspace image: %w", err)
 	}
 	return nil
 }

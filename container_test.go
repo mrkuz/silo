@@ -481,7 +481,7 @@ func TestEnsureStartedError(t *testing.T) {
 			"podman image exists silo-abc12345":                                  exec.Command("true"),
 			"podman container exists silo-abc12345":                              exec.Command("true"),
 			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
-			"podman start silo-abc12345":                                        exec.Command("false"),
+			"podman start silo-abc12345":                                         exec.Command("false"),
 		})
 		_, err := ensureStarted()
 		if err == nil {
@@ -503,7 +503,7 @@ func TestEnsureSetupError(t *testing.T) {
 			"podman image exists silo-abc12345":                                  exec.Command("true"),
 			"podman container exists silo-abc12345":                              exec.Command("true"),
 			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-			"podman exec silo-abc12345 bash /silo/setup.sh":                    exec.Command("false"),
+			"podman exec silo-abc12345 bash /silo/setup.sh":                      exec.Command("false"),
 		})
 		_, err := ensureSetup()
 		if err == nil {

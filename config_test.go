@@ -27,7 +27,8 @@ func TestGenerateID(t *testing.T) {
 		}
 	}
 	// IDs should be unique
-	if generateID() == generateID() {
+	id1, id2 := generateID(), generateID()
+	if id1 == id2 {
 		t.Error("two consecutive IDs should not be equal (extremely unlikely)")
 	}
 }

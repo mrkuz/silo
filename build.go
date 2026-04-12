@@ -29,9 +29,9 @@ func detectNixSystem() string {
 
 // buildUserImage builds the user image using home-user.nix.
 func buildUserImage(tag string, tc TemplateContext) error {
-	containerfile, err := renderTemplate("Containerfile.base.tmpl", tc)
+	containerfile, err := renderTemplate("Containerfile.user.tmpl", tc)
 	if err != nil {
-		return fmt.Errorf("render Containerfile.base template: %w", err)
+		return fmt.Errorf("render Containerfile.user template: %w", err)
 	}
 	flakeNix, err := renderTemplate("flake.nix.tmpl", tc)
 	if err != nil {

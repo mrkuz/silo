@@ -68,8 +68,8 @@ func TestRenderContainerfileWorkspace(t *testing.T) {
 	}
 }
 
-func TestRenderContainerfileBase(t *testing.T) {
-	out, err := renderTemplate("Containerfile.base.tmpl", struct {
+func TestRenderContainerfileUser(t *testing.T) {
+	out, err := renderTemplate("Containerfile.user.tmpl", struct {
 		User              string
 		Home              string
 		SharedVolumeMount string
@@ -79,19 +79,19 @@ func TestRenderContainerfileBase(t *testing.T) {
 	}
 	s := string(out)
 	if !strings.Contains(s, "FROM alpine") {
-		t.Error("expected FROM alpine in Containerfile.base output")
+		t.Error("expected FROM alpine in Containerfile.user output")
 	}
 	if !strings.Contains(s, "alice") {
-		t.Error("expected user alice in Containerfile.base output")
+		t.Error("expected user alice in Containerfile.user output")
 	}
 	if !strings.Contains(s, "/home/alice") {
-		t.Error("expected home /home/alice in Containerfile.base output")
+		t.Error("expected home /home/alice in Containerfile.user output")
 	}
 	if !strings.Contains(s, "mkdir -p /silo/shared") {
-		t.Error("expected shared volume mount path in Containerfile.base output")
+		t.Error("expected shared volume mount path in Containerfile.user output")
 	}
 	if strings.Contains(s, "ARG USER") {
-		t.Error("Containerfile.base should not contain ARG USER")
+		t.Error("Containerfile.user should not contain ARG USER")
 	}
 }
 
