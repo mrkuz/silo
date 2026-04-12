@@ -1,25 +1,13 @@
 ---
 name: readme
 description: Create or update a README for the current project based on its code, CLI help, and configuration.
-disable-model-invocation: true
 ---
 
-## Instructions
+## Description
 
 Create a README for the project. Target: $ARGUMENTS (or the full project if not specified).
 
-## General rules
-
-- NEVER assume — when in doubt, ask for clarification about the intent
-- ALWAYS create a plan before taking action
-- Present the plan as a "Summary" section with a bullet list
-- NEVER take action without user confirmation of the plan
-- Identify other potential improvements that fit the task and present them as an "Optional" section with a bullet list
-- Omit the "Optional" section if there are no suggestions
-- Optional items require explicit opt-in before applying
-- Create a task list and use it to track progress
-
-## Skill-specific rules
+## Skill-specific hard rules (Non-Negotiable)
 
 - Avoid complex, nested sentences
 - If the tool is a CLI tool and provides a help command (like -h, --help), use its output as a starting point for usage documentation
@@ -32,7 +20,7 @@ Create a README for the project. Target: $ARGUMENTS (or the full project if not 
 2. **Build**: Build the project to confirm it compiles successfully
 3. **CLI help**: If the project produces a CLI tool, run its help command to capture usage information
 
-## Content
+## Execution
 
 The README should contain the following sections:
 
