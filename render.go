@@ -11,7 +11,17 @@ import (
 //go:embed templates
 var templateFiles embed.FS
 
-// emptyHomeNix is the default empty home-manager module.
+// homeUserNix is the home-manager module for user configuration.
+const homeUserNix = `{
+  config,
+  pkgs,
+  ...
+}:
+{
+}
+`
+
+// emptyHomeNix is the default empty home-manager module for user images.
 const emptyHomeNix = `{
   config,
   pkgs,
@@ -20,6 +30,33 @@ const emptyHomeNix = `{
 {
 }
 `
+
+// workspaceHomeNixTmpl is the home-manager module for workspaces.
+// It is rendered by renderWorkspaceHomeNix with the podman parameter.
+const workspaceHomeNixTmpl = `{
+  config,
+  pkgs,
+  ...
+}:
+{
+  module.podman.enable = {{.Podman}};
+}
+`
+
+// renderWorkspaceHomeNix renders the workspace home.nix template.
+func renderWorkspaceHomeNix(podman bool) (string, error) {
+	tmpl, err := template.New("home.nix").Parse(workspaceHomeNixTmpl)
+	if err != nil {
+		return "", fmt.Errorf("parse workspace home.nix template: %w", err)
+	}
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, struct {
+		Podman bool
+	}{Podman: podman}); err != nil {
+		return "", fmt.Errorf("render workspace home.nix template: %w", err)
+	}
+	return buf.String(), nil
+}
 
 // templateFuncs contains custom functions available in all templates.
 var templateFuncs = template.FuncMap{

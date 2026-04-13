@@ -10,7 +10,7 @@ const helpText = `silo - developer sandbox container
 
 Usage:
   silo [--stop|--rm|--rmi] [-- args...]
-  silo init [--nested|--no-nested] [--shared-volume|--no-shared-volume]
+  silo init [--podman|--no-podman] [--shared-volume|--no-shared-volume]
   silo build
   silo create [--dry-run]
   silo start
@@ -59,8 +59,8 @@ Default command flags:
   -- ...  Pass remaining arguments to podman exec
 
 Init flags:
-  --nested             Enable nested Podman containers
-  --no-nested          Disable nested Podman containers
+  --podman             Enable Podman inside the container
+  --no-podman          Disable Podman inside the container
   --shared-volume      Enable shared volume mount
   --no-shared-volume   Disable shared volume mount
 

@@ -199,23 +199,37 @@ func stopContainer(name string) error {
 // ensureInit initializes workspace config, workspace starter files, and
 // user starter files. It delegates user-file creation to ensureUserFiles so
 // `silo init` and `silo user init` share a single implementation.
-func ensureInit() (Config, bool, error) {
+// If podman is true, .silo/home.nix will include module.podman.enable = true.
+func ensureInit(podman bool) (Config, bool, error) {
 	cfg, firstRun, err := initWorkspaceConfig()
 	if err != nil {
 		return cfg, firstRun, fmt.Errorf("initialize workspace configuration: %w", err)
 	}
-	if err := ensureWorkspaceFiles(); err != nil {
+	if err := ensureWorkspaceFiles(podman); err != nil {
 		return cfg, firstRun, fmt.Errorf("ensure workspace files: %w", err)
 	}
 	if err := ensureUserFiles(); err != nil {
 		return cfg, firstRun, fmt.Errorf("ensure user files: %w", err)
+	}
+	if firstRun {
+		cfg.Features.Podman = podman
+		var defaultArgs []string
+		if podman {
+			defaultArgs = []string{"--security-opt", "label=disable", "--device", "/dev/fuse"}
+		} else {
+			defaultArgs = []string{"--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"}
+		}
+		cfg.Create.Arguments = append(cfg.Create.Arguments, defaultArgs...)
+		if err := cfg.saveWorkspaceConfig(); err != nil {
+			return cfg, firstRun, fmt.Errorf("save workspace config: %w", err)
+		}
 	}
 	return cfg, firstRun, nil
 }
 
 // ensureBuilt ensures images exist, building them if needed.
 func ensureBuilt() (Config, error) {
-	cfg, _, err := ensureInit()
+	cfg, _, err := ensureInit(false)
 	if err != nil {
 		return cfg, fmt.Errorf("initialize workspace: %w", err)
 	}

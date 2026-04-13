@@ -11,7 +11,7 @@ import (
 func TestContainerArgsBasic(t *testing.T) {
 	cfg := Config{
 		General:  GeneralConfig{ContainerName: "silo-abc12345", User: "testuser"},
-		Features: FeaturesConfig{Nested: true},
+		Features: FeaturesConfig{Podman: true},
 	}
 	args := containerArgs(cfg)
 	joined := strings.Join(args, " ")
@@ -33,7 +33,7 @@ func TestContainerArgsBasic(t *testing.T) {
 func TestContainerArgsNonNested(t *testing.T) {
 	cfg := Config{
 		General:  GeneralConfig{ContainerName: "silo-abc12345", User: "testuser"},
-		Features: FeaturesConfig{Nested: false},
+		Features: FeaturesConfig{Podman: false},
 	}
 	args := containerArgs(cfg)
 	joined := strings.Join(args, " ")
@@ -52,7 +52,7 @@ func TestContainerArgsNonNested(t *testing.T) {
 func TestContainerArgsNameSuffix(t *testing.T) {
 	cfg := Config{
 		General:  GeneralConfig{ContainerName: "silo-abc12345"},
-		Features: FeaturesConfig{Nested: false},
+		Features: FeaturesConfig{Podman: false},
 	}
 	args := containerArgs(cfg, "-dev")
 	joined := strings.Join(args, " ")
@@ -89,7 +89,7 @@ func TestBuildContainerArgsMinimal(t *testing.T) {
 		},
 		Features: FeaturesConfig{
 			SharedVolume: false,
-			Nested:       false,
+			Podman:       false,
 		},
 	}
 	args, err := buildContainerArgs(cfg)
@@ -121,7 +121,7 @@ func TestBuildContainerArgsNoDuplicateFlags(t *testing.T) {
 		},
 		Features: FeaturesConfig{
 			SharedVolume: true,
-			Nested:       false,
+			Podman:       false,
 		},
 	}
 	args, err := buildContainerArgs(cfg)
@@ -151,7 +151,7 @@ func TestBuildContainerArgsSharedVolume(t *testing.T) {
 		},
 		Features: FeaturesConfig{
 			SharedVolume: true,
-			Nested:       false,
+			Podman:       false,
 		},
 	}
 	args, err := buildContainerArgs(cfg)

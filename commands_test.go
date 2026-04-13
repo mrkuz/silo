@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -318,16 +319,22 @@ func TestCmdRemoveImage(t *testing.T) {
 }
 
 func TestCmdUserRmi(t *testing.T) {
+	u, err := user.Current()
+	if err != nil {
+		t.Fatalf("get current user: %v", err)
+	}
+	userImage := "silo-" + u.Username
+
 	t.Run("removes user image when present", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
-			"podman image exists silo-testuser": exec.Command("true"),
+			"podman image exists " + userImage: exec.Command("true"),
 		})
 		if err := cmdUserRmi(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !anyCall(calls, "podman", "rmi", "silo-testuser") {
+		if !anyCall(calls, "podman", "rmi", userImage) {
 			t.Errorf("expected podman rmi for user image, got %v", *calls)
 		}
 		if anyCall(calls, "podman", "rmi", "silo-abc12345") {
@@ -339,7 +346,7 @@ func TestCmdUserRmi(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
-			"podman image exists silo-testuser": exec.Command("false"),
+			"podman image exists " + userImage: exec.Command("false"),
 		})
 		if err := cmdUserRmi(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -510,6 +517,28 @@ func TestCmdRun(t *testing.T) {
 	})
 }
 
+func TestCmdRunNoSiloToml(t *testing.T) {
+	t.Run("creates silo.toml on first run", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		dir := t.TempDir()
+		orig, _ := os.Getwd()
+		t.Cleanup(func() { os.Chdir(orig) })
+		os.Chdir(dir)
+
+		calls := mockExecCommand(t, map[string]*exec.Cmd{
+			"podman image exists silo-testuser": exec.Command("false"),
+			"podman image exists":               exec.Command("false"),
+		})
+		err := cmdRun([]string{})
+		// Image build will fail in test environment, but silo.toml should be created first
+		if _, statErr := os.Stat(siloToml); os.IsNotExist(statErr) {
+			t.Errorf("expected .silo/silo.toml to be created, cmdRun error: %v", err)
+		}
+		_ = calls // suppress unused
+	})
+}
+
 func TestCmdCreateFilePersistence(t *testing.T) {
 	t.Run("existing container: no remove and no create", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
@@ -602,7 +631,7 @@ func TestCmdInit(t *testing.T) {
 		}
 	})
 
-	t.Run("--nested and --shared-volume persist to silo.toml", func(t *testing.T) {
+	t.Run("--podman and --shared-volume persist to silo.toml", func(t *testing.T) {
 		base := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", base)
 		dir := t.TempDir()
@@ -611,15 +640,15 @@ func TestCmdInit(t *testing.T) {
 		os.Chdir(dir)
 
 		mockExecCommand(t, map[string]*exec.Cmd{})
-		if err := cmdInit([]string{"--nested", "--shared-volume"}); err != nil {
+		if err := cmdInit([]string{"--podman", "--shared-volume"}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		saved, err := parseTOML(siloToml)
 		if err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if !saved.Features.Nested {
-			t.Error("expected Features.Nested=true")
+		if !saved.Features.Podman {
+			t.Error("expected Features.Podman=true")
 		}
 		if !saved.Features.SharedVolume {
 			t.Error("expected Features.SharedVolume=true")
@@ -628,11 +657,11 @@ func TestCmdInit(t *testing.T) {
 			t.Errorf("expected 4 create arguments, got %v", saved.Create.Arguments)
 		}
 		if saved.Create.Arguments[0] != "--security-opt" || saved.Create.Arguments[1] != "label=disable" {
-			t.Errorf("expected nested create arguments, got %v", saved.Create.Arguments)
+			t.Errorf("expected podman create arguments, got %v", saved.Create.Arguments)
 		}
 	})
 
-	t.Run("--no-nested and --no-shared-volume set features to false", func(t *testing.T) {
+	t.Run("--no-podman and --no-shared-volume set features to false", func(t *testing.T) {
 		base := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", base)
 		dir := t.TempDir()
@@ -641,15 +670,15 @@ func TestCmdInit(t *testing.T) {
 		os.Chdir(dir)
 
 		mockExecCommand(t, map[string]*exec.Cmd{})
-		if err := cmdInit([]string{"--no-nested", "--no-shared-volume"}); err != nil {
+		if err := cmdInit([]string{"--no-podman", "--no-shared-volume"}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		saved, err := parseTOML(siloToml)
 		if err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if saved.Features.Nested {
-			t.Error("expected Features.Nested=false")
+		if saved.Features.Podman {
+			t.Error("expected Features.Podman=false")
 		}
 		if saved.Features.SharedVolume {
 			t.Error("expected Features.SharedVolume=false")
@@ -658,13 +687,34 @@ func TestCmdInit(t *testing.T) {
 			t.Errorf("expected 4 create arguments, got %v", saved.Create.Arguments)
 		}
 		if saved.Create.Arguments[0] != "--cap-drop=ALL" {
-			t.Errorf("expected non-nested create arguments, got %v", saved.Create.Arguments)
+			t.Errorf("expected non-podman create arguments, got %v", saved.Create.Arguments)
+		}
+	})
+
+	t.Run("--podman creates workspace home.nix with podman enabled", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		dir := t.TempDir()
+		orig, _ := os.Getwd()
+		t.Cleanup(func() { os.Chdir(orig) })
+		os.Chdir(dir)
+
+		mockExecCommand(t, map[string]*exec.Cmd{})
+		if err := cmdInit([]string{"--podman"}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		content, err := os.ReadFile(".silo/home.nix")
+		if err != nil {
+			t.Fatalf("failed to read .silo/home.nix: %v", err)
+		}
+		if !strings.Contains(string(content), "module.podman.enable = true") {
+			t.Errorf("expected 'module.podman.enable = true' in home.nix, got: %s", content)
 		}
 	})
 
 	t.Run("subsequent run does not modify config", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
-		cfg.Features.Nested = true
+		cfg.Features.Podman = true
 		cfg.Features.SharedVolume = true
 		setupWorkspace(t, cfg)
 		setupUserConfig(t)
@@ -677,7 +727,7 @@ func TestCmdInit(t *testing.T) {
 		origMod := info.ModTime()
 
 		mockExecCommand(t, map[string]*exec.Cmd{})
-		if err := cmdInit([]string{"--nested"}); err != nil {
+		if err := cmdInit([]string{"--podman"}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		info, err = os.Stat(siloToml)
@@ -698,7 +748,7 @@ func TestCmdInit(t *testing.T) {
 		}
 		// Write silo.in.toml with shared_volume=true
 		userToml := filepath.Join(siloUser, "silo.in.toml")
-		if err := os.WriteFile(userToml, []byte("[features]\nshared_volume = true\nnested = false\n"), 0644); err != nil {
+		if err := os.WriteFile(userToml, []byte("[features]\nshared_volume = true\npodman = false\n"), 0644); err != nil {
 			t.Fatal(err)
 		}
 
@@ -718,12 +768,12 @@ func TestCmdInit(t *testing.T) {
 		if saved.Features.SharedVolume != true {
 			t.Errorf("expected Features.SharedVolume=true from silo.in.toml, got false")
 		}
-		if saved.Features.Nested != false {
-			t.Errorf("expected Features.Nested=false from silo.in.toml, got true")
+		if saved.Features.Podman != false {
+			t.Errorf("expected Features.Podman=false from silo.in.toml, got true")
 		}
 	})
 
-	t.Run("silo.in.toml [create].arguments prepended before defaults (--no-nested)", func(t *testing.T) {
+	t.Run("silo.in.toml [create].arguments prepended before defaults (--no-podman)", func(t *testing.T) {
 		base := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", base)
 		siloUser := filepath.Join(base, "silo")
@@ -748,7 +798,7 @@ func TestCmdInit(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		// User args prepended, non-nested defaults appended
+		// User args prepended, non-podman defaults appended
 		want := []string{"--memory", "512m", "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"}
 		if len(saved.Create.Arguments) != len(want) {
 			t.Errorf("expected %d arguments, got %v", len(want), saved.Create.Arguments)
@@ -760,7 +810,7 @@ func TestCmdInit(t *testing.T) {
 		}
 	})
 
-	t.Run("silo.in.toml [create].arguments prepended before defaults (--nested)", func(t *testing.T) {
+	t.Run("silo.in.toml [create].arguments prepended before defaults (--podman)", func(t *testing.T) {
 		base := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", base)
 		siloUser := filepath.Join(base, "silo")
@@ -778,17 +828,17 @@ func TestCmdInit(t *testing.T) {
 		os.Chdir(dir)
 
 		mockExecCommand(t, map[string]*exec.Cmd{})
-		if err := cmdInit([]string{"--nested"}); err != nil {
+		if err := cmdInit([]string{"--podman"}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		saved, err := parseTOML(siloToml)
 		if err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if !saved.Features.Nested {
-			t.Error("expected Features.Nested=true")
+		if !saved.Features.Podman {
+			t.Error("expected Features.Podman=true")
 		}
-		// User args prepended, nested defaults appended
+		// User args prepended, podman defaults appended
 		want := []string{"--memory", "512m", "--security-opt", "label=disable", "--device", "/dev/fuse"}
 		if len(saved.Create.Arguments) != len(want) {
 			t.Errorf("expected %d arguments, got %v", len(want), saved.Create.Arguments)
@@ -963,17 +1013,17 @@ func TestCmdRemoveImageForceWhenContainerNotExists(t *testing.T) {
 }
 
 func TestParseInitFlagsConflicts(t *testing.T) {
-	t.Run("conflicting nested flags uses last value", func(t *testing.T) {
-		// When both --nested and --no-nested are passed, flag package
+	t.Run("conflicting podman flags uses last value", func(t *testing.T) {
+		// When both --podman and --no-podman are passed, flag package
 		// lets the last one win (since they're both bools, last set wins)
 		// This test documents the behavior
-		flags, err := parseInitFlags([]string{"--nested", "--no-nested"})
+		flags, err := parseInitFlags([]string{"--podman", "--no-podman"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		// --no-nested comes last, so nestedVal should be false
-		if flags.nested == nil || *flags.nested {
-			t.Errorf("expected nested=false when both flags passed, got %v", flags.nested)
+		// --no-podman comes last, so podman should be false
+		if flags.podman == nil || *flags.podman {
+			t.Errorf("expected podman=false when both flags passed, got %v", flags.podman)
 		}
 	})
 

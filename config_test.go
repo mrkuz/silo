@@ -49,7 +49,7 @@ func TestTOMLRoundtrip(t *testing.T) {
 		},
 		Features: FeaturesConfig{
 			SharedVolume: false,
-			Nested:       true,
+			Podman:       true,
 		},
 		SharedVolume: SharedVolumeConfig{
 			Paths: []string{".cache/uv/", ".local/share/opencode/"},
@@ -110,7 +110,7 @@ func TestTOMLRoundtrip(t *testing.T) {
 func TestTOMLEmptyArguments(t *testing.T) {
 	cfg := Config{
 		General:      GeneralConfig{ID: "x", User: "u", ContainerName: "silo-x", ImageName: "silo-x"},
-		Features:     FeaturesConfig{SharedVolume: true, Nested: false},
+		Features:     FeaturesConfig{SharedVolume: true, Podman: false},
 		SharedVolume: SharedVolumeConfig{Paths: []string{}},
 		Connect:      ConnectConfig{Command: "/bin/sh"},
 	}
@@ -257,7 +257,7 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.Connect.Command != "/bin/sh" {
 		t.Errorf("expected command /bin/sh, got %q", cfg.Connect.Command)
 	}
-	if cfg.Features.SharedVolume || cfg.Features.Nested {
+	if cfg.Features.SharedVolume || cfg.Features.Podman {
 		t.Errorf("unexpected feature defaults: %+v", cfg.Features)
 	}
 	if cfg.SharedVolume.Paths == nil {
@@ -287,7 +287,7 @@ func TestLoadSiloInTOML(t *testing.T) {
 		if err := os.MkdirAll(filepath.Dir(siloConfigPath), 0755); err != nil {
 			t.Fatal(err)
 		}
-		content := []byte("[connect]\ncommand = \"/bin/fish\"\n[features]\nnested = true\n")
+		content := []byte("[connect]\ncommand = \"/bin/fish\"\n[features]\npodman = true\n")
 		if err := os.WriteFile(siloConfigPath, content, 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -298,8 +298,8 @@ func TestLoadSiloInTOML(t *testing.T) {
 		if cfg.Connect.Command != "/bin/fish" {
 			t.Errorf("expected command /bin/fish, got %q", cfg.Connect.Command)
 		}
-		if !cfg.Features.Nested {
-			t.Error("expected Features.Nested = true")
+		if !cfg.Features.Podman {
+			t.Error("expected Features.Podman = true")
 		}
 	})
 
@@ -406,7 +406,7 @@ func TestInitWorkspaceConfig(t *testing.T) {
 		if err := os.MkdirAll(siloUser, 0755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(siloUser, "home-user.nix"), []byte(emptyHomeNix), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(siloUser, "home-user.nix"), []byte("{\n  config,\n  pkgs,\n  ...\n}:\n{\n}\n"), 0644); err != nil {
 			t.Fatal(err)
 		}
 		userToml := filepath.Join(siloUser, "silo.in.toml")
@@ -516,7 +516,7 @@ func TestEnsureInitError(t *testing.T) {
 		}
 
 		setupUserConfig(t)
-		_, _, err := ensureInit()
+		_, _, err := ensureInit(false)
 		if err == nil {
 			t.Error("expected error when workspace files cannot be created")
 		}
@@ -527,7 +527,7 @@ func TestEnsureWorkspaceFiles(t *testing.T) {
 	t.Run("creates workspace home.nix when absent", func(t *testing.T) {
 		setupWorkspace(t, minimalConfig("abc12345"))
 		os.Remove(filepath.Join(siloDir, "home.nix"))
-		if err := ensureWorkspaceFiles(); err != nil {
+		if err := ensureWorkspaceFiles(false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if _, err := os.Stat(filepath.Join(siloDir, "home.nix")); os.IsNotExist(err) {
@@ -539,12 +539,42 @@ func TestEnsureWorkspaceFiles(t *testing.T) {
 		setupWorkspace(t, minimalConfig("abc12345"))
 		sentinel := []byte("# custom\n")
 		os.WriteFile(filepath.Join(siloDir, "home.nix"), sentinel, 0644)
-		if err := ensureWorkspaceFiles(); err != nil {
+		if err := ensureWorkspaceFiles(false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		got, _ := os.ReadFile(filepath.Join(siloDir, "home.nix"))
 		if string(got) != string(sentinel) {
 			t.Errorf("workspace home.nix was overwritten")
+		}
+	})
+
+	t.Run("podman=true creates workspace home.nix with podman enabled", func(t *testing.T) {
+		setupWorkspace(t, minimalConfig("abc12345"))
+		os.Remove(filepath.Join(siloDir, "home.nix"))
+		if err := ensureWorkspaceFiles(true); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		content, err := os.ReadFile(filepath.Join(siloDir, "home.nix"))
+		if err != nil {
+			t.Fatalf("failed to read workspace home.nix: %v", err)
+		}
+		if !strings.Contains(string(content), "module.podman.enable = true") {
+			t.Errorf("workspace home.nix should contain 'module.podman.enable = true', got: %s", content)
+		}
+	})
+
+	t.Run("podman=false creates workspace home.nix with podman disabled", func(t *testing.T) {
+		setupWorkspace(t, minimalConfig("abc12345"))
+		os.Remove(filepath.Join(siloDir, "home.nix"))
+		if err := ensureWorkspaceFiles(false); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		content, err := os.ReadFile(filepath.Join(siloDir, "home.nix"))
+		if err != nil {
+			t.Fatalf("failed to read workspace home.nix: %v", err)
+		}
+		if !strings.Contains(string(content), "module.podman.enable = false") {
+			t.Errorf("workspace home.nix should contain 'module.podman.enable = false', got: %s", content)
 		}
 	})
 }

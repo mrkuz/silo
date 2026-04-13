@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 )
@@ -47,11 +48,17 @@ func buildUserImage(tag string, tc TemplateContext) error {
 		return fmt.Errorf("read home-user.nix: %w", err)
 	}
 
+	podmanModule, err := templateFiles.ReadFile("templates/modules/podman.nix")
+	if err != nil {
+		return fmt.Errorf("read podman module: %w", err)
+	}
+
 	files := map[string][]byte{
 		"Containerfile":            containerfile,
 		"flake.nix":                flakeNix,
 		"home-user.nix":            homeUserNix,
 		"home-workspace-empty.nix": []byte(emptyHomeNix),
+		"modules/podman.nix":       podmanModule,
 	}
 	if err := runBuild(tag, files); err != nil {
 		return fmt.Errorf("build user image: %w", err)
@@ -72,7 +79,11 @@ func buildWorkspaceImage(tag string, tc TemplateContext) error {
 
 	homeWorkspaceNix, err := os.ReadFile(filepath.Join(siloDir, "home.nix"))
 	if err != nil {
-		homeWorkspaceNix = []byte(emptyHomeNix)
+		fallback, renderErr := renderWorkspaceHomeNix(false)
+		if renderErr != nil {
+			return fmt.Errorf("render workspace home.nix: %w", renderErr)
+		}
+		homeWorkspaceNix = []byte(fallback)
 	}
 
 	files := map[string][]byte{
@@ -95,7 +106,11 @@ func runBuild(tag string, files map[string][]byte) error {
 	defer os.RemoveAll(dir)
 
 	for name, content := range files {
-		if err := os.WriteFile(filepath.Join(dir, name), content, 0644); err != nil {
+		path := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			return fmt.Errorf("create directory for build file: %w", err)
+		}
+		if err := os.WriteFile(path, content, 0644); err != nil {
 			return fmt.Errorf("write file to build directory: %w", err)
 		}
 	}
@@ -108,7 +123,7 @@ func runBuild(tag string, files map[string][]byte) error {
 
 // cmdBuild implements `silo build`. Builds the workspace image if missing.
 func cmdBuild() error {
-	cfg, _, err := ensureInit()
+	cfg, _, err := ensureInit(false)
 	if err != nil {
 		return fmt.Errorf("initialize workspace: %w", err)
 	}
@@ -133,9 +148,18 @@ func cmdBuild() error {
 
 // cmdUserBuild implements `silo user build`. Builds the user image if missing.
 func cmdUserBuild() error {
-	cfg, _, err := ensureInit()
+	u, err := user.Current()
 	if err != nil {
-		return fmt.Errorf("initialize workspace: %w", err)
+		return fmt.Errorf("get current user: %w", err)
+	}
+	cfg := Config{
+		General: GeneralConfig{
+			User:          u.Username,
+			ContainerName: "silo-" + u.Username,
+		},
+		Features: FeaturesConfig{
+			SharedVolume: true,
+		},
 	}
 	tc, err := newTemplateContext(cfg)
 	if err != nil {

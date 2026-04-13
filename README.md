@@ -75,7 +75,7 @@ silo connect    # Connect to container (triggers missing steps automatically)
 
 ```
 silo [--stop|--rm|--rmi] [-- args...]
-silo init [--nested|--no-nested] [--shared-volume|--no-shared-volume]
+silo init [--podman|--no-podman] [--shared-volume|--no-shared-volume]
 silo build
 silo create [--dry-run]
 silo start
@@ -113,8 +113,8 @@ Initialize workspace files. Creates `.silo/silo.toml` and `.silo/home.nix`, then
 
 | Flag | Description |
 |---|---|
-| `--nested` | Enable nested Podman containers |
-| `--no-nested` | Disable nested Podman containers |
+| `--podman` | Enable Podman inside the container |
+| `--no-podman` | Disable Podman inside the container |
 | `--shared-volume` | Enable shared volume |
 | `--no-shared-volume` | Disable shared volume |
 
@@ -235,7 +235,7 @@ command = "/bin/sh"                  # Command executed when connecting to conta
 
 [features]
 shared_volume = false                # Mount shared volume at /silo/shared
-nested        = false                # Allow nested Podman containers
+podman        = false                # Enable Podman inside the container
 
 [shared_volume]
 paths = [
@@ -272,7 +272,7 @@ arguments = [
 | Key | Default | Description |
 |---|---|---|
 | `shared_volume` | `false` | Mount the `silo-shared` Podman volume at `/silo/shared` inside the container |
-| `nested` | `false` | Enable nested Podman |
+| `podman` | `false` | Enable Podman inside the container |
 
 **`[shared_volume]`**
 
@@ -336,6 +336,12 @@ For paths listed in `[shared_volume]`, a symlink inside the container pointing t
 Example: `$HOME/.cache/uv/` creates a symlink from `$HOME/.cache/uv` to `/silo/shared/home/alice/.cache/uv` inside the container.
 
 If a real file or directory already exists at the target path, the symlink is skipped and a warning is printed.
+
+### Nested Podman
+
+When `--podman` is passed to `silo init`, Podman is installed and configured inside the container, allowing you to run containers within the sandbox container. This is useful for testing containerized workflows or running Docker-in-Docker style setups.
+
+The `module.podman.enable = true` option is set in `.silo/home.nix` when `--podman` is used, which activates the Podman service via home-manager.
 
 ### Nix + home-manager
 

@@ -5,12 +5,17 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    claude-code = {
+      url = "github:sadjow/claude-code-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
     {
       nixpkgs,
       home-manager,
+      claude-code,
       ...
     }:
     let
@@ -29,12 +34,14 @@
 
         modules = [
           {
+            nixpkgs.overlays = [ claude-code.overlays.default ];
             home = {
               stateVersion = vars.homeStateVersion;
               username = vars.user;
               homeDirectory = "/home/${vars.user}";
             };
           }
+          ./modules/podman.nix
           ./home-user.nix
           ./home-workspace.nix
         ];

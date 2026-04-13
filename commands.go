@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 )
 
@@ -21,30 +22,28 @@ func cmdInit(args []string) error {
 		}
 	}
 
-	cfg, firstRun, err := ensureInit()
+	// Extract podman flag before calling ensureInit so it can be used when creating user files
+	podman := false
+	if flags.podman != nil {
+		podman = *flags.podman
+	}
+
+	_, _, err = ensureInit(podman)
 	if err != nil {
 		return fmt.Errorf("initialize workspace: %w", err)
 	}
 
-	// Apply feature flags only on first run and only if explicitly set
-	if firstRun {
-		if flags.nested != nil {
-			cfg.Features.Nested = *flags.nested
+	// Apply shared-volume flag if explicitly set (podman is handled inside ensureInit)
+	if flags.sharedVolume != nil {
+		cfg, err := parseTOML(siloToml)
+		if err != nil {
+			return fmt.Errorf("reload config after init: %w", err)
 		}
-		if flags.sharedVolume != nil {
+		if cfg.Features.SharedVolume != *flags.sharedVolume {
 			cfg.Features.SharedVolume = *flags.sharedVolume
-		}
-		// Compute default [create].arguments based on Features.Nested
-		var defaultArgs []string
-		if cfg.Features.Nested {
-			defaultArgs = []string{"--security-opt", "label=disable", "--device", "/dev/fuse"}
-		} else {
-			defaultArgs = []string{"--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"}
-		}
-		// Concatenate: user-provided args first (from silo.in.toml), defaults appended
-		cfg.Create.Arguments = append(cfg.Create.Arguments, defaultArgs...)
-		if err := cfg.saveWorkspaceConfig(); err != nil {
-			return fmt.Errorf("save silo.toml: %w", err)
+			if err := cfg.saveWorkspaceConfig(); err != nil {
+				return fmt.Errorf("save silo.toml: %w", err)
+			}
 		}
 	}
 	return nil
@@ -361,11 +360,11 @@ func parseRemoveImageFlags(args []string) (forceFlags, error) {
 
 // cmdUserRmi implements `silo user rmi`. Removes the user image.
 func cmdUserRmi() error {
-	cfg, err := requireWorkspaceConfig()
+	u, err := user.Current()
 	if err != nil {
-		return fmt.Errorf("load workspace configuration: %w", err)
+		return fmt.Errorf("get current user: %w", err)
 	}
-	userImage := baseImageName(cfg.General.User)
+	userImage := baseImageName(u.Username)
 	if imageExists(userImage) {
 		fmt.Printf("Removing %s...\n", userImage)
 		if err := removeImage(userImage); err != nil {
@@ -401,27 +400,27 @@ func parseForceFlag(args []string, name, usage, context string) (bool, error) {
 }
 
 type initFlags struct {
-	nested       *bool
+	podman       *bool
 	sharedVolume *bool
 }
 
 func parseInitFlags(args []string) (initFlags, error) {
 	fs := flag.NewFlagSet("silo init", flag.ContinueOnError)
-	nested := fs.Bool("nested", false, "Enable nested Podman containers")
-	noNested := fs.Bool("no-nested", false, "Disable nested Podman containers")
+	podman := fs.Bool("podman", false, "Enable Podman inside the container")
+	noPodman := fs.Bool("no-podman", false, "Disable Podman inside the container")
 	sharedVolume := fs.Bool("shared-volume", false, "Enable shared volume")
 	noSharedVolume := fs.Bool("no-shared-volume", false, "Disable shared volume")
 	fs.Usage = func() {}
 	if err := fs.Parse(args); err != nil {
 		return initFlags{}, fmt.Errorf("parse init flags: %w", err)
 	}
-	var nestedVal, svVal *bool
-	if *noNested {
+	var podmanVal, svVal *bool
+	if *noPodman {
 		v := false
-		nestedVal = &v
-	} else if *nested {
+		podmanVal = &v
+	} else if *podman {
 		v := true
-		nestedVal = &v
+		podmanVal = &v
 	}
 	if *noSharedVolume {
 		v := false
@@ -431,7 +430,7 @@ func parseInitFlags(args []string) (initFlags, error) {
 		svVal = &v
 	}
 	return initFlags{
-		nested:       nestedVal,
+		podman:       podmanVal,
 		sharedVolume: svVal,
 	}, nil
 }

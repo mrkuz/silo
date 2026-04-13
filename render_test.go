@@ -96,11 +96,29 @@ func TestRenderContainerfileUser(t *testing.T) {
 }
 
 func TestHomeEmptyNixConstant(t *testing.T) {
-	if len(emptyHomeNix) == 0 {
-		t.Error("emptyHomeNix constant should not be empty")
+	if len(workspaceHomeNixTmpl) == 0 {
+		t.Error("workspaceHomeNixTmpl constant should not be empty")
 	}
-	if !strings.Contains(emptyHomeNix, "pkgs") {
-		t.Error("emptyHomeNix should contain pkgs argument")
+	if !strings.Contains(workspaceHomeNixTmpl, "pkgs") {
+		t.Error("workspaceHomeNixTmpl should contain pkgs argument")
+	}
+}
+
+func TestRenderWorkspaceHomeNix(t *testing.T) {
+	content, err := renderWorkspaceHomeNix(true)
+	if err != nil {
+		t.Fatalf("renderWorkspaceHomeNix(true) failed: %v", err)
+	}
+	if !strings.Contains(content, "module.podman.enable = true") {
+		t.Errorf("expected 'module.podman.enable = true' in output, got: %s", content)
+	}
+
+	content, err = renderWorkspaceHomeNix(false)
+	if err != nil {
+		t.Fatalf("renderWorkspaceHomeNix(false) failed: %v", err)
+	}
+	if !strings.Contains(content, "module.podman.enable = false") {
+		t.Errorf("expected 'module.podman.enable = false' in output, got: %s", content)
 	}
 }
 
@@ -180,7 +198,7 @@ func TestNewTemplateContextDefaultSuffix(t *testing.T) {
 			ContainerName: "silo-abc12345",
 			ImageName:     "silo-abc12345",
 		},
-		Features: FeaturesConfig{Nested: false, SharedVolume: true},
+		Features: FeaturesConfig{Podman: false, SharedVolume: true},
 	}
 	tc, err := newTemplateContext(cfg)
 	if err != nil {
@@ -208,7 +226,7 @@ func TestNewTemplateContextWithSuffix(t *testing.T) {
 			ContainerName: "silo-abc12345",
 			ImageName:     "silo-abc12345",
 		},
-		Features: FeaturesConfig{Nested: false},
+		Features: FeaturesConfig{Podman: false},
 	}
 	tc, err := newTemplateContext(cfg, "-dev")
 	if err != nil {
@@ -230,7 +248,7 @@ func TestNewTemplateContextWithoutSharedVolume(t *testing.T) {
 			ContainerName: "silo-abc12345",
 			ImageName:     "silo-abc12345",
 		},
-		Features: FeaturesConfig{Nested: false, SharedVolume: false},
+		Features: FeaturesConfig{Podman: false, SharedVolume: false},
 	}
 	tc, err := newTemplateContext(cfg)
 	if err != nil {
@@ -249,7 +267,7 @@ func TestNewTemplateContextWorkspaceMount(t *testing.T) {
 			ContainerName: "silo-abc12345",
 			ImageName:     "silo-abc12345",
 		},
-		Features: FeaturesConfig{Nested: false},
+		Features: FeaturesConfig{Podman: false},
 	}
 	tc, err := newTemplateContext(cfg)
 	if err != nil {

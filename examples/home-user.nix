@@ -8,7 +8,7 @@ let
     gitUserName = "mrkuz";
     gitUserEmail = "master23@gmail.com";
   };
-in  
+in
 {
   home = {
     shell.enableFishIntegration = true;
@@ -108,32 +108,8 @@ in
     };
   };
 
-  programs.opencode = {
+  programs.claude-code = {
     enable = true;
-  };
-
-  services.podman = {
-    enable = true;
-    # See: https://github.com/containers/image_build/blob/main/podman/Containerfile
-    settings.containers = {
-      containers = {
-        netns = "host";
-        userns = "host";
-        ipcns = "host";
-        utsns = "host";
-        cgroupns = "host";
-        cgroups = "disabled";
-        log_driver = "k8s-file";
-        volumes = [
-          "/proc:/proc"
-        ];
-        default_sysctls = [ ];
-      };
-      engine = {
-        cgroup_manager = "cgroupfs";
-        events_logger = "file";
-        runtime = "crun";
-      };
-    };
+    package = pkgs.claude-code-bun;
   };
 }

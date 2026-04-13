@@ -96,7 +96,7 @@ func setupUserConfig(t *testing.T) {
 		t.Fatalf("mkdir silo config dir: %v", err)
 	}
 	// home-user.nix is read by buildUserImage; write the minimal empty module.
-	if err := os.WriteFile(filepath.Join(siloDir, "home-user.nix"), []byte(emptyHomeNix), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(siloDir, "home-user.nix"), []byte("{\n  config,\n  pkgs,\n  ...\n}:\n{\n}\n"), 0644); err != nil {
 		t.Fatalf("write home-user.nix: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(siloDir, "silo.in.toml"), []byte{}, 0644); err != nil {
@@ -113,7 +113,7 @@ func minimalConfig(id string) Config {
 			ContainerName: "silo-" + id,
 			ImageName:     "silo-" + id,
 		},
-		Features:     FeaturesConfig{SharedVolume: false, Nested: false},
+		Features:     FeaturesConfig{SharedVolume: false, Podman: false},
 		SharedVolume: SharedVolumeConfig{Paths: []string{}},
 		Connect:      ConnectConfig{Command: "/bin/sh"},
 		Create:       CreateConfig{Arguments: []string{}},

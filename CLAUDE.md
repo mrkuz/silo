@@ -35,7 +35,7 @@ Requires Go 1.23+ and Podman.
 init → build → create → start → setup → connect
 ```
 
-**`silo init` flags** use tri-state booleans (`--nested`/`--no-nested`, `--shared-volume`/`--no-shared-volume`). Flags not provided leave the config value unchanged; provided flags override the `silo.in.toml` default. Config is written only on first run.
+**`silo init` flags** use tri-state booleans (`--podman`/`--no-podman`, `--shared-volume`/`--no-shared-volume`). Flags not provided leave the config value unchanged; provided flags override the `silo.in.toml` default. Config is written only on first run.
 
 **The `ensure*` chain** in `container.go` provides lazy initialization:
 - `ensureInit` → initializes config and creates starter files

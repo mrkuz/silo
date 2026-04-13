@@ -34,7 +34,7 @@ type GeneralConfig struct {
 
 type FeaturesConfig struct {
 	SharedVolume bool `toml:"shared_volume"`
-	Nested       bool `toml:"nested"`
+	Podman       bool `toml:"podman"`
 }
 
 type SharedVolumeConfig struct {
@@ -65,7 +65,7 @@ func defaultConfig() (Config, error) {
 		},
 		Features: FeaturesConfig{
 			SharedVolume: false,
-			Nested:       false,
+			Podman:       false,
 		},
 		SharedVolume: SharedVolumeConfig{
 			Paths: []string{},
@@ -164,12 +164,17 @@ func ensureUserHomeNix() error {
 	if err != nil {
 		return fmt.Errorf("create home-user.nix in config directory: %w", err)
 	}
-	return ensureFile(filepath.Join(dir, "home-user.nix"), []byte(emptyHomeNix))
+	return ensureFile(filepath.Join(dir, "home-user.nix"), []byte(homeUserNix))
 }
 
 // ensureWorkspaceHomeNix creates .silo/home.nix if it does not exist.
-func ensureWorkspaceHomeNix() error {
-	return ensureFile(filepath.Join(siloDir, "home.nix"), []byte(emptyHomeNix))
+// If podman is true, module.podman.enable is set to true.
+func ensureWorkspaceHomeNix(podman bool) error {
+	content, err := renderWorkspaceHomeNix(podman)
+	if err != nil {
+		return fmt.Errorf("render workspace home.nix: %w", err)
+	}
+	return ensureFile(filepath.Join(siloDir, "home.nix"), []byte(content))
 }
 
 // ensureDevcontainerInJSON creates $XDG_CONFIG_HOME/silo/devcontainer.in.json if it does not exist.
@@ -274,8 +279,8 @@ func ensureUserImage(tc TemplateContext) error {
 }
 
 // ensureWorkspaceFiles silently creates workspace starter files if they do not exist.
-func ensureWorkspaceFiles() error {
-	if err := ensureWorkspaceHomeNix(); err != nil {
+func ensureWorkspaceFiles(podman bool) error {
+	if err := ensureWorkspaceHomeNix(podman); err != nil {
 		return fmt.Errorf("ensure workspace home.nix: %w", err)
 	}
 	return nil
@@ -294,7 +299,7 @@ func userStarterFiles() ([]userStarterFile, error) {
 		return nil, fmt.Errorf("get user config directory: %w", err)
 	}
 	return []userStarterFile{
-		{filepath.Join(dir, "home-user.nix"), []byte(emptyHomeNix)},
+		{filepath.Join(dir, "home-user.nix"), []byte(homeUserNix)},
 		{filepath.Join(dir, "devcontainer.in.json"), []byte("{}\n")},
 		{filepath.Join(dir, "silo.in.toml"), []byte{}},
 	}, nil

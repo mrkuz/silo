@@ -3,9 +3,33 @@ package main
 import (
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"testing"
 )
+
+func TestCmdUserBuildSharedVolumeMount(t *testing.T) {
+	u, err := user.Current()
+	if err != nil {
+		t.Fatalf("get current user: %v", err)
+	}
+	cfg := Config{
+		General: GeneralConfig{
+			User:          u.Username,
+			ContainerName: "silo-" + u.Username,
+		},
+		Features: FeaturesConfig{
+			SharedVolume: true,
+		},
+	}
+	tc, err := newTemplateContext(cfg)
+	if err != nil {
+		t.Fatalf("newTemplateContext failed: %v", err)
+	}
+	if tc.SharedVolumeMount == "" {
+		t.Error("SharedVolumeMount should not be empty when SharedVolume is enabled")
+	}
+}
 
 func TestImageExists(t *testing.T) {
 	t.Run("exists", func(t *testing.T) {
@@ -31,19 +55,25 @@ func TestImageExists(t *testing.T) {
 }
 
 func TestCmdUserBuild(t *testing.T) {
+	u, err := user.Current()
+	if err != nil {
+		t.Fatalf("get current user: %v", err)
+	}
+	userImage := "silo-" + u.Username
+
 	t.Run("existing user image: no-op", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
 		setupUserConfig(t)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
-			"podman image exists silo-testuser": exec.Command("true"),
+			"podman image exists " + userImage: exec.Command("true"),
 		})
 
 		if err := cmdUserBuild(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		if anyCall(calls, "podman", "build", "-t", "silo-testuser") {
+		if anyCall(calls, "podman", "build", "-t", userImage) {
 			t.Errorf("expected no podman build for existing user image, got %v", *calls)
 		}
 	})
@@ -53,7 +83,7 @@ func TestCmdUserBuild(t *testing.T) {
 		setupWorkspace(t, cfg)
 		setupUserConfig(t)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
-			"podman image exists silo-testuser": exec.Command("false"),
+			"podman image exists " + userImage: exec.Command("false"),
 		})
 
 		if err := cmdUserBuild(); err != nil {
@@ -63,8 +93,8 @@ func TestCmdUserBuild(t *testing.T) {
 		if anyCall(calls, "podman", "build", "-t", "silo-abc12345") {
 			t.Errorf("expected no workspace image build, got %v", *calls)
 		}
-		if !anyCall(calls, "podman", "build", "-t", "silo-testuser") {
-			t.Errorf("expected podman build -t silo-testuser, got %v", *calls)
+		if !anyCall(calls, "podman", "build", "-t", userImage) {
+			t.Errorf("expected podman build -t %s, got %v", userImage, *calls)
 		}
 	})
 }
@@ -136,7 +166,7 @@ func TestCmdBuild(t *testing.T) {
 }
 
 func TestBuildWorkspaceImageWithMissingHomeNix(t *testing.T) {
-	t.Run("uses emptyHomeNix when home.nix is absent", func(t *testing.T) {
+	t.Run("builds workspace image when home.nix is absent", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
 		setupUserConfig(t)
