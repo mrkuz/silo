@@ -249,7 +249,7 @@ arguments = [
   "--cap-drop=ALL",
   "--cap-add=NET_BIND_SERVICE",
   "--security-opt",
-  "no-new-privileges",
+  "no-new-privileges"
 ]
 ```
 

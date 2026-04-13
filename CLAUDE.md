@@ -35,13 +35,15 @@ Requires Go 1.23+ and Podman.
 init → build → create → start → connect
 ```
 
+Note: `start` internally runs `volume setup` before starting the container.
+
 **`silo init` flags** use tri-state booleans (`--podman`/`--no-podman`, `--shared-volume`/`--no-shared-volume`). Flags not provided leave the config value unchanged; provided flags override the `silo.in.toml` default. Config is written only on first run.
 
 **The `ensure*` chain** in `container.go` provides lazy initialization:
 - `ensureInit` → initializes config and creates starter files
 - `ensureBuilt` → ensures images exist (builds if missing)
 - `ensureCreated` → ensures container exists (creates if missing)
-- `ensureStarted` → ensures container is running
+- `ensureStarted` → ensures container is running, also calls `ensureVolumeSetup` to create directories on the shared volume
 
 **Configuration hierarchy** (later overrides earlier):
 1. Built-in defaults

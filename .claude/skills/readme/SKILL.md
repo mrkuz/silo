@@ -5,36 +5,41 @@ description: Create or update a README for the current project based on its code
 
 ## Description
 
-Create a README for the project. Target: $ARGUMENTS (or the full project if not specified).
+Create a README for the project.
 
-## Skill-specific hard rules (Non-Negotiable)
+## General rules
 
-- Avoid complex, nested sentences
-- If the tool is a CLI tool and provides a help command (like -h, --help), use its output as a starting point for usage documentation
-- Clearly mark examples as such
-- If a README already exists, read it first and preserve any manually written content that is still accurate
+1. Understand intent, constraints, success criteria
+2. Ask if anything is unclear - do not guess
+3. Track non-trivial steps with tasks
 
-## Preparation
+## Skill-specific rules
 
-1. **Read the code**: Examine the project files to understand structure, functionality, and style
-2. **Build**: Build the project to confirm it compiles successfully
-3. **CLI help**: If the project produces a CLI tool, run its help command to capture usage information
+- No complex, nested sentences
+- Use CLI help (--help, -h) for usage docs
+- Mark examples clearly
 
-## Execution
+## Phase 1: Preparation
 
-The README should contain the following sections:
+1. **Read the code**: Examine project files to understand structure, functionality, and style
+2. **Build**: Build the project to confirm it compiles
+3. **CLI help**: If the project produces a CLI tool, run its help command
+
+## Phase 2: Execution
+
+The README should contain:
 
 1. **Title**
 2. **Short description**
 3. **Core features**
 4. **Quick start guide**
-5. **Detailed running instructions** — use CLI help output as a starting point where available
+5. **Detailed running instructions** — use CLI help output where available
 6. **Build and install instructions**
-7. **Configuration reference** — include examples where possible
-8. **How it works** — detailed explanation of the tool's internals
+7. **Configuration reference** — include examples
+8. **How it works** — explanation of the tool's internals
 
-## Verification
+## Phase 3: Verification
 
-1. **Accuracy**: Ensure all documented commands, flags, and paths match the actual code
-2. **Completeness**: Ensure all sections from the Content list are covered
-3. **Readability**: Ensure the document reads clearly with no complex, nested sentences
+1. **Accuracy**: Ensure documented commands, flags, and paths match the actual code
+2. **Completeness**: Ensure all sections are covered
+3. **Readability**: Ensure no complex, nested sentences
