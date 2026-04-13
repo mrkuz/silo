@@ -1,7 +1,6 @@
 FROM {{.BaseImage}}
 
 ADD --chown={{.User}}:{{.User}} home-workspace.nix {{.Home}}/.config/home-manager/home-workspace.nix
-ADD --chown={{.User}}:{{.User}} --chmod=0755 setup.sh /silo/setup.sh
 
 RUN home-manager switch --flake {{.Home}}/.config/home-manager && \
     nix-store --gc

@@ -111,7 +111,7 @@ func TestTOMLEmptyArguments(t *testing.T) {
 	cfg := Config{
 		General:      GeneralConfig{ID: "x", User: "u", ContainerName: "silo-x", ImageName: "silo-x"},
 		Features:     FeaturesConfig{SharedVolume: true, Podman: false},
-		SharedVolume: SharedVolumeConfig{Paths: []string{}},
+		SharedVolume: SharedVolumeConfig{Name: "silo-shared", Paths: []string{}},
 		Connect:      ConnectConfig{Command: "/bin/sh"},
 	}
 
@@ -136,105 +136,6 @@ func TestTOMLEmptyArguments(t *testing.T) {
 	if len(parsed.Create.Arguments) != 0 {
 		t.Errorf("expected empty Arguments, got %v", parsed.Create.Arguments)
 	}
-}
-
-func renderSetupScript(paths []string) (string, error) {
-	entries := buildSharedVolumeEntries(paths)
-	got, err := renderTemplate("setup.sh.tmpl", TemplateContext{SharedPathEntries: entries})
-	if err != nil {
-		return "", err
-	}
-	return string(got), nil
-}
-
-func TestRenderSetupScript(t *testing.T) {
-	t.Run("empty paths", func(t *testing.T) {
-		s, err := renderSetupScript(nil)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !strings.Contains(s, "#!/usr/bin/env bash") {
-			t.Errorf("expected shebang, got:\n%s", s)
-		}
-		if strings.Contains(s, "mkdir") || strings.Contains(s, "ln ") {
-			t.Errorf("expected no commands for empty paths, got:\n%s", s)
-		}
-	})
-
-	t.Run("directory path with $HOME prefix", func(t *testing.T) {
-		s, err := renderSetupScript([]string{"$HOME/.cache/uv/"})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !strings.Contains(s, `src="/silo/shared${HOME}/.cache/uv"`) {
-			t.Errorf("expected src with expanded HOME, got:\n%s", s)
-		}
-		if !strings.Contains(s, `dst="$HOME/.cache/uv"`) {
-			t.Errorf("expected dst, got:\n%s", s)
-		}
-		if !strings.Contains(s, `ln -sfn "$src" "$dst"`) {
-			t.Errorf("expected directory symlink, got:\n%s", s)
-		}
-	})
-
-	t.Run("file path with $HOME prefix", func(t *testing.T) {
-		s, err := renderSetupScript([]string{"$HOME/.local/share/fish/fish_history"})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !strings.Contains(s, `touch "$src"`) {
-			t.Errorf("expected touch for file path, got:\n%s", s)
-		}
-		if !strings.Contains(s, `ln -sf "$src" "$dst"`) {
-			t.Errorf("expected file symlink, got:\n%s", s)
-		}
-	})
-
-	t.Run("absolute directory path", func(t *testing.T) {
-		s, err := renderSetupScript([]string{"/etc/foo/"})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !strings.Contains(s, `src="/silo/shared/etc/foo"`) {
-			t.Errorf("expected absolute src, got:\n%s", s)
-		}
-		if !strings.Contains(s, `dst="/etc/foo"`) {
-			t.Errorf("expected absolute dst, got:\n%s", s)
-		}
-	})
-
-	t.Run("absolute file path", func(t *testing.T) {
-		s, err := renderSetupScript([]string{"/home/alice/.gitconfig"})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !strings.Contains(s, `src="/silo/shared/home/alice/.gitconfig"`) {
-			t.Errorf("expected absolute src, got:\n%s", s)
-		}
-		if !strings.Contains(s, `touch "$src"`) {
-			t.Errorf("expected touch for file, got:\n%s", s)
-		}
-	})
-
-	t.Run("multiple paths", func(t *testing.T) {
-		s, err := renderSetupScript([]string{"$HOME/.cache/uv/", "$HOME/.cache/pip/"})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !strings.Contains(s, ".cache/uv") || !strings.Contains(s, ".cache/pip") {
-			t.Errorf("expected both paths in script, got:\n%s", s)
-		}
-	})
-
-	t.Run("guards against existing non-symlink", func(t *testing.T) {
-		s, err := renderSetupScript([]string{"$HOME/.cache/uv/"})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !strings.Contains(s, `[ -L "$dst" ] || [ ! -e "$dst" ]`) {
-			t.Errorf("expected guard check before symlink, got:\n%s", s)
-		}
-	})
 }
 
 func TestDefaultConfig(t *testing.T) {

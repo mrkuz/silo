@@ -14,7 +14,7 @@ Usage:
   silo build
   silo create [--dry-run]
   silo start
-  silo setup
+  silo volume setup
   silo connect
   silo exec <cmd> [args...]
   silo stop
@@ -36,7 +36,7 @@ Commands:
   build                Build the workspace image
   create               Create the container
   start                Start the container
-  setup                Run post-start setup in the running container
+  volume setup         Create directories on the shared volume
   connect              Connect to the silo container
   exec                 Run a command in the running container
   stop                 Stop the running container
@@ -82,7 +82,7 @@ var commands = map[string]func([]string) error{
 	"build":               withoutArgs(cmdBuild),
 	"create":              cmdCreate,
 	"start":               withoutArgs(cmdStart),
-	"setup":               withoutArgs(cmdSetup),
+	"volume setup":        withoutArgs(cmdVolumeSetup),
 	"connect":             cmdConnect,
 	"exec":                cmdExec,
 	"stop":                withoutArgs(cmdStop),

@@ -101,8 +101,8 @@ func TestParseRemoveFlags(t *testing.T) {
 			t.Errorf("parseRemoveFlags(%v): unexpected error: %v", tt.args, err)
 			continue
 		}
-		if got.force != tt.wantForce {
-			t.Errorf("parseRemoveFlags(%v).force = %v, want %v", tt.args, got.force, tt.wantForce)
+		if got != tt.wantForce {
+			t.Errorf("parseRemoveFlags(%v) = %v, want %v", tt.args, got, tt.wantForce)
 		}
 	}
 }
@@ -258,9 +258,9 @@ func TestParseRemoveImageFlags(t *testing.T) {
 			t.Errorf("parseRemoveImageFlags(%v): unexpected error: %v", tt.args, err)
 			continue
 		}
-		if got.force != tt.wantForce {
-			t.Errorf("parseRemoveImageFlags(%v) = {force:%v}, want {force:%v}",
-				tt.args, got.force, tt.wantForce)
+		if got != tt.wantForce {
+			t.Errorf("parseRemoveImageFlags(%v) = %v, want %v",
+				tt.args, got, tt.wantForce)
 		}
 	}
 }
@@ -900,35 +900,47 @@ func TestCmdUserInit(t *testing.T) {
 
 }
 
-func TestCmdSetup(t *testing.T) {
-	t.Run("container running — runs setup", func(t *testing.T) {
+func TestCmdVolumeSetup(t *testing.T) {
+	t.Run("volume setup succeeds when shared volume configured", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		cfg.Features.SharedVolume = true
 		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 		setupWorkspace(t, cfg)
 		calls := mockExecCommand(t, map[string]*exec.Cmd{
-			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
+			"podman run --rm -v silo-shared:/silo/shared:Z silo-testuser sh -c": exec.Command("true"),
 		})
-		if err := cmdSetup(); err != nil {
+		if err := cmdVolumeSetup(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !anyCall(calls, "podman", "exec", "silo-abc12345", "bash", "/silo/setup.sh") {
-			t.Errorf("expected podman exec for setup, got %v", *calls)
+		if !anyCall(calls, "podman", "run", "--rm", "-v", "silo-shared:/silo/shared:Z", "silo-testuser", "sh", "-c") {
+			t.Errorf("expected podman run for volume setup, got %v", *calls)
 		}
 	})
 
-	t.Run("container not running — returns error", func(t *testing.T) {
+	t.Run("no-op when shared volume disabled", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
+		cfg.Features.SharedVolume = false
 		setupWorkspace(t, cfg)
-		mockExecCommand(t, map[string]*exec.Cmd{
-			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
-		})
-		err := cmdSetup()
-		if err == nil {
-			t.Error("expected error when container not running")
+		calls := mockExecCommand(t, map[string]*exec.Cmd{})
+		if err := cmdVolumeSetup(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
-		if !strings.Contains(err.Error(), "not running") {
-			t.Errorf("unexpected error: %v", err)
+		if anyCall(calls, "podman", "run") {
+			t.Errorf("expected no podman run when shared volume disabled, got %v", *calls)
+		}
+	})
+
+	t.Run("no-op when paths empty", func(t *testing.T) {
+		cfg := minimalConfig("abc12345")
+		cfg.Features.SharedVolume = true
+		cfg.SharedVolume.Paths = []string{}
+		setupWorkspace(t, cfg)
+		calls := mockExecCommand(t, map[string]*exec.Cmd{})
+		if err := cmdVolumeSetup(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if anyCall(calls, "podman", "run") {
+			t.Errorf("expected no podman run when paths empty, got %v", *calls)
 		}
 	})
 }

@@ -6,8 +6,12 @@
   "overrideCommand": true,
   "workspaceFolder": "{{.WorkspaceMount}}",
   "workspaceMount": "source=${localWorkspaceFolder},target={{.WorkspaceMount}},type=bind,Z"
-  {{- if .SharedVolumeMount }},
-  "mounts": ["source={{.SharedVolumeName}},target={{.SharedVolumeMount}},type=volume,Z"],
-  "postStartCommand": "bash {{.SetupScript}}"
-  {{- end }}
+  {{- if .SharedVolumeName }},
+  "mounts": [
+    {{- range $i, $path := .SharedVolumePaths}}
+    {{- if $i}},{{- end}}
+    "type=volume,source={{$.SharedVolumeName}},target={{$path}},subpath={{trimPrefix $path "/"}},Z"
+    {{- end}}
+  ]
+  {{- end}}
 }

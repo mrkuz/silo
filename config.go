@@ -13,8 +13,7 @@ import (
 
 const siloDir = ".silo"
 const siloToml = ".silo/silo.toml"
-const sharedVolumeName = "silo-shared"
-const sharedVolumeMount = "/silo/shared"
+const volumeMountPath = "/silo/shared"
 
 // Config holds all persisted silo workspace configuration.
 type Config struct {
@@ -38,7 +37,16 @@ type FeaturesConfig struct {
 }
 
 type SharedVolumeConfig struct {
+	Name  string   `toml:"name"`
 	Paths []string `toml:"paths"`
+}
+
+// getSharedVolumeName returns the shared volume name, defaulting to "silo-shared".
+func (c *Config) getSharedVolumeName() string {
+	if c.SharedVolume.Name != "" {
+		return c.SharedVolume.Name
+	}
+	return "silo-shared"
 }
 
 type ConnectConfig struct {
@@ -68,6 +76,7 @@ func defaultConfig() (Config, error) {
 			Podman:       false,
 		},
 		SharedVolume: SharedVolumeConfig{
+			Name:  "silo-shared",
 			Paths: []string{},
 		},
 		Connect: ConnectConfig{
@@ -121,6 +130,9 @@ func (c Config) saveWorkspaceConfig() error {
 		return fmt.Errorf("create .silo/silo.toml: %w", err)
 	}
 	defer f.Close()
+	if c.SharedVolume.Name == "" {
+		c.SharedVolume.Name = "silo-shared"
+	}
 	if c.SharedVolume.Paths == nil {
 		c.SharedVolume.Paths = []string{}
 	}
@@ -315,6 +327,7 @@ func ensureImages(cfg Config) error {
 		return err
 	}
 	if imageExists(cfg.General.ImageName) {
+		fmt.Printf("%s already exists\n", cfg.General.ImageName)
 		return nil
 	}
 	fmt.Printf("Building workspace image %s...\n", cfg.General.ImageName)

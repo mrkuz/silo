@@ -32,7 +32,7 @@ Requires Go 1.23+ and Podman.
 
 **Lifecycle chain** (each step depends on the ones before it):
 ```
-init → build → create → start → setup → connect
+init → build → create → start → connect
 ```
 
 **`silo init` flags** use tri-state booleans (`--podman`/`--no-podman`, `--shared-volume`/`--no-shared-volume`). Flags not provided leave the config value unchanged; provided flags override the `silo.in.toml` default. Config is written only on first run.
@@ -42,7 +42,6 @@ init → build → create → start → setup → connect
 - `ensureBuilt` → ensures images exist (builds if missing)
 - `ensureCreated` → ensures container exists (creates if missing)
 - `ensureStarted` → ensures container is running
-- `ensureSetup` → runs post-start shared volume configuration
 
 **Configuration hierarchy** (later overrides earlier):
 1. Built-in defaults
@@ -56,7 +55,7 @@ init → build → create → start → setup → connect
 1. User image (`silo-<user>`): Alpine + Nix + home-manager, shared across workspaces
 2. Workspace image (`silo-<id>`): Layered on user image with workspace-specific `home.nix`
 
-**Shared volume:** The `silo-shared` named volume is mounted at `/silo/shared`. Paths in `[shared_volume]` become symlinks under `/silo/shared/` (trailing `/` = directory). The symlink script runs via `podman exec` after container start.
+**Shared volume:** The `silo-shared` named volume is mounted as subpath volumes at container paths (e.g., `/home/<user>/.cache/uv`). Paths in `[shared_volume]` are created on the volume before container start via `ensureVolumeSetup`.
 
 **Devcontainer merge:** `silo devcontainer` recursively merges `$XDG_CONFIG_HOME/silo/devcontainer.in.json` into generated `.devcontainer.json`.
 

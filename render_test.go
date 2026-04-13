@@ -54,17 +54,11 @@ func TestRenderContainerfileWorkspace(t *testing.T) {
 	if !strings.Contains(s, "FROM silo-alice") {
 		t.Errorf("expected FROM silo-alice in Containerfile.workspace output:\n%s", s)
 	}
-	if !strings.Contains(s, "setup.sh /silo/setup.sh") {
-		t.Errorf("expected setup.sh install in Containerfile.workspace output:\n%s", s)
+	if !strings.Contains(s, "home-manager switch") {
+		t.Errorf("expected home-manager switch in Containerfile.workspace output:\n%s", s)
 	}
-	if !strings.Contains(s, "--chmod=0755 setup.sh /silo/setup.sh") {
-		t.Errorf("expected setup.sh install with chmod flag in Containerfile.workspace output:\n%s", s)
-	}
-	if strings.Contains(s, "chmod 0755 /silo/setup.sh") {
-		t.Errorf("did not expect separate chmod step in Containerfile.workspace output:\n%s", s)
-	}
-	if strings.Contains(s, "ARG USER") {
-		t.Error("Containerfile.workspace should not contain ARG USER")
+	if strings.Contains(s, "setup.sh") {
+		t.Errorf("did not expect setup.sh in Containerfile.workspace output:\n%s", s)
 	}
 }
 
@@ -168,19 +162,18 @@ func TestRenderDevcontainerJSONWithSharedVolume(t *testing.T) {
 		ContainerName:     "silo-abc12345-dev",
 		ContainerArgs:     []string{"--cap-drop=ALL"},
 		SharedVolumeName:  "silo-shared",
-		SharedVolumeMount: "/silo/shared",
-		SetupScript:       "/silo/setup.sh",
+		SharedVolumePaths: []string{"/home/alice/.cache/uv", "/home/alice/.config/nvim"},
 	}
 	out, err := renderTemplate("devcontainer.json.tmpl", tc)
 	if err != nil {
 		t.Fatal(err)
 	}
 	s := string(out)
-	if !strings.Contains(s, `"mounts": ["source=silo-shared,target=/silo/shared,type=volume,Z"]`) {
-		t.Error("expected mounts in devcontainer.json")
+	if !strings.Contains(s, `"type=volume,source=silo-shared,target=/home/alice/.cache/uv,subpath=home/alice/.cache/uv,Z"`) {
+		t.Error("expected volume mount with subpath for .cache/uv in devcontainer.json")
 	}
-	if !strings.Contains(s, `"postStartCommand": "bash /silo/setup.sh"`) {
-		t.Error("expected postStartCommand in devcontainer.json")
+	if !strings.Contains(s, `"type=volume,source=silo-shared,target=/home/alice/.config/nvim,subpath=home/alice/.config/nvim,Z"`) {
+		t.Error("expected volume mount with subpath for .config/nvim in devcontainer.json")
 	}
 	var parsed map[string]any
 	if err := json.Unmarshal(out, &parsed); err != nil {
@@ -199,6 +192,10 @@ func TestNewTemplateContextDefaultSuffix(t *testing.T) {
 			ImageName:     "silo-abc12345",
 		},
 		Features: FeaturesConfig{Podman: false, SharedVolume: true},
+		SharedVolume: SharedVolumeConfig{
+			Name:  "silo-shared",
+			Paths: []string{"$HOME/.cache/uv/", "$HOME/.config/nvim/"},
+		},
 	}
 	tc, err := newTemplateContext(cfg)
 	if err != nil {
@@ -207,11 +204,11 @@ func TestNewTemplateContextDefaultSuffix(t *testing.T) {
 	if tc.ContainerName != "silo-abc12345" {
 		t.Fatalf("expected default container name, got %q", tc.ContainerName)
 	}
-	if tc.SetupScript != setupScriptPath {
-		t.Fatalf("expected setup script path %q, got %q", setupScriptPath, tc.SetupScript)
-	}
 	if tc.SharedVolumeName == "" {
 		t.Fatal("expected shared volume name to be set when feature is enabled")
+	}
+	if len(tc.SharedVolumePaths) != 2 {
+		t.Fatalf("expected 2 shared volume paths, got %d", len(tc.SharedVolumePaths))
 	}
 	joined := strings.Join(tc.ContainerArgs, " ")
 	if !strings.Contains(joined, "--name silo-abc12345") {

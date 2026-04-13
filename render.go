@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"text/template"
 )
 
@@ -64,6 +65,7 @@ var templateFuncs = template.FuncMap{
 		b, err := json.Marshal(v)
 		return string(b), err
 	},
+	"trimPrefix": strings.TrimPrefix,
 }
 
 // TemplateContext provides data for template rendering across devcontainer, Containerfile, and setup scripts.
@@ -73,13 +75,11 @@ type TemplateContext struct {
 	Image             string
 	BaseImage         string
 	ContainerName     string
-	SetupScript       string
 	SharedVolumeName  string
-	SharedVolumeMount string
 	WorkspaceMount    string
 	System            string
 	ContainerArgs     []string
-	SharedPathEntries []sharedPathEntry
+	SharedVolumePaths []string // resolved container paths for subpath mounts
 }
 
 // newTemplateContext builds a TemplateContext from Config for template rendering.
@@ -91,10 +91,8 @@ func newTemplateContext(cfg Config, containerNameSuffix ...string) (TemplateCont
 	}
 	containerName := containerNameWithSuffix(cfg.General.ContainerName, suffix)
 	sharedVolumeNameValue := ""
-	sharedVolumeMountPoint := ""
 	if cfg.Features.SharedVolume {
-		sharedVolumeNameValue = sharedVolumeName
-		sharedVolumeMountPoint = sharedVolumeMount
+		sharedVolumeNameValue = cfg.getSharedVolumeName()
 	}
 
 	home := "/home/" + cfg.General.User
@@ -102,9 +100,13 @@ func newTemplateContext(cfg Config, containerNameSuffix ...string) (TemplateCont
 	if err != nil {
 		return TemplateContext{}, fmt.Errorf("resolve workspace mount path: %w", err)
 	}
-	var entries []sharedPathEntry
-	if hasSharedPaths(cfg) {
-		entries = buildSharedVolumeEntries(cfg.SharedVolume.Paths)
+	// Build resolved container paths for each shared volume path
+	var sharedPaths []string
+	if cfg.Features.SharedVolume && len(cfg.SharedVolume.Paths) > 0 {
+		sharedPaths = make([]string, len(cfg.SharedVolume.Paths))
+		for i, path := range cfg.SharedVolume.Paths {
+			sharedPaths[i] = resolveContainerPath(path, cfg.General.User)
+		}
 	}
 	return TemplateContext{
 		User:              cfg.General.User,
@@ -112,13 +114,11 @@ func newTemplateContext(cfg Config, containerNameSuffix ...string) (TemplateCont
 		Image:             cfg.General.ImageName,
 		BaseImage:         baseImageName(cfg.General.User),
 		ContainerName:     containerName,
-		SetupScript:       setupScriptPath,
 		SharedVolumeName:  sharedVolumeNameValue,
-		SharedVolumeMount: sharedVolumeMountPoint,
 		WorkspaceMount:    workspaceMount,
 		System:            detectNixSystem(),
 		ContainerArgs:     containerArgs(cfg, containerNameSuffix...),
-		SharedPathEntries: entries,
+		SharedVolumePaths: sharedPaths,
 	}, nil
 }
 

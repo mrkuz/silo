@@ -153,14 +153,18 @@ func TestBuildContainerArgsSharedVolume(t *testing.T) {
 			SharedVolume: true,
 			Podman:       false,
 		},
+		SharedVolume: SharedVolumeConfig{
+			Name:  "silo-shared",
+			Paths: []string{"$HOME/.cache/uv/"},
+		},
 	}
 	args, err := buildContainerArgs(cfg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	joined := strings.Join(args, " ")
-	if !strings.Contains(joined, sharedVolumeName+":/silo/shared:Z") {
-		t.Errorf("expected shared volume mount in args: %v", args)
+	if !strings.Contains(joined, "--mount type=volume,source=silo-shared,target=/home/alice/.cache/uv,subpath=home/alice/.cache/uv,Z") {
+		t.Errorf("expected subpath volume mount in args: %v", args)
 	}
 }
 
@@ -205,16 +209,16 @@ func TestCreateContainerArgumentsNonNested(t *testing.T) {
 	}
 }
 
-func TestSetupContainer(t *testing.T) {
+func TestVolumeSetup(t *testing.T) {
 	t.Run("skipped when shared volume disabled", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		cfg.Features.SharedVolume = false
 		calls := mockExecCommand(t, map[string]*exec.Cmd{})
-		if err := setupContainer(cfg); err != nil {
+		if err := volumeSetup(cfg); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if anyCall(calls, "podman", "exec") {
-			t.Errorf("expected no podman exec, got %v", *calls)
+		if anyCall(calls, "podman", "run") {
+			t.Errorf("expected no podman run, got %v", *calls)
 		}
 	})
 
@@ -223,22 +227,22 @@ func TestSetupContainer(t *testing.T) {
 		cfg.Features.SharedVolume = true
 		cfg.SharedVolume.Paths = []string{}
 		calls := mockExecCommand(t, map[string]*exec.Cmd{})
-		if err := setupContainer(cfg); err != nil {
+		if err := volumeSetup(cfg); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if anyCall(calls, "podman", "exec") {
-			t.Errorf("expected no podman exec, got %v", *calls)
+		if anyCall(calls, "podman", "run") {
+			t.Errorf("expected no podman run, got %v", *calls)
 		}
 	})
 
-	t.Run("runs startup script when paths configured", func(t *testing.T) {
+	t.Run("runs user image to create directories", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		cfg.Features.SharedVolume = true
 		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 		calls := mockExecCommand(t, map[string]*exec.Cmd{})
-		_ = setupContainer(cfg)
-		if !anyCall(calls, "podman", "exec", "silo-abc12345", "bash", "/silo/setup.sh") {
-			t.Errorf("expected podman exec silo-abc12345 bash /silo/setup.sh, got %v", *calls)
+		_ = volumeSetup(cfg)
+		if !anyCall(calls, "podman", "run", "--rm", "-v", "silo-shared:/silo/shared:Z", "silo-testuser", "sh", "-c") {
+			t.Errorf("expected podman run for volume setup, got %v", *calls)
 		}
 	})
 }
@@ -295,7 +299,7 @@ func TestContainerRunning(t *testing.T) {
 }
 
 func TestEnsureChain(t *testing.T) {
-	t.Run("container absent — creates, starts, runs setup", func(t *testing.T) {
+	t.Run("container absent — creates and starts", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		cfg.Features.SharedVolume = true
 		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
@@ -306,7 +310,7 @@ func TestEnsureChain(t *testing.T) {
 			"podman image exists silo-abc12345":     exec.Command("true"),
 			"podman container exists silo-abc12345": exec.Command("false"),
 		})
-		_, err := ensureSetup()
+		_, err := ensureStarted()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -316,12 +320,9 @@ func TestEnsureChain(t *testing.T) {
 		if !anyCall(calls, "podman", "start", "silo-abc12345") {
 			t.Errorf("expected podman start, got %v", *calls)
 		}
-		if !anyCall(calls, "podman", "exec", "silo-abc12345", "bash", "/silo/setup.sh") {
-			t.Errorf("expected setup via podman exec, got %v", *calls)
-		}
 	})
 
-	t.Run("container stopped — starts and runs setup", func(t *testing.T) {
+	t.Run("container stopped — starts", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		cfg.Features.SharedVolume = true
 		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
@@ -332,21 +333,17 @@ func TestEnsureChain(t *testing.T) {
 			"podman image exists silo-abc12345":                                  exec.Command("true"),
 			"podman container exists silo-abc12345":                              exec.Command("true"),
 			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
-			"podman exec silo-abc12345 test -f /silo/.setup-done":                exec.Command("false"),
 		})
-		_, err := ensureSetup()
+		_, err := ensureStarted()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if !anyCall(calls, "podman", "start", "silo-abc12345") {
 			t.Errorf("expected podman start, got %v", *calls)
 		}
-		if !anyCall(calls, "podman", "exec", "silo-abc12345", "bash", "/silo/setup.sh") {
-			t.Errorf("expected setup via podman exec, got %v", *calls)
-		}
 	})
 
-	t.Run("container already running — runs setup only", func(t *testing.T) {
+	t.Run("container already running — no action", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		setupWorkspace(t, cfg)
 		setupUserConfig(t)
@@ -356,7 +353,7 @@ func TestEnsureChain(t *testing.T) {
 			"podman container exists silo-abc12345":                              exec.Command("true"),
 			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
 		})
-		_, err := ensureSetup()
+		_, err := ensureStarted()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -437,35 +434,6 @@ func TestStopContainerError(t *testing.T) {
 	})
 }
 
-func TestHasSharedPaths(t *testing.T) {
-	t.Run("shared volume enabled with paths", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		cfg.Features.SharedVolume = true
-		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
-		if !hasSharedPaths(cfg) {
-			t.Error("expected hasSharedPaths=true")
-		}
-	})
-
-	t.Run("shared volume enabled but paths empty", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		cfg.Features.SharedVolume = true
-		cfg.SharedVolume.Paths = []string{}
-		if hasSharedPaths(cfg) {
-			t.Error("expected hasSharedPaths=false when paths is empty")
-		}
-	})
-
-	t.Run("shared volume disabled", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		cfg.Features.SharedVolume = false
-		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
-		if hasSharedPaths(cfg) {
-			t.Error("expected hasSharedPaths=false when feature disabled")
-		}
-	})
-}
-
 // TestEnsureCreatedError is not feasible to test because createContainer calls
 // buildContainerArgs which uses os.Getwd() producing dynamic volume mount paths.
 // The mock cannot match the full command string with dynamic paths.
@@ -490,24 +458,24 @@ func TestEnsureStartedError(t *testing.T) {
 	})
 }
 
-func TestEnsureSetupError(t *testing.T) {
-	t.Run("setupContainer failure returns error", func(t *testing.T) {
+func TestEnsureStartedWithSharedVolume(t *testing.T) {
+	t.Run("ensureStarted succeeds even when container not running initially", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		cfg.Features.SharedVolume = true
 		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 		setupWorkspace(t, cfg)
 		setupUserConfig(t)
-		// Container running but setup script fails
+		// Container exists but stopped, podman start succeeds
 		mockExecCommand(t, map[string]*exec.Cmd{
 			"podman image exists silo-testuser":                                  exec.Command("true"),
 			"podman image exists silo-abc12345":                                  exec.Command("true"),
 			"podman container exists silo-abc12345":                              exec.Command("true"),
-			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-			"podman exec silo-abc12345 bash /silo/setup.sh":                      exec.Command("false"),
+			"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
+			"podman start silo-abc12345":                                         exec.Command("true"),
 		})
-		_, err := ensureSetup()
-		if err == nil {
-			t.Error("expected error when setupContainer fails")
+		_, err := ensureStarted()
+		if err != nil {
+			t.Errorf("expected ensureStarted to succeed, got error: %v", err)
 		}
 	})
 }

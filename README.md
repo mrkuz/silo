@@ -46,7 +46,7 @@ go install .
 Every workspace goes through a fixed chain of steps. Each step depends on the ones before it. Running `silo` (or `silo connect`) triggers the full chain automatically.
 
 ```
-init → build → create → start → setup → connect
+init → build → create → setup → start → connect
 ```
 
 | Step | Description | Output | Idempotency |
@@ -55,18 +55,18 @@ init → build → create → start → setup → connect
 | **build** | Ensures user image exists, then builds workspace image if needed | Container image | Images are cached; only missing ones are built |
 | **create** | Creates the container from the workspace image | Stopped container | Skipped if container already exists |
 | **start** | Starts the stopped container | Running container | Skipped if container is already running |
-| **setup** | Runs shared volume symlink setup inside the running container | Configured container | Safe to re-run |
+| **setup** | Creates directories on the shared volume using a temporary container | Configured container | Safe to re-run |
 | **connect** | Opens an interactive shell inside the running container | Terminal session | — |
 
 You can run individual steps:
 
 ```bash
-silo init       # Initialize workspace and user files
-silo build      # Build images (if not already built)
-silo create     # Create container (if not already created)
-silo start      # Start container (if not already running)
-silo setup      # Run post-start setup
-silo connect    # Connect to container (triggers missing steps automatically)
+silo init          # Initialize workspace and user files
+silo build         # Build images (if not already built)
+silo create        # Create container (if not already created)
+silo start         # Start container (if not already running)
+silo volume setup  # Run shared volume setup
+silo connect       # Connect to container (triggers missing steps automatically)
 ```
 
 ---
@@ -79,7 +79,7 @@ silo init [--podman|--no-podman] [--shared-volume|--no-shared-volume]
 silo build
 silo create [--dry-run]
 silo start
-silo setup
+silo volume setup
 silo connect
 silo exec <cmd> [args...]
 silo stop
@@ -130,9 +130,9 @@ Create the container without starting it. Builds images if needed. Additional ar
 
 Start the container and run post-start setup. Does not connect. If the container is already running, this command does nothing.
 
-### `silo setup`
+### `silo volume setup`
 
-Run post-start setup inside the running container. Creates shared volume symlinks for paths configured in `[shared_volume]`. This step runs automatically after every start. Fails if the container is not running.
+Creates directories on the shared volume for paths configured in `[shared_volume]`. Runs a temporary container with the user image — the workspace container does not need to be running. This step runs automatically after every start.
 
 ### `silo connect`
 
@@ -238,6 +238,7 @@ shared_volume = false                # Mount shared volume at /silo/shared
 podman        = false                # Enable Podman inside the container
 
 [shared_volume]
+name  = "silo-shared"                        # Podman volume name (default: silo-shared)
 paths = [
     "$HOME/.local/share/fish/fish_history",  # persist and share file
     "$HOME/.cache/uv/",                      # persist and share directory (trailing /)
@@ -271,14 +272,15 @@ arguments = [
 
 | Key | Default | Description |
 |---|---|---|
-| `shared_volume` | `false` | Mount the `silo-shared` Podman volume at `/silo/shared` inside the container |
+| `shared_volume` | `false` | Enable the shared volume |
 | `podman` | `false` | Enable Podman inside the container |
 
 **`[shared_volume]`**
 
-| Key | Description |
-|---|---|
-| `paths` | Paths inside the container backed by the shared volume. A trailing slash means directory; no trailing slash means file. `$HOME` is the only supported placeholder prefix. |
+| Key | Default | Description |
+|---|---|---|
+| `name` | `silo-shared` | Shared volume name. |
+| `paths` | `[]` | Paths inside the container backed by the shared volume. A trailing slash means directory; no trailing slash means file. `$HOME` is the only supported placeholder prefix. |
 
 **`[create]`**
 
@@ -329,13 +331,11 @@ The host directory is mounted into the container at `/workspace/<id>/<dirname>`,
 
 ### Shared volume
 
-The named Podman volume `silo-shared` is mounted at `/silo/shared` inside every container. Data stored there — such as package caches — is shared across all workspaces and survives container restarts and image rebuilds.
+The named Podman volume (default: `silo-shared`, configurable via `[shared_volume].name`) is mounted at `/silo/shared` inside every container. Data stored there — such as package caches — is shared across all workspaces and survives container restarts and image rebuilds.
 
-For paths listed in `[shared_volume]`, a symlink inside the container pointing to `/silo/shared/` is created on every container start. A trailing slash marks a directory; no trailing slash marks a file. `$HOME` is expanded inside the container.
+For paths listed in `[shared_volume]`, a subpath mount is created inside the container. A trailing slash marks a directory; no trailing slash marks a file. `$HOME` is expanded inside the container.
 
-Example: `$HOME/.cache/uv/` creates a symlink from `$HOME/.cache/uv` to `/silo/shared/home/alice/.cache/uv` inside the container.
-
-If a real file or directory already exists at the target path, the symlink is skipped and a warning is printed.
+Example: `$HOME/.cache/uv/` creates a volume mount with `target=/home/alice/.cache/uv` and `subpath=home/alice/.cache/uv`.
 
 ### Nested Podman
 

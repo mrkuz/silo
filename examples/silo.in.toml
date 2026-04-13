@@ -6,6 +6,7 @@ shared_volume = true
 podman = false
 
 [shared_volume]
+name  = "silo-shared"
 paths = [
   "$HOME/.local/share/fish/fish_history",
   "$HOME/.claude/",

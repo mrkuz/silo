@@ -21,13 +21,20 @@ func TestCmdUserBuildSharedVolumeMount(t *testing.T) {
 		Features: FeaturesConfig{
 			SharedVolume: true,
 		},
+		SharedVolume: SharedVolumeConfig{
+			Name:  "silo-shared",
+			Paths: []string{"$HOME/.cache/uv/"},
+		},
 	}
 	tc, err := newTemplateContext(cfg)
 	if err != nil {
 		t.Fatalf("newTemplateContext failed: %v", err)
 	}
-	if tc.SharedVolumeMount == "" {
-		t.Error("SharedVolumeMount should not be empty when SharedVolume is enabled")
+	if tc.SharedVolumeName == "" {
+		t.Error("SharedVolumeName should not be empty when SharedVolume is enabled")
+	}
+	if len(tc.SharedVolumePaths) == 0 {
+		t.Error("SharedVolumePaths should not be empty when paths are configured")
 	}
 }
 

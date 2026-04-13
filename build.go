@@ -8,6 +8,11 @@ import (
 	"strings"
 )
 
+const (
+	buildDirMode  = 0755
+	buildFileMode = 0644
+)
+
 // imageExists checks if a Podman image exists.
 func imageExists(name string) bool {
 	return execCommand("podman", "image", "exists", name).Run() == nil
@@ -72,10 +77,6 @@ func buildWorkspaceImage(tag string, tc TemplateContext) error {
 	if err != nil {
 		return fmt.Errorf("render Containerfile.workspace template: %w", err)
 	}
-	setupScript, err := renderTemplate("setup.sh.tmpl", tc)
-	if err != nil {
-		return fmt.Errorf("render setup.sh template: %w", err)
-	}
 
 	homeWorkspaceNix, err := os.ReadFile(filepath.Join(siloDir, "home.nix"))
 	if err != nil {
@@ -89,7 +90,6 @@ func buildWorkspaceImage(tag string, tc TemplateContext) error {
 	files := map[string][]byte{
 		"Containerfile":      containerfile,
 		"home-workspace.nix": homeWorkspaceNix,
-		"setup.sh":           setupScript,
 	}
 	if err := runBuild(tag, files); err != nil {
 		return fmt.Errorf("build workspace image: %w", err)
@@ -107,10 +107,10 @@ func runBuild(tag string, files map[string][]byte) error {
 
 	for name, content := range files {
 		path := filepath.Join(dir, name)
-		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), buildDirMode); err != nil {
 			return fmt.Errorf("create directory for build file: %w", err)
 		}
-		if err := os.WriteFile(path, content, 0644); err != nil {
+		if err := os.WriteFile(path, content, buildFileMode); err != nil {
 			return fmt.Errorf("write file to build directory: %w", err)
 		}
 	}
@@ -127,21 +127,8 @@ func cmdBuild() error {
 	if err != nil {
 		return fmt.Errorf("initialize workspace: %w", err)
 	}
-	tc, err := newTemplateContext(cfg)
-	if err != nil {
-		return fmt.Errorf("build template context: %w", err)
-	}
-	if err := ensureUserImage(tc); err != nil {
+	if err := ensureImages(cfg); err != nil {
 		return err
-	}
-	wsTag := cfg.General.ImageName
-	if imageExists(wsTag) {
-		fmt.Printf("%s already exists\n", wsTag)
-		return nil
-	}
-	fmt.Printf("Building workspace image %s...\n", wsTag)
-	if err := buildWorkspaceImage(wsTag, tc); err != nil {
-		return fmt.Errorf("build workspace image: %w", err)
 	}
 	return nil
 }
@@ -156,9 +143,6 @@ func cmdUserBuild() error {
 		General: GeneralConfig{
 			User:          u.Username,
 			ContainerName: "silo-" + u.Username,
-		},
-		Features: FeaturesConfig{
-			SharedVolume: true,
 		},
 	}
 	tc, err := newTemplateContext(cfg)

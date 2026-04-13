@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 )
 
 const devContainerSuffix = "-dev"
+const devcontainerFileMode = 0644
 
 // devContainerName returns the devcontainer name for the given config.
 func devContainerName(cfg Config) string {
@@ -19,6 +21,13 @@ func cmdDevcontainerGenerate() error {
 	cfg, err := requireWorkspaceConfig()
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
+	}
+
+	// Ensure volume directories exist before generating devcontainer.json
+	if cfg.Features.SharedVolume && len(cfg.SharedVolume.Paths) > 0 {
+		if err := volumeSetup(cfg); err != nil {
+			return fmt.Errorf("volume setup: %w", err)
+		}
 	}
 
 	tc, err := newTemplateContext(cfg, devContainerSuffix)
@@ -52,7 +61,7 @@ func cmdDevcontainerGenerate() error {
 		}
 		content = append(content, '\n')
 	}
-	if err := os.WriteFile(devcontainerFile, content, 0644); err != nil {
+	if err := os.WriteFile(devcontainerFile, content, devcontainerFileMode); err != nil {
 		return fmt.Errorf("write devcontainer.json: %w", err)
 	}
 	fmt.Printf("Generated %s\n", devcontainerFile)
@@ -89,7 +98,7 @@ func cmdDevcontainerStatus() error {
 
 // cmdDevcontainerRemove implements `silo devcontainer rm [-f|--force]`.
 func cmdDevcontainerRemove(args []string) error {
-	flags, err := parseDevcontainerRemoveFlags(args)
+	force, err := parseDevcontainerRemoveFlags(args)
 	if err != nil {
 		return fmt.Errorf("parse devcontainer rm flags: %w", err)
 	}
@@ -98,7 +107,7 @@ func cmdDevcontainerRemove(args []string) error {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
 	name := devContainerName(cfg)
-	if err := removeNamedContainer(name, flags.force); err != nil {
+	if err := removeNamedContainer(name, force); err != nil {
 		return err
 	}
 	return nil
@@ -113,7 +122,7 @@ func loadDevcontainerInJSON() (map[string]any, error) {
 	}
 	path := filepath.Join(dir, "devcontainer.in.json")
 	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return map[string]any{}, nil
 	}
 	if err != nil {
@@ -126,8 +135,6 @@ func loadDevcontainerInJSON() (map[string]any, error) {
 	return m, nil
 }
 
-// deepMergeJSON recursively merges input into base.
-// Objects merge key-by-key, arrays concatenate, scalars from input override.
 func deepMergeJSON(base, input map[string]any) map[string]any {
 	result := make(map[string]any, len(base))
 	for k, v := range base {

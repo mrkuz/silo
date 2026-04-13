@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -72,7 +73,7 @@ func printInitFileStatus(path string) error {
 	if _, err := os.Stat(path); err == nil {
 		fmt.Printf("'%s' already exists\n", path)
 		return nil
-	} else if os.IsNotExist(err) {
+	} else if errors.Is(err, os.ErrNotExist) {
 		fmt.Printf("Creating %s\n", path)
 		return nil
 	} else {
@@ -80,18 +81,20 @@ func printInitFileStatus(path string) error {
 	}
 }
 
-// cmdSetup runs post-start setup in the running container.
-func cmdSetup() error {
+// cmdVolumeSetup creates directories on the shared volume so they can be mounted as subpath volumes.
+func cmdVolumeSetup() error {
 	cfg, err := requireWorkspaceConfig()
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
-	if !containerRunning(cfg.General.ContainerName) {
-		return fmt.Errorf("container %s is not running", cfg.General.ContainerName)
+	if !cfg.Features.SharedVolume || len(cfg.SharedVolume.Paths) == 0 {
+		fmt.Println("shared volume is not configured")
+		return nil
 	}
-	if err := setupContainer(cfg); err != nil {
-		return fmt.Errorf("setup container: %w", err)
+	if err := volumeSetup(cfg); err != nil {
+		return fmt.Errorf("volume setup: %w", err)
 	}
+	fmt.Println("volume setup complete")
 	return nil
 }
 
@@ -101,7 +104,7 @@ func cmdRun(args []string) error {
 	if err != nil {
 		return fmt.Errorf("parse run flags: %w", err)
 	}
-	cfg, err := ensureSetup()
+	cfg, err := ensureStarted()
 	if err != nil {
 		return fmt.Errorf("setup container: %w", err)
 	}
@@ -128,7 +131,7 @@ func cmdConnect(args []string) error {
 	if len(args) > 0 {
 		return fmt.Errorf("connect does not take arguments")
 	}
-	cfg, err := ensureSetup()
+	cfg, err := ensureStarted()
 	if err != nil {
 		return fmt.Errorf("setup container: %w", err)
 	}
@@ -215,7 +218,7 @@ func removeNamedContainer(name string, force bool) error {
 
 // cmdRemove removes the workspace container.
 func cmdRemove(args []string) error {
-	flags, err := parseRemoveFlags(args)
+	force, err := parseRemoveFlags(args)
 	if err != nil {
 		return fmt.Errorf("parse remove flags: %w", err)
 	}
@@ -223,7 +226,7 @@ func cmdRemove(args []string) error {
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
-	if err := removeNamedContainer(cfg.General.ContainerName, flags.force); err != nil {
+	if err := removeNamedContainer(cfg.General.ContainerName, force); err != nil {
 		return err
 	}
 	return nil
@@ -231,7 +234,7 @@ func cmdRemove(args []string) error {
 
 // cmdRemoveImage implements `silo rmi [--force]`.
 func cmdRemoveImage(args []string) error {
-	flags, err := parseRemoveImageFlags(args)
+	force, err := parseRemoveImageFlags(args)
 	if err != nil {
 		return fmt.Errorf("parse rmi flags: %w", err)
 	}
@@ -239,7 +242,7 @@ func cmdRemoveImage(args []string) error {
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
-	if flags.force && containerExists(cfg.General.ContainerName) {
+	if force && containerExists(cfg.General.ContainerName) {
 		if containerRunning(cfg.General.ContainerName) {
 			if err := stopContainer(cfg.General.ContainerName); err != nil {
 				return fmt.Errorf("stop container: %w", err)
@@ -299,22 +302,8 @@ func cmdCreate(args []string) error {
 
 // cmdStart implements `silo start`.
 func cmdStart() error {
-	cfg, err := ensureCreated()
-	if err != nil {
-		return fmt.Errorf("create container: %w", err)
-	}
-	if containerRunning(cfg.General.ContainerName) {
-		fmt.Printf("%s is already running\n", cfg.General.ContainerName)
-		return nil
-	}
-	if err := startContainer(cfg.General.ContainerName); err != nil {
-		return fmt.Errorf("start container: %w", err)
-	}
-	err = setupContainer(cfg)
-	if err != nil {
-		return fmt.Errorf("setup container: %w", err)
-	}
-	return nil
+	_, err := ensureStarted()
+	return err
 }
 
 // --- flag types and parsers ---
@@ -338,24 +327,12 @@ func parseRunFlags(args []string) (runFlags, error) {
 	return runFlags{stop: *stop || *rm || *rmi, rm: *rm || *rmi, rmi: *rmi, extra: fs.Args()}, nil
 }
 
-type forceFlags struct {
-	force bool
+func parseRemoveFlags(args []string) (bool, error) {
+	return parseForceFlag(args, "silo rm", "Stop and remove a running container", "parse remove flags")
 }
 
-func parseRemoveFlags(args []string) (forceFlags, error) {
-	force, err := parseForceFlag(args, "silo rm", "Stop and remove a running container", "parse remove flags")
-	if err != nil {
-		return forceFlags{}, err
-	}
-	return forceFlags{force: force}, nil
-}
-
-func parseRemoveImageFlags(args []string) (forceFlags, error) {
-	force, err := parseForceFlag(args, "silo rmi", "Stop and remove the container before removing the image", "parse rmi flags")
-	if err != nil {
-		return forceFlags{}, err
-	}
-	return forceFlags{force: force}, nil
+func parseRemoveImageFlags(args []string) (bool, error) {
+	return parseForceFlag(args, "silo rmi", "Stop and remove the container before removing the image", "parse rmi flags")
 }
 
 // cmdUserRmi implements `silo user rmi`. Removes the user image.
@@ -376,16 +353,8 @@ func cmdUserRmi() error {
 	return nil
 }
 
-type devcontainerRemoveFlags struct {
-	force bool
-}
-
-func parseDevcontainerRemoveFlags(args []string) (devcontainerRemoveFlags, error) {
-	force, err := parseForceFlag(args, "silo devcontainer rm", "Stop and remove a running container", "parse devcontainer rm flags")
-	if err != nil {
-		return devcontainerRemoveFlags{}, err
-	}
-	return devcontainerRemoveFlags{force: force}, nil
+func parseDevcontainerRemoveFlags(args []string) (bool, error) {
+	return parseForceFlag(args, "silo devcontainer rm", "Stop and remove a running container", "parse devcontainer rm flags")
 }
 
 func parseForceFlag(args []string, name, usage, context string) (bool, error) {

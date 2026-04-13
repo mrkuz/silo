@@ -108,12 +108,9 @@ func TestCmdDevcontainerSharedVolume(t *testing.T) {
 		if _, ok := parsed["mounts"]; !ok {
 			t.Fatalf("expected mounts in devcontainer output")
 		}
-		if parsed["postStartCommand"] != "bash /silo/setup.sh" {
-			t.Fatalf("expected postStartCommand to run setup script, got %v", parsed["postStartCommand"])
-		}
 	})
 
-	t.Run("omits mounts and postStart when shared volume disabled", func(t *testing.T) {
+	t.Run("omits mounts when shared volume disabled", func(t *testing.T) {
 		cfg := minimalConfig("abc12345")
 		cfg.Features.SharedVolume = false
 		setupWorkspace(t, cfg)
@@ -136,9 +133,6 @@ func TestCmdDevcontainerSharedVolume(t *testing.T) {
 
 		if _, ok := parsed["mounts"]; ok {
 			t.Fatalf("did not expect mounts in devcontainer output")
-		}
-		if _, ok := parsed["postStartCommand"]; ok {
-			t.Fatalf("did not expect postStartCommand in devcontainer output")
 		}
 	})
 }

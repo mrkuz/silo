@@ -10,6 +10,87 @@ import (
 
 var execCommand = exec.Command
 
+// resolveContainerPath converts a shared volume path to its container mount target.
+// - Absolute paths (e.g., "/etc/shared/") are used directly.
+// - $HOME prefix (e.g., "$HOME/.cache/uv/") expands to "/home/<user>/.cache/uv".
+// - Relative paths are not supported - a warning is printed and the path is skipped.
+func resolveContainerPath(path string, user string) string {
+	const homePrefix = "$HOME"
+	// Normalize path: remove trailing slashes
+	path = strings.TrimRight(path, "/")
+
+	// Absolute path: use directly
+	if strings.HasPrefix(path, "/") {
+		return path
+	}
+
+	// $HOME prefix: expand to container home path
+	if strings.HasPrefix(path, homePrefix) {
+		rest := path[len(homePrefix):]
+		if rest == "" {
+			return "/home/" + user
+		}
+		return "/home/" + user + rest
+	}
+
+	// Relative paths are not supported - return empty string
+	fmt.Fprintf(os.Stderr, "warning: relative paths are not supported in shared volume config: %s\n", path)
+	return ""
+}
+
+// volumeSetup creates directories on the silo-shared volume from the host side
+// by running a temporary container with the user image, ensuring directories exist
+// before they are mounted as subpath volumes.
+func volumeSetup(cfg Config) error {
+	if !cfg.Features.SharedVolume || len(cfg.SharedVolume.Paths) == 0 {
+		return nil
+	}
+
+	// Ensure the user image exists before using it for volume setup
+	userImage := baseImageName(cfg.General.User)
+	if !imageExists(userImage) {
+		tc, err := newTemplateContext(cfg)
+		if err != nil {
+			return fmt.Errorf("build template context: %w", err)
+		}
+		if err := ensureUserImage(tc); err != nil {
+			return fmt.Errorf("ensure user image: %w", err)
+		}
+	}
+
+	var mkdirCmd strings.Builder
+	for i, path := range cfg.SharedVolume.Paths {
+		containerPath := resolveContainerPath(path, cfg.General.User)
+		// Skip invalid/relative paths (resolveContainerPath prints a warning)
+		if containerPath == "" {
+			continue
+		}
+		if i > 0 {
+			mkdirCmd.WriteString(" && ")
+		}
+		// Check if it's a directory (original path ends with /) or file
+		isDir := len(path) > 0 && path[len(path)-1] == '/'
+		// The volume is mounted at /silo/shared, so prefix paths accordingly
+		volPath := volumeMountPath + containerPath
+		if isDir {
+			// Directory: create with chmod 755
+			mkdirCmd.WriteString("mkdir -p " + volPath + " && chmod 755 " + volPath)
+		} else {
+			// File: create parent dir, touch file, set permissions
+			mkdirCmd.WriteString("mkdir -p $(dirname " + volPath + ") && touch " + volPath + " && chmod 644 " + volPath)
+		}
+	}
+	// Use the user image to create directories inside the volume.
+	// Mount the volume at /silo/shared so we can create subdirectories in it.
+	cmd := execCommand("podman", "run", "--rm", "-v", cfg.getSharedVolumeName()+":"+volumeMountPath+":Z", userImage, "sh", "-c", mkdirCmd.String())
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("volume setup: %w", err)
+	}
+	return nil
+}
+
 // containerRunning checks if a container is currently running.
 func containerRunning(name string) bool {
 	out, err := execCommand("podman", "container", "inspect", "--format", "{{.State.Running}}", name).Output()
@@ -102,60 +183,19 @@ func buildContainerArgs(cfg Config) ([]string, error) {
 	args = append(args, "--volume", fmt.Sprintf("%s:%s:Z", hostDir, containerDir))
 	args = append(args, "--workdir", containerDir)
 
-	// Shared volume
-	if cfg.Features.SharedVolume {
-		args = append(args, "--volume", sharedVolumeName+":"+sharedVolumeMount+":Z")
+	// Shared volume - mount each path as a subpath of the named volume
+	for _, path := range cfg.SharedVolume.Paths {
+		containerPath := resolveContainerPath(path, cfg.General.User)
+		// Skip invalid/relative paths
+		if containerPath == "" {
+			continue
+		}
+		// subpath is the path within the volume (without leading /)
+		subpath := strings.TrimPrefix(containerPath, "/")
+		args = append(args, "--mount", fmt.Sprintf("type=volume,source=%s,target=%s,subpath=%s,Z", cfg.getSharedVolumeName(), containerPath, subpath))
 	}
 
 	return args, nil
-}
-
-// sharedPathEntry holds pre-computed source and destination paths for a shared volume symlink.
-type sharedPathEntry struct {
-	Src   string
-	Dst   string
-	IsDir bool
-}
-
-// buildSharedVolumeEntries converts path strings to entries for creating symlinks in the container.
-// Paths ending with '/' are treated as directories; others as files.
-// $HOME prefixes are expanded to ${HOME} for shell-time substitution.
-func buildSharedVolumeEntries(paths []string) []sharedPathEntry {
-	entries := make([]sharedPathEntry, 0, len(paths))
-	for _, raw := range paths {
-		isDir := len(raw) > 0 && raw[len(raw)-1] == '/'
-		dst := strings.TrimRight(raw, "/")
-		var src string
-		if strings.HasPrefix(dst, "$HOME") {
-			src = sharedVolumeMount + "${HOME}" + dst[len("$HOME"):]
-		} else {
-			src = sharedVolumeMount + dst
-		}
-		entries = append(entries, sharedPathEntry{Src: src, Dst: dst, IsDir: isDir})
-	}
-	return entries
-}
-
-// hasSharedPaths checks if shared volume is enabled with at least one path.
-func hasSharedPaths(cfg Config) bool {
-	return cfg.Features.SharedVolume && len(cfg.SharedVolume.Paths) > 0
-}
-
-const setupScriptPath = "/silo/setup.sh"
-
-// setupContainer runs the setup script inside a running container.
-// The script itself handles the setup-done marker.
-func setupContainer(cfg Config) error {
-	if !hasSharedPaths(cfg) {
-		return nil
-	}
-	cmd := execCommand("podman", "exec", cfg.General.ContainerName, "bash", setupScriptPath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("container setup: %w", err)
-	}
-	return nil
 }
 
 // createContainer creates a new container. It does not start it.
@@ -194,7 +234,7 @@ func stopContainer(name string) error {
 	return nil
 }
 
-// --- ensure chain: ensureSetup → ensureStarted → ensureCreated → ensureBuilt → ensureInit ---
+// --- ensure chain: ensureInit → ensureBuilt → ensureCreated → ensureStarted ---
 
 // ensureInit initializes workspace config, workspace starter files, and
 // user starter files. It delegates user-file creation to ensureUserFiles so
@@ -253,6 +293,11 @@ func ensureCreated() (Config, error) {
 	return cfg, nil
 }
 
+// ensureVolumeSetup ensures directories exist on the shared volume.
+func ensureVolumeSetup(cfg Config) error {
+	return volumeSetup(cfg)
+}
+
 // ensureStarted ensures the container is running, starting it if needed.
 func ensureStarted() (Config, error) {
 	cfg, err := ensureCreated()
@@ -260,21 +305,12 @@ func ensureStarted() (Config, error) {
 		return cfg, fmt.Errorf("create container: %w", err)
 	}
 	if !containerRunning(cfg.General.ContainerName) {
+		if err := ensureVolumeSetup(cfg); err != nil {
+			return cfg, err
+		}
 		if err := startContainer(cfg.General.ContainerName); err != nil {
 			return cfg, fmt.Errorf("start container: %w", err)
 		}
-	}
-	return cfg, nil
-}
-
-// ensureSetup ensures the container is running and post-start setup has been applied.
-func ensureSetup() (Config, error) {
-	cfg, err := ensureStarted()
-	if err != nil {
-		return cfg, fmt.Errorf("start container: %w", err)
-	}
-	if err := setupContainer(cfg); err != nil {
-		return cfg, fmt.Errorf("setup container: %w", err)
 	}
 	return cfg, nil
 }
