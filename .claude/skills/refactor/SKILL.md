@@ -7,17 +7,21 @@ description: Refactor the current codebase for simplicity, readability, and cons
 
 Refactor the codebase.
 
+## Scope
+
+- User-provided scope takes priority (e.g., specific files, modules, or components)                                                    
+- If none provided: uncommitted changes
+- If no uncommitted changes: whole codebase   
+
 ## General rules
 
-1. Understand intent, constraints, success criteria
-2. Ask if anything is unclear - do not guess
-3. Track non-trivial steps with tasks
+1. Ask if anything is unclear - do not guess
+2. Track non-trivial steps with tasks
 
 ## Skill-specific rules
 
 - Never change functionality — stop and ask if behavior would change
 - Do not invent issues — if clean, move on
-- Check for uncommitted/staged changes in target files first
 
 ## Phase 1: Preparation
 

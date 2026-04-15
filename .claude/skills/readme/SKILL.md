@@ -7,16 +7,20 @@ description: Create or update a README for the current project based on its code
 
 Create a README for the project.
 
+## Scope
+
+- User-provided scope takes priority (e.g., section or topic)
+- If none provided, update the entire README
+
 ## General rules
 
-1. Understand intent, constraints, success criteria
-2. Ask if anything is unclear - do not guess
-3. Track non-trivial steps with tasks
+1. Ask if anything is unclear - do not guess
+2. Track non-trivial steps with tasks
 
 ## Skill-specific rules
 
-- No complex, nested sentences
-- Use CLI help (--help, -h) for usage docs
+- Avoid verbose, complex, nested sentences
+- Minimize implementation details in all sections **except** "How It Works"
 - Mark examples clearly
 
 ## Phase 1: Preparation
@@ -42,4 +46,4 @@ The README should contain:
 
 1. **Accuracy**: Ensure documented commands, flags, and paths match the actual code
 2. **Completeness**: Ensure all sections are covered
-3. **Readability**: Ensure no complex, nested sentences
+3. **Readability**: Avoid complex sentences
