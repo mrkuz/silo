@@ -13,7 +13,8 @@
         }
       },
       "extensions": [
-        "lfs.vscode-emacs-friendly"
+        "lfs.vscode-emacs-friendly",
+        "Anthropic.claude-code"
       ]
     }
   }

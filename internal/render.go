@@ -114,6 +114,7 @@ type TemplateContext struct {
 	WorkspaceMount    string
 	System            string
 	ContainerArgs     []string
+	DevcontainerArgs  []string
 	SharedVolumePaths []string // resolved container paths for subpath mounts
 }
 
@@ -143,6 +144,14 @@ func NewTemplateContext(cfg Config, containerNameSuffix ...string) (TemplateCont
 			sharedPaths[i] = ResolveContainerPath(path, cfg.General.User)
 		}
 	}
+	// Build devcontainer args: name, hostname, and security args (no --user for devcontainer)
+	devcontainerArgs := []string{"--name", containerName, "--hostname", containerName}
+	if cfg.Features.Podman {
+		devcontainerArgs = append(devcontainerArgs, "--security-opt", "label=disable", "--device", "/dev/fuse")
+	} else {
+		devcontainerArgs = append(devcontainerArgs, "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges")
+	}
+
 	return TemplateContext{
 		User:              cfg.General.User,
 		Home:              home,
@@ -153,6 +162,7 @@ func NewTemplateContext(cfg Config, containerNameSuffix ...string) (TemplateCont
 		WorkspaceMount:    workspaceMount,
 		System:            DetectNixSystem(),
 		ContainerArgs:     ContainerArgs(cfg, containerNameSuffix...),
+		DevcontainerArgs:  devcontainerArgs,
 		SharedVolumePaths: sharedPaths,
 	}, nil
 }

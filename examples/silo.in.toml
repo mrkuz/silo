@@ -9,9 +9,8 @@ podman = false
 name  = "silo-shared"
 paths = [
   "$HOME/.local/share/fish/fish_history",
-  "$HOME/.claude/",
-  "$HOME/.cache/uv/",
-  "$HOME/.local/share/uv/"
+  "$HOME/.claude.json",
+  "$HOME/.claude/"
 ]
 
 [create]

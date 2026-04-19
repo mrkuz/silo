@@ -6,29 +6,44 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Silo is a Go CLI tool for creating per-directory developer sandbox containers powered by Podman, Nix, and home-manager. It provides isolated development environments with persistent shared storage across workspaces.
 
+Requires Go 1.23+ and Podman.
+
 ## Build and Test Commands
 
 ```bash
-go build .             # Build binary
-go install .           # Install to $GOPATH/bin
-go test ./...          # Run all tests
+go build .              # Build binary
+go install .            # Install to $GOPATH/bin
+go test ./...           # Run all tests
+go test ./internal      # Run internal package tests
+go test ./cmd           # Run cmd package tests
+go test ./features      # Run feature spec tests
 go test -run TestName  # Run a single test
+go vet ./...            # Run static analysis
 ```
-
-Requires Go 1.23+ and Podman.
 
 ## Architecture
 
-**Single-package design** — all source lives in `package main` with no internal packages.
+**Package structure:**
+- `main.go` — CLI entry point and command dispatcher (package main)
+- `cmd/` — Command implementations (package cmd)
+- `internal/` — Helpers, config, container operations (package internal)
+- `features/` — BDD-style feature spec tests (package features_test)
 
-**Key files:**
-- `main.go` — CLI entry point and command dispatcher
-- `commands.go` — Command implementations (`cmdInit`, `cmdCreate`, etc.)
-- `config.go` — TOML configuration management (user + workspace tier) and workspace initialization
-- `container.go` — Podman container lifecycle and the `ensure*` chain
-- `build.go` — Two-stage image build (user image + workspace image)
-- `devcontainer.go` — VS Code devcontainer.json generation with recursive JSON merge
-- `render.go` — Embedded Go template rendering (`//go:embed templates/`)
+**Key files in `cmd/`:**
+- `init.go` — `Init`, `UserInit`, `VolumeSetup`, `ParseInitFlags`
+- `run.go` — `Run`, `Connect`, `Exec`, `ParseRunFlags`
+- `stop.go` — `Stop`, `Status`, `Remove`, `RemoveImage`, `UserRmi`
+- `create.go` — `Create`, `Start`, `ParseCreateFlags`
+- `build.go` — `Build`, `UserBuild`
+- `devcontainer.go` — `DevcontainerGenerate`, `DevcontainerStop`, etc.
+
+**Key files in `internal/`:**
+- `config.go` — Config types, `ParseTOML`, `EnsureInit`, `EnsureBuilt`, etc.
+- `container.go` — Container operations, `execCommand` seam
+- `build.go` — `DetectNixSystem`, `ImageExists`, `BuildUserImage`, `BuildWorkspaceImage`
+- `devcontainer.go` — `DevcontainerGenerate`, `DeepMergeJSON`
+- `render.go` — Template rendering, `TemplateContext`, `HomeUserNix`
+- `testutil.go` — Test helpers: `MockExecCommand`, `SetupWorkspace`, `MinimalConfig`
 
 **Lifecycle chain** (each step depends on the ones before it):
 ```
@@ -37,13 +52,11 @@ init → build → create → start → connect
 
 Note: `start` internally runs `volume setup` before starting the container.
 
-**`silo init` flags** use tri-state booleans (`--podman`/`--no-podman`, `--shared-volume`/`--no-shared-volume`). Flags not provided leave the config value unchanged; provided flags override the `silo.in.toml` default. Config is written only on first run.
-
-**The `ensure*` chain** in `container.go` provides lazy initialization:
-- `ensureInit` → initializes config and creates starter files
-- `ensureBuilt` → ensures images exist (builds if missing)
-- `ensureCreated` → ensures container exists (creates if missing)
-- `ensureStarted` → ensures container is running, also calls `ensureVolumeSetup` to create directories on the shared volume
+**The `Ensure*` chain** provides lazy initialization:
+- `EnsureInit` → initializes config and creates starter files
+- `EnsureBuilt` → ensures images exist (builds if missing)
+- `EnsureCreated` → ensures container exists (creates if missing)
+- `EnsureStarted` → ensures container is running, calls `VolumeSetup` to create directories on the shared volume
 
 **Configuration hierarchy** (later overrides earlier):
 1. Built-in defaults
@@ -51,13 +64,13 @@ Note: `start` internally runs `volume setup` before starting the container.
 3. Workspace config at `.silo/silo.toml`
 4. Runtime flags
 
-**Templates** in `templates/` are embedded via `//go:embed` and rendered with `text/template`.
+**Templates** in `templates/` are rendered using `text/template`. Path resolution uses `runtime.Caller(0)` to find the module root for both development and test execution.
 
 **Two-stage image build:**
 1. User image (`silo-<user>`): Alpine + Nix + home-manager, shared across workspaces
 2. Workspace image (`silo-<id>`): Layered on user image with workspace-specific `home.nix`
 
-**Shared volume:** The `silo-shared` named volume is mounted as subpath volumes at container paths (e.g., `/home/<user>/.cache/uv`). Paths in `[shared_volume]` are created on the volume before container start via `ensureVolumeSetup`.
+**Shared volume:** The `silo-shared` named volume is mounted as subpath volumes at container paths (e.g., `/home/<user>/.cache/uv`). Paths in `[shared_volume]` are created on the volume before container start via `VolumeSetup`.
 
 **Devcontainer merge:** `silo devcontainer` recursively merges `$XDG_CONFIG_HOME/silo/devcontainer.in.json` into generated `.devcontainer.json`.
 
@@ -72,14 +85,16 @@ Match the formatting in `examples/silo.in.toml`:
 
 ## Testing
 
-Tests use a mock runner (`mock_test.go`) to stub Podman commands. The `var execCommand = exec.Command` seam in `container.go` is swapped by `mockExecCommand` in tests, which records calls and returns preset responses keyed by the full command string.
+Tests use a mock runner (`internal/testutil.go`) to stub Podman commands. The `var execCommand = exec.Command` seam in `internal/container.go` is swapped by `MockExecCommand` in tests, which records calls and returns preset responses keyed by the full command string.
 
-**Do not use `t.Parallel()`** — tests call `os.Chdir` to a temp workspace, which is process-global. Use `setupWorkspace` for chdir and cleanup.
+**Do not use `t.Parallel()`** — tests call `os.Chdir` to a temp workspace, which is process-global. Use `SetupWorkspace` for chdir and cleanup.
 
-Key test helpers in `mock_test.go`:
-- `mockExecCommand(t, responses)` — installs mock, returns `*[]cmdCall` recorder
-- `setupWorkspace(t, cfg)` — creates temp dir with `.silo/silo.toml`, chdirs into it
-- `setupUserConfig(t)` — sets `XDG_CONFIG_HOME` to temp dir with starter files
-- `minimalConfig(id)` — returns a test-ready `Config` struct
+Key test helpers in `internal/testutil.go`:
+- `MockExecCommand(t, responses)` — installs mock, returns `*[]TestCmdCall` recorder
+- `SetupWorkspace(t, cfg)` — creates temp dir with `.silo/silo.toml`, chdirs into it
+- `SetupUserConfig(t)` — sets `XDG_CONFIG_HOME` to temp dir with starter files
+- `MinimalConfig(id)` — returns a test-ready `Config` struct
+
+Feature spec tests in `features/` use BDD-style `t.Run` nesting.
 
 Check existing patterns in `*_test.go` before adding new tests.

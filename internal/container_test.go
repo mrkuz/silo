@@ -231,7 +231,7 @@ func TestVolumeSetup(t *testing.T) {
 		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 		calls := MockExecCommand(t, map[string]*exec.Cmd{})
 		_ = VolumeSetup(cfg)
-		if !AnyCall(calls, "podman", "run", "--rm", "-v", "silo-shared:/silo/shared:Z", "silo-testuser", "sh", "-c") {
+		if !AnyCall(calls, "podman", "run", "--rm", "-v", "silo-shared:/silo/shared:z", "silo-testuser", "sh", "-c") {
 			t.Errorf("expected podman run for volume setup, got %v", *calls)
 		}
 	})

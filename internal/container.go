@@ -77,7 +77,7 @@ func VolumeSetup(cfg Config) error {
 			mkdirCmd.WriteString("mkdir -p $(dirname " + volPath + ") && touch " + volPath + " && chmod 644 " + volPath)
 		}
 	}
-	cmd := execCommand("podman", "run", "--rm", "-v", cfg.GetSharedVolumeName()+":"+volumeMountPath+":Z", userImage, "sh", "-c", mkdirCmd.String())
+	cmd := execCommand("podman", "run", "--rm", "-v", cfg.GetSharedVolumeName()+":"+volumeMountPath+":z", userImage, "sh", "-c", mkdirCmd.String())
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -175,7 +175,7 @@ func BuildContainerArgs(cfg Config) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get workspace mount path: %w", err)
 	}
-	args = append(args, "--volume", fmt.Sprintf("%s:%s:Z", hostDir, containerDir))
+	args = append(args, "--volume", fmt.Sprintf("%s:%s:z", hostDir, containerDir))
 	args = append(args, "--workdir", containerDir)
 
 	// Shared volume - mount each path as a subpath of the named volume

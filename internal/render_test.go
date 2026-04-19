@@ -118,10 +118,10 @@ func TestRenderWorkspaceHomeNix(t *testing.T) {
 
 func TestRenderDevcontainerJSON(t *testing.T) {
 	tc := TemplateContext{
-		Image:         "silo-abc12345",
-		User:          "alice",
-		ContainerName: "silo-abc12345-dev",
-		ContainerArgs: []string{"--cap-drop=ALL"},
+		Image:            "silo-abc12345",
+		User:             "alice",
+		ContainerName:    "silo-abc12345-dev",
+		DevcontainerArgs: []string{"--name", "silo-abc12345-dev", "--hostname", "silo-abc12345-dev", "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"},
 	}
 	out, err := RenderTemplate("devcontainer.json.tmpl", tc)
 	if err != nil {
@@ -157,11 +157,11 @@ func TestRenderDevcontainerJSON(t *testing.T) {
 
 func TestRenderDevcontainerJSONWithSharedVolume(t *testing.T) {
 	tc := TemplateContext{
-		Image:             "silo-abc12345",
-		User:              "alice",
-		ContainerName:     "silo-abc12345-dev",
-		ContainerArgs:     []string{"--cap-drop=ALL"},
-		SharedVolumeName:  "silo-shared",
+		Image:            "silo-abc12345",
+		User:             "alice",
+		ContainerName:    "silo-abc12345-dev",
+		DevcontainerArgs: []string{"--name", "silo-abc12345-dev", "--hostname", "silo-abc12345-dev", "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"},
+		SharedVolumeName: "silo-shared",
 		SharedVolumePaths: []string{"/home/alice/.cache/uv", "/home/alice/.config/nvim"},
 	}
 	out, err := RenderTemplate("devcontainer.json.tmpl", tc)
@@ -279,11 +279,11 @@ func TestNewTemplateContextWorkspaceMount(t *testing.T) {
 
 func TestRenderDevcontainerJSONWorkspaceMount(t *testing.T) {
 	tc := TemplateContext{
-		Image:          "silo-abc12345",
-		User:           "alice",
-		ContainerName: "silo-abc12345-dev",
-		ContainerArgs:  []string{"--cap-drop=ALL"},
-		WorkspaceMount: "/workspace/abc12345/myproject",
+		Image:            "silo-abc12345",
+		User:             "alice",
+		ContainerName:    "silo-abc12345-dev",
+		DevcontainerArgs: []string{"--name", "silo-abc12345-dev", "--hostname", "silo-abc12345-dev", "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"},
+		WorkspaceMount:   "/workspace/abc12345/myproject",
 	}
 	out, err := RenderTemplate("devcontainer.json.tmpl", tc)
 	if err != nil {
@@ -296,7 +296,7 @@ func TestRenderDevcontainerJSONWorkspaceMount(t *testing.T) {
 	if got := parsed["workspaceFolder"]; got != "/workspace/abc12345/myproject" {
 		t.Errorf("workspaceFolder = %q, want %q", got, "/workspace/abc12345/myproject")
 	}
-	wantMount := "source=${localWorkspaceFolder},target=/workspace/abc12345/myproject,type=bind,Z"
+	wantMount := "source=${localWorkspaceFolder},target=/workspace/abc12345/myproject,type=bind,z"
 	if got := parsed["workspaceMount"]; got != wantMount {
 		t.Errorf("workspaceMount = %q, want %q", got, wantMount)
 	}

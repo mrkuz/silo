@@ -21,6 +21,7 @@ in
       file
       httpie
       iftop
+      nano
       ncdu
       pstree
       pwgen
@@ -110,6 +111,6 @@ in
 
   programs.claude-code = {
     enable = true;
-    package = pkgs.claude-code-bun;
+    package = pkgs.claude-code;
   };
 }

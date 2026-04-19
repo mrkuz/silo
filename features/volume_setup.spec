@@ -16,7 +16,7 @@ Feature: silo volume setup — Create directories on the shared volume
       Given the config has shared_volume=true with paths ["$HOME/.cache/uv/"]
       And the user image "silo-alice" exists
       When I run `silo volume setup`
-      Then podman should run "run" with "--rm" and volume "silo-shared:/silo/shared:Z"
+      Then podman should run "run" with "--rm" and volume "silo-shared:/silo/shared:z"
       And the run command should create "/silo/shared/home/alice/.cache/uv" as a directory with mode 755
       And the output should contain "volume setup complete"
       And the exit code should be 0
@@ -25,7 +25,7 @@ Feature: silo volume setup — Create directories on the shared volume
       Given the config has shared_volume=true with paths ["$HOME/.cache/uv/", "$HOME/.local/share/fish/fish_history"]
       And the user image "silo-alice" exists
       When I run `silo volume setup`
-      Then podman should run "run" with "--rm" and volume "silo-shared:/silo/shared:Z"
+      Then podman should run "run" with "--rm" and volume "silo-shared:/silo/shared:z"
       And the run command should create "/silo/shared/home/alice/.cache/uv" as a directory with mode 755
       And the run command should create "/silo/shared/home/alice/.local/share/fish/fish_history" as a file with mode 644
       And the exit code should be 0

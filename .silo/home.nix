@@ -4,6 +4,7 @@
   ...
 }:
 {
+  module.podman.enable = false;
   programs.go.enable = true;
   home.packages = with pkgs; [
     golangci-lint

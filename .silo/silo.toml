@@ -1,18 +1,19 @@
 [general]
-  id = "xqmrs9xj"
-  user = "markus"
-  container_name = "silo-xqmrs9xj"
-  image_name = "silo-xqmrs9xj"
+id = "xqmrs9xj"
+user = "markus"
+container_name = "silo-xqmrs9xj"
+image_name = "silo-xqmrs9xj"
 
 [features]
-  shared_volume = true
-  nested = false
+shared_volume = true
+podman = false
 
 [shared_volume]
-  paths = ["$HOME/.local/share/fish/fish_history", "$HOME/.cache/opencode/", "$HOME/.local/share/opencode/", "$HOME/.local/state/opencode/", "$HOME/.cache/uv/", "$HOME/.local/share/uv/"]
+name = "silo-shared"
+paths = ["$HOME/.local/share/fish/fish_history", "$HOME/.claude.json", "$HOME/.claude/"]
 
 [connect]
-  command = "fish --login"
+command = "fish --login"
 
 [create]
-  extra_args = []
+arguments = ["--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"]
