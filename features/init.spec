@@ -98,9 +98,9 @@ Feature: silo init — Initialize workspace
         arguments = ["--memory=2g"]
         """
       When I run `silo init`
-      Then the workspace config should have 4 create arguments
+      Then the workspace config should have 5 create arguments
       And the first create argument should be "--memory=2g"
-      And the last create argument should be "--cap-drop=ALL"
+      And the second create argument should be "--cap-drop=ALL"
 
   Rule: Explicit flags override existing config
 

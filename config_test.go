@@ -417,7 +417,7 @@ func TestEnsureInitError(t *testing.T) {
 		}
 
 		setupUserConfig(t)
-		_, _, err := ensureInit(false)
+		_, _, err := ensureInit(nil)
 		if err == nil {
 			t.Error("expected error when workspace files cannot be created")
 		}

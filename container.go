@@ -239,22 +239,25 @@ func stopContainer(name string) error {
 // ensureInit initializes workspace config, workspace starter files, and
 // user starter files. It delegates user-file creation to ensureUserFiles so
 // `silo init` and `silo user init` share a single implementation.
-// If podman is true, .silo/home.nix will include module.podman.enable = true.
-func ensureInit(podman bool) (Config, bool, error) {
+// If podman is non-nil, .silo/home.nix will include module.podman.enable based on the value.
+// If podman is nil, the podman setting seeded from silo.in.toml is preserved.
+func ensureInit(podman *bool) (Config, bool, error) {
 	cfg, firstRun, err := initWorkspaceConfig()
 	if err != nil {
 		return cfg, firstRun, fmt.Errorf("initialize workspace configuration: %w", err)
 	}
-	if err := ensureWorkspaceFiles(podman); err != nil {
+	if err := ensureWorkspaceFiles(podman != nil && *podman); err != nil {
 		return cfg, firstRun, fmt.Errorf("ensure workspace files: %w", err)
 	}
 	if err := ensureUserFiles(); err != nil {
 		return cfg, firstRun, fmt.Errorf("ensure user files: %w", err)
 	}
 	if firstRun {
-		cfg.Features.Podman = podman
+		if podman != nil {
+			cfg.Features.Podman = *podman
+		}
 		var defaultArgs []string
-		if podman {
+		if cfg.Features.Podman {
 			defaultArgs = []string{"--security-opt", "label=disable", "--device", "/dev/fuse"}
 		} else {
 			defaultArgs = []string{"--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"}
@@ -269,7 +272,7 @@ func ensureInit(podman bool) (Config, bool, error) {
 
 // ensureBuilt ensures images exist, building them if needed.
 func ensureBuilt() (Config, error) {
-	cfg, _, err := ensureInit(false)
+	cfg, _, err := ensureInit(nil)
 	if err != nil {
 		return cfg, fmt.Errorf("initialize workspace: %w", err)
 	}

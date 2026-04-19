@@ -123,7 +123,7 @@ func runBuild(tag string, files map[string][]byte) error {
 
 // cmdBuild implements `silo build`. Builds the workspace image if missing.
 func cmdBuild() error {
-	cfg, _, err := ensureInit(false)
+	cfg, _, err := ensureInit(nil)
 	if err != nil {
 		return fmt.Errorf("initialize workspace: %w", err)
 	}

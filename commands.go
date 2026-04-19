@@ -23,13 +23,8 @@ func cmdInit(args []string) error {
 		}
 	}
 
-	// Extract podman flag before calling ensureInit so it can be used when creating user files
-	podman := false
-	if flags.podman != nil {
-		podman = *flags.podman
-	}
-
-	_, _, err = ensureInit(podman)
+	// Pass podman flag directly to ensureInit so it can preserve seeded value when nil
+	_, _, err = ensureInit(flags.podman)
 	if err != nil {
 		return fmt.Errorf("initialize workspace: %w", err)
 	}
