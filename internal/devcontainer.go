@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"encoding/json"
@@ -11,30 +11,30 @@ import (
 const devContainerSuffix = "-dev"
 const devcontainerFileMode = 0644
 
-// devContainerName returns the devcontainer name for the given config.
-func devContainerName(cfg Config) string {
-	return containerNameWithSuffix(cfg.General.ContainerName, devContainerSuffix)
+// DevContainerName returns the devcontainer name for the given config.
+func DevContainerName(cfg Config) string {
+	return ContainerNameWithSuffix(cfg.General.ContainerName, devContainerSuffix)
 }
 
-// cmdDevcontainerGenerate generates a .devcontainer.json for VS Code.
-func cmdDevcontainerGenerate() error {
-	cfg, err := requireWorkspaceConfig()
+// DevcontainerGenerate generates a .devcontainer.json for VS Code.
+func DevcontainerGenerate() error {
+	cfg, err := RequireWorkspaceConfig()
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
 
 	// Ensure volume directories exist before generating devcontainer.json
 	if cfg.Features.SharedVolume && len(cfg.SharedVolume.Paths) > 0 {
-		if err := volumeSetup(cfg); err != nil {
+		if err := VolumeSetup(cfg); err != nil {
 			return fmt.Errorf("volume setup: %w", err)
 		}
 	}
 
-	tc, err := newTemplateContext(cfg, devContainerSuffix)
+	tc, err := NewTemplateContext(cfg, devContainerSuffix)
 	if err != nil {
 		return fmt.Errorf("build template context: %w", err)
 	}
-	content, err := renderTemplate("devcontainer.json.tmpl", tc)
+	content, err := RenderTemplate("devcontainer.json.tmpl", tc)
 	if err != nil {
 		return fmt.Errorf("render devcontainer.json template: %w", err)
 	}
@@ -45,7 +45,7 @@ func cmdDevcontainerGenerate() error {
 		return nil
 	}
 
-	userDC, err := loadDevcontainerInJSON()
+	userDC, err := LoadDevcontainerInJSON()
 	if err != nil {
 		return fmt.Errorf("load devcontainer input file: %w", err)
 	}
@@ -54,7 +54,7 @@ func cmdDevcontainerGenerate() error {
 		if err := json.Unmarshal(content, &generated); err != nil {
 			return fmt.Errorf("parse generated devcontainer.json: %w", err)
 		}
-		merged := deepMergeJSON(userDC, generated)
+		merged := DeepMergeJSON(userDC, generated)
 		content, err = json.MarshalIndent(merged, "", "  ")
 		if err != nil {
 			return fmt.Errorf("marshal devcontainer.json: %w", err)
@@ -68,55 +68,51 @@ func cmdDevcontainerGenerate() error {
 	return nil
 }
 
-// cmdDevcontainerStop implements `silo devcontainer stop`.
-func cmdDevcontainerStop() error {
-	cfg, err := requireWorkspaceConfig()
+// DevcontainerStop implements `silo devcontainer stop`.
+func DevcontainerStop() error {
+	cfg, err := RequireWorkspaceConfig()
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
-	name := devContainerName(cfg)
-	if !containerRunning(name) {
+	name := DevContainerName(cfg)
+	if !ContainerRunning(name) {
 		fmt.Printf("%s is not running\n", name)
 		return nil
 	}
-	if err := stopContainer(name); err != nil {
+	if err := StopContainer(name); err != nil {
 		return fmt.Errorf("stop container: %w", err)
 	}
 	return nil
 }
 
-// cmdDevcontainerStatus implements `silo devcontainer status`.
-func cmdDevcontainerStatus() error {
-	cfg, err := requireWorkspaceConfig()
+// DevcontainerStatus implements `silo devcontainer status`.
+func DevcontainerStatus() error {
+	cfg, err := RequireWorkspaceConfig()
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
-	name := devContainerName(cfg)
-	printRunningStatus(containerRunning(name))
+	name := DevContainerName(cfg)
+	PrintRunningStatus(ContainerRunning(name))
 	return nil
 }
 
-// cmdDevcontainerRemove implements `silo devcontainer rm [-f|--force]`.
-func cmdDevcontainerRemove(args []string) error {
-	force, err := parseDevcontainerRemoveFlags(args)
-	if err != nil {
-		return fmt.Errorf("parse devcontainer rm flags: %w", err)
-	}
-	cfg, err := requireWorkspaceConfig()
+// DevcontainerRemove implements `silo devcontainer rm [-f|--force]`.
+func DevcontainerRemove(force bool) error {
+	cfg, err := RequireWorkspaceConfig()
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
-	name := devContainerName(cfg)
-	if err := removeNamedContainer(name, force); err != nil {
+	name := DevContainerName(cfg)
+	if err := RemoveNamedContainer(name, force); err != nil {
 		return err
 	}
 	return nil
 }
 
-// loadDevcontainerInJSON reads the user devcontainer input file.
+// LoadDevcontainerInJSON reads the user devcontainer input file.
 // Returns an empty map if the file does not exist.
-func loadDevcontainerInJSON() (map[string]any, error) {
-	dir, err := userConfigDir()
+func LoadDevcontainerInJSON() (map[string]any, error) {
+	dir, err := UserConfigDir()
 	if err != nil {
 		return nil, fmt.Errorf("get user config directory: %w", err)
 	}
@@ -135,7 +131,8 @@ func loadDevcontainerInJSON() (map[string]any, error) {
 	return m, nil
 }
 
-func deepMergeJSON(base, input map[string]any) map[string]any {
+// DeepMergeJSON performs a deep merge of two maps.
+func DeepMergeJSON(base, input map[string]any) map[string]any {
 	result := make(map[string]any, len(base))
 	for k, v := range base {
 		result[k] = v
@@ -143,7 +140,7 @@ func deepMergeJSON(base, input map[string]any) map[string]any {
 	for k, v := range input {
 		if om, ok := v.(map[string]any); ok {
 			if bm, ok := result[k].(map[string]any); ok {
-				result[k] = deepMergeJSON(bm, om)
+				result[k] = DeepMergeJSON(bm, om)
 				continue
 			}
 		}

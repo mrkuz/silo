@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"os"
@@ -8,13 +8,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 )
-
-// tomlEncode is a test helper that encodes a Config to a file using BurntSushi/toml.
-func tomlEncode(f *os.File, c Config) error {
-	enc := toml.NewEncoder(f)
-	enc.Indent = ""
-	return enc.Encode(c)
-}
 
 func TestGenerateID(t *testing.T) {
 	id := generateID()
@@ -34,7 +27,7 @@ func TestGenerateID(t *testing.T) {
 }
 
 func TestBaseImageName(t *testing.T) {
-	if got := baseImageName("alice"); got != "silo-alice" {
+	if got := BaseImageName("alice"); got != "silo-alice" {
 		t.Errorf("got %q, want %q", got, "silo-alice")
 	}
 }
@@ -63,19 +56,17 @@ func TestTOMLRoundtrip(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	// Temporarily override siloDir/siloToml is not possible without refactor;
-	// use parseTOML directly with a temp file.
 	f, err := os.CreateTemp(tmpDir, "silo-test-*.toml")
 	if err != nil {
 		t.Fatal(err)
 	}
 	path := f.Name()
-	if err := tomlEncode(f, original); err != nil {
+	if err := toml.NewEncoder(f).Encode(original); err != nil {
 		t.Fatal(err)
 	}
 	f.Close()
 
-	parsed, err := parseTOML(path)
+	parsed, err := ParseTOML(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,12 +112,12 @@ func TestTOMLEmptyArguments(t *testing.T) {
 	}
 	defer os.Remove(f.Name())
 
-	if err := tomlEncode(f, cfg); err != nil {
+	if err := toml.NewEncoder(f).Encode(cfg); err != nil {
 		t.Fatal(err)
 	}
 	f.Close()
 
-	parsed, err := parseTOML(f.Name())
+	parsed, err := ParseTOML(f.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +130,7 @@ func TestTOMLEmptyArguments(t *testing.T) {
 }
 
 func TestDefaultConfig(t *testing.T) {
-	cfg, err := defaultConfig()
+	cfg, err := DefaultConfig()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -172,7 +163,7 @@ func TestDefaultConfig(t *testing.T) {
 func TestLoadSiloInTOML(t *testing.T) {
 	t.Run("returns empty config when file absent", func(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-		cfg, err := loadSiloInTOML()
+		cfg, err := LoadSiloInTOML()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -192,7 +183,7 @@ func TestLoadSiloInTOML(t *testing.T) {
 		if err := os.WriteFile(siloConfigPath, content, 0644); err != nil {
 			t.Fatal(err)
 		}
-		cfg, err := loadSiloInTOML()
+		cfg, err := LoadSiloInTOML()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -214,7 +205,7 @@ func TestLoadSiloInTOML(t *testing.T) {
 		if err := os.WriteFile(siloConfigPath, []byte("invalid = [toml"), 0644); err != nil {
 			t.Fatal(err)
 		}
-		_, err := loadSiloInTOML()
+		_, err := LoadSiloInTOML()
 		if err == nil {
 			t.Error("expected error for malformed TOML")
 		}
@@ -224,7 +215,7 @@ func TestLoadSiloInTOML(t *testing.T) {
 func TestUserConfigDir(t *testing.T) {
 	t.Run("uses XDG_CONFIG_HOME when set", func(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", "/tmp/xdg-test")
-		got, err := userConfigDir()
+		got, err := UserConfigDir()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -235,7 +226,7 @@ func TestUserConfigDir(t *testing.T) {
 
 	t.Run("falls back to HOME/.config/silo", func(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", "")
-		got, err := userConfigDir()
+		got, err := UserConfigDir()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -249,7 +240,7 @@ func TestEnsureFile(t *testing.T) {
 	t.Run("creates file when absent", func(t *testing.T) {
 		dir := t.TempDir()
 		path := dir + "/sub/file.txt"
-		if err := ensureFile(path, []byte("hello")); err != nil {
+		if err := EnsureFile(path, []byte("hello")); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		got, err := os.ReadFile(path)
@@ -267,7 +258,7 @@ func TestEnsureFile(t *testing.T) {
 		if err := os.WriteFile(path, []byte("original"), 0644); err != nil {
 			t.Fatal(err)
 		}
-		if err := ensureFile(path, []byte("new")); err != nil {
+		if err := EnsureFile(path, []byte("new")); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		got, err := os.ReadFile(path)
@@ -282,13 +273,13 @@ func TestEnsureFile(t *testing.T) {
 
 func TestInitWorkspaceConfig(t *testing.T) {
 	t.Run("first run: creates .silo/silo.toml with generated ID", func(t *testing.T) {
-		setupUserConfig(t)
-		setupWorkspace(t, Config{}) // write an *empty* silo.toml so setupWorkspace doesn't interfere
+		SetupUserConfig(t)
+		SetupWorkspace(t, Config{}) // write an *empty* silo.toml so setupWorkspace doesn't interfere
 		// Remove the file so we simulate a true first run.
-		os.Remove(siloToml)
-		os.Remove(siloDir) // remove dir too so it is recreated
+		os.Remove(SiloToml())
+		os.Remove(SiloDir()) // remove dir too so it is recreated
 
-		cfg, firstRun, err := initWorkspaceConfig()
+		cfg, firstRun, err := InitWorkspaceConfig()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -321,7 +312,7 @@ func TestInitWorkspaceConfig(t *testing.T) {
 		t.Cleanup(func() { os.Chdir(orig) })
 		os.Chdir(dir)
 
-		cfg, firstRun, err := initWorkspaceConfig()
+		cfg, firstRun, err := InitWorkspaceConfig()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -334,12 +325,12 @@ func TestInitWorkspaceConfig(t *testing.T) {
 	})
 
 	t.Run("second run: existing silo.toml is loaded unchanged", func(t *testing.T) {
-		existing := minimalConfig("deadbeef")
+		existing := MinimalConfig("deadbeef")
 		existing.Connect.Command = "/usr/bin/zsh"
-		setupWorkspace(t, existing)
-		setupUserConfig(t)
+		SetupWorkspace(t, existing)
+		SetupUserConfig(t)
 
-		cfg, firstRun, err := initWorkspaceConfig()
+		cfg, firstRun, err := InitWorkspaceConfig()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -359,7 +350,7 @@ func TestEnsureUserFiles(t *testing.T) {
 	t.Run("creates user files when absent", func(t *testing.T) {
 		base := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", base)
-		if err := ensureUserFiles(); err != nil {
+		if err := EnsureUserFiles(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		dir := filepath.Join(base, "silo")
@@ -378,7 +369,7 @@ func TestEnsureUserFiles(t *testing.T) {
 		sentinel := []byte("# custom\n")
 		os.WriteFile(filepath.Join(dir, "home-user.nix"), sentinel, 0644)
 
-		if err := ensureUserFiles(); err != nil {
+		if err := EnsureUserFiles(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		got, _ := os.ReadFile(filepath.Join(dir, "home-user.nix"))
@@ -392,7 +383,7 @@ func TestEnsureUserFilesError(t *testing.T) {
 	t.Run("returns error when user config directory cannot be created", func(t *testing.T) {
 		// Set XDG_CONFIG_HOME to a path in a non-existent directory to force failure
 		t.Setenv("XDG_CONFIG_HOME", "/nonexistent/deeply/nested/path")
-		err := ensureUserFiles()
+		err := EnsureUserFiles()
 		if err == nil {
 			t.Error("expected error when user config directory is inaccessible")
 		}
@@ -401,23 +392,23 @@ func TestEnsureUserFilesError(t *testing.T) {
 
 func TestEnsureInitError(t *testing.T) {
 	t.Run("returns error when workspace files cannot be created", func(t *testing.T) {
-		// Create a read-only directory to force ensureWorkspaceFiles to fail
+		// Create a read-only directory to force EnsureWorkspaceFiles to fail
 		dir := t.TempDir()
 		orig, _ := os.Getwd()
 		t.Cleanup(func() { os.Chdir(orig) })
 		os.Chdir(dir)
 
 		// Create .silo as a file (not directory) to cause mkdirall to fail
-		if err := os.WriteFile(siloDir, []byte("x"), 0644); err != nil {
+		if err := os.WriteFile(SiloDir(), []byte("x"), 0644); err != nil {
 			t.Fatal(err)
 		}
 		// Make it read-only
-		if err := os.Chmod(siloDir, 0444); err != nil {
+		if err := os.Chmod(SiloDir(), 0444); err != nil {
 			t.Fatal(err)
 		}
 
-		setupUserConfig(t)
-		_, _, err := ensureInit(nil)
+		SetupUserConfig(t)
+		_, _, err := EnsureInit(nil)
 		if err == nil {
 			t.Error("expected error when workspace files cannot be created")
 		}
@@ -426,36 +417,36 @@ func TestEnsureInitError(t *testing.T) {
 
 func TestEnsureWorkspaceFiles(t *testing.T) {
 	t.Run("creates workspace home.nix when absent", func(t *testing.T) {
-		setupWorkspace(t, minimalConfig("abc12345"))
-		os.Remove(filepath.Join(siloDir, "home.nix"))
-		if err := ensureWorkspaceFiles(false); err != nil {
+		SetupWorkspace(t, MinimalConfig("abc12345"))
+		os.Remove(filepath.Join(SiloDir(), "home.nix"))
+		if err := EnsureWorkspaceFiles(false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if _, err := os.Stat(filepath.Join(siloDir, "home.nix")); os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(SiloDir(), "home.nix")); os.IsNotExist(err) {
 			t.Error("expected .silo/home.nix to be created")
 		}
 	})
 
 	t.Run("does not overwrite existing .silo/home.nix", func(t *testing.T) {
-		setupWorkspace(t, minimalConfig("abc12345"))
+		SetupWorkspace(t, MinimalConfig("abc12345"))
 		sentinel := []byte("# custom\n")
-		os.WriteFile(filepath.Join(siloDir, "home.nix"), sentinel, 0644)
-		if err := ensureWorkspaceFiles(false); err != nil {
+		os.WriteFile(filepath.Join(SiloDir(), "home.nix"), sentinel, 0644)
+		if err := EnsureWorkspaceFiles(false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		got, _ := os.ReadFile(filepath.Join(siloDir, "home.nix"))
+		got, _ := os.ReadFile(filepath.Join(SiloDir(), "home.nix"))
 		if string(got) != string(sentinel) {
 			t.Errorf("workspace home.nix was overwritten")
 		}
 	})
 
 	t.Run("podman=true creates workspace home.nix with podman enabled", func(t *testing.T) {
-		setupWorkspace(t, minimalConfig("abc12345"))
-		os.Remove(filepath.Join(siloDir, "home.nix"))
-		if err := ensureWorkspaceFiles(true); err != nil {
+		SetupWorkspace(t, MinimalConfig("abc12345"))
+		os.Remove(filepath.Join(SiloDir(), "home.nix"))
+		if err := EnsureWorkspaceFiles(true); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		content, err := os.ReadFile(filepath.Join(siloDir, "home.nix"))
+		content, err := os.ReadFile(filepath.Join(SiloDir(), "home.nix"))
 		if err != nil {
 			t.Fatalf("failed to read workspace home.nix: %v", err)
 		}
@@ -465,12 +456,12 @@ func TestEnsureWorkspaceFiles(t *testing.T) {
 	})
 
 	t.Run("podman=false creates workspace home.nix with podman disabled", func(t *testing.T) {
-		setupWorkspace(t, minimalConfig("abc12345"))
-		os.Remove(filepath.Join(siloDir, "home.nix"))
-		if err := ensureWorkspaceFiles(false); err != nil {
+		SetupWorkspace(t, MinimalConfig("abc12345"))
+		os.Remove(filepath.Join(SiloDir(), "home.nix"))
+		if err := EnsureWorkspaceFiles(false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		content, err := os.ReadFile(filepath.Join(siloDir, "home.nix"))
+		content, err := os.ReadFile(filepath.Join(SiloDir(), "home.nix"))
 		if err != nil {
 			t.Fatalf("failed to read workspace home.nix: %v", err)
 		}
@@ -486,19 +477,45 @@ func TestSaveWorkspaceConfigTOMLFormat(t *testing.T) {
 	t.Cleanup(func() { os.Chdir(orig) })
 	os.Chdir(dir)
 
-	cfg := minimalConfig("abc12345")
+	cfg := MinimalConfig("abc12345")
 	cfg.Connect.Command = "fish --login"
 	cfg.Features.SharedVolume = true
 	cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/", "$HOME/.local/share/opencode/"}
-	if err := cfg.saveWorkspaceConfig(); err != nil {
+	if err := cfg.SaveWorkspaceConfig(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	raw, err := os.ReadFile(siloToml)
+	raw, err := os.ReadFile(SiloToml())
 	if err != nil {
 		t.Fatalf("read silo.toml: %v", err)
 	}
 	assertTOMLFormat(t, string(raw))
+}
+
+func TestSaveWorkspaceConfigNilGuards(t *testing.T) {
+	// Configs loaded from old TOML files may have nil slices;
+	// SaveWorkspaceConfig must normalize them to empty slices.
+	dir := t.TempDir()
+	orig, _ := os.Getwd()
+	t.Cleanup(func() { os.Chdir(orig) })
+	os.Chdir(dir)
+
+	cfg := MinimalConfig("abc12345")
+	cfg.SharedVolume.Paths = nil
+	cfg.Create.Arguments = nil
+	if err := cfg.SaveWorkspaceConfig(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	parsed, err := ParseTOML(SiloToml())
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if parsed.SharedVolume.Paths == nil {
+		t.Error("SharedVolume.Paths should not be nil after save")
+	}
+	if parsed.Create.Arguments == nil {
+		t.Error("Create.Arguments should not be nil after save")
+	}
 }
 
 // assertTOMLFormat checks that s follows silo's TOML style:
@@ -528,31 +545,5 @@ func assertTOMLFormat(t *testing.T, s string) {
 				t.Errorf("line %d: array element must use exactly 2-space indent, got %q", i+1, line)
 			}
 		}
-	}
-}
-
-func TestSaveWorkspaceConfigNilGuards(t *testing.T) {
-	// Configs loaded from old TOML files may have nil slices;
-	// saveWorkspaceConfig must normalize them to empty slices.
-	dir := t.TempDir()
-	orig, _ := os.Getwd()
-	t.Cleanup(func() { os.Chdir(orig) })
-	os.Chdir(dir)
-
-	cfg := minimalConfig("abc12345")
-	cfg.SharedVolume.Paths = nil
-	cfg.Create.Arguments = nil
-	if err := cfg.saveWorkspaceConfig(); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	parsed, err := parseTOML(siloToml)
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	if parsed.SharedVolume.Paths == nil {
-		t.Error("SharedVolume.Paths should not be nil after save")
-	}
-	if parsed.Create.Arguments == nil {
-		t.Error("Create.Arguments should not be nil after save")
 	}
 }

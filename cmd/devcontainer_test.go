@@ -1,4 +1,4 @@
-package main
+package cmd_test
 
 import (
 	"encoding/json"
@@ -8,13 +8,16 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/mrkuz/silo/cmd"
+	"github.com/mrkuz/silo/internal"
 )
 
 func TestDeepMergeJSON(t *testing.T) {
 	t.Run("scalar override", func(t *testing.T) {
 		base := map[string]any{"a": 1.0}
 		overlay := map[string]any{"a": 2.0}
-		got := deepMergeJSON(base, overlay)
+		got := internal.DeepMergeJSON(base, overlay)
 		if got["a"] != 2.0 {
 			t.Errorf("expected a=2, got %v", got["a"])
 		}
@@ -23,7 +26,7 @@ func TestDeepMergeJSON(t *testing.T) {
 	t.Run("new key from overlay", func(t *testing.T) {
 		base := map[string]any{"a": 1.0}
 		overlay := map[string]any{"b": 2.0}
-		got := deepMergeJSON(base, overlay)
+		got := internal.DeepMergeJSON(base, overlay)
 		if got["a"] != 1.0 || got["b"] != 2.0 {
 			t.Errorf("unexpected result: %v", got)
 		}
@@ -32,7 +35,7 @@ func TestDeepMergeJSON(t *testing.T) {
 	t.Run("base-only key preserved", func(t *testing.T) {
 		base := map[string]any{"a": 1.0, "b": 2.0}
 		overlay := map[string]any{"b": 3.0}
-		got := deepMergeJSON(base, overlay)
+		got := internal.DeepMergeJSON(base, overlay)
 		if got["a"] != 1.0 {
 			t.Errorf("expected base key a=1 to be preserved, got %v", got["a"])
 		}
@@ -41,7 +44,7 @@ func TestDeepMergeJSON(t *testing.T) {
 	t.Run("nested object merge", func(t *testing.T) {
 		base := map[string]any{"obj": map[string]any{"x": 1.0}}
 		overlay := map[string]any{"obj": map[string]any{"y": 2.0}}
-		got := deepMergeJSON(base, overlay)
+		got := internal.DeepMergeJSON(base, overlay)
 		obj, ok := got["obj"].(map[string]any)
 		if !ok {
 			t.Fatal("expected obj to be a map")
@@ -54,7 +57,7 @@ func TestDeepMergeJSON(t *testing.T) {
 	t.Run("array concatenation", func(t *testing.T) {
 		base := map[string]any{"arr": []any{"a", "b"}}
 		overlay := map[string]any{"arr": []any{"c"}}
-		got := deepMergeJSON(base, overlay)
+		got := internal.DeepMergeJSON(base, overlay)
 		arr, ok := got["arr"].([]any)
 		if !ok {
 			t.Fatal("expected arr to be a slice")
@@ -68,7 +71,7 @@ func TestDeepMergeJSON(t *testing.T) {
 	t.Run("overlay scalar replaces base object", func(t *testing.T) {
 		base := map[string]any{"k": map[string]any{"x": 1.0}}
 		overlay := map[string]any{"k": "string"}
-		got := deepMergeJSON(base, overlay)
+		got := internal.DeepMergeJSON(base, overlay)
 		if got["k"] != "string" {
 			t.Errorf("expected overlay scalar to win, got %v", got["k"])
 		}
@@ -77,7 +80,7 @@ func TestDeepMergeJSON(t *testing.T) {
 	t.Run("does not mutate base or overlay", func(t *testing.T) {
 		base := map[string]any{"a": 1.0}
 		overlay := map[string]any{"a": 2.0}
-		deepMergeJSON(base, overlay)
+		internal.DeepMergeJSON(base, overlay)
 		if base["a"] != 1.0 {
 			t.Errorf("base was mutated")
 		}
@@ -86,12 +89,12 @@ func TestDeepMergeJSON(t *testing.T) {
 
 func TestCmdDevcontainerSharedVolume(t *testing.T) {
 	t.Run("includes mounts and postStart when shared volume enabled", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
+		cfg := internal.MinimalConfig("abc12345")
 		cfg.Features.SharedVolume = true
-		setupWorkspace(t, cfg)
-		setupUserConfig(t)
+		internal.SetupWorkspace(t, cfg)
+		internal.SetupUserConfig(t)
 
-		if err := cmdDevcontainerGenerate(); err != nil {
+		if err := cmd.DevcontainerGenerate(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -111,12 +114,12 @@ func TestCmdDevcontainerSharedVolume(t *testing.T) {
 	})
 
 	t.Run("omits mounts when shared volume disabled", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
+		cfg := internal.MinimalConfig("abc12345")
 		cfg.Features.SharedVolume = false
-		setupWorkspace(t, cfg)
-		setupUserConfig(t)
+		internal.SetupWorkspace(t, cfg)
+		internal.SetupUserConfig(t)
 
-		if err := cmdDevcontainerGenerate(); err != nil {
+		if err := cmd.DevcontainerGenerate(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -139,29 +142,29 @@ func TestCmdDevcontainerSharedVolume(t *testing.T) {
 
 func TestCmdDevcontainerStop(t *testing.T) {
 	t.Run("container running — stops it", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		setupWorkspace(t, cfg)
-		calls := mockExecCommand(t, map[string]*exec.Cmd{
+		cfg := internal.MinimalConfig("abc12345")
+		internal.SetupWorkspace(t, cfg)
+		calls := internal.MockExecCommand(t, map[string]*exec.Cmd{
 			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "true"),
 		})
-		if err := cmdDevcontainerStop(); err != nil {
+		if err := cmd.DevcontainerStop(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !anyCall(calls, "podman", "stop", "-t", "0", "silo-abc12345-dev") {
+		if !internal.AnyCall(calls, "podman", "stop", "-t", "0", "silo-abc12345-dev") {
 			t.Errorf("expected podman stop for dev container, got %v", *calls)
 		}
 	})
 
 	t.Run("container not running — no-op", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		setupWorkspace(t, cfg)
-		calls := mockExecCommand(t, map[string]*exec.Cmd{
+		cfg := internal.MinimalConfig("abc12345")
+		internal.SetupWorkspace(t, cfg)
+		calls := internal.MockExecCommand(t, map[string]*exec.Cmd{
 			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "false"),
 		})
-		if err := cmdDevcontainerStop(); err != nil {
+		if err := cmd.DevcontainerStop(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if anyCall(calls, "podman", "stop") {
+		if internal.AnyCall(calls, "podman", "stop") {
 			t.Errorf("expected no podman stop, got %v", *calls)
 		}
 	})
@@ -169,23 +172,23 @@ func TestCmdDevcontainerStop(t *testing.T) {
 
 func TestCmdDevcontainerStatus(t *testing.T) {
 	t.Run("running", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		setupWorkspace(t, cfg)
-		mockExecCommand(t, map[string]*exec.Cmd{
+		cfg := internal.MinimalConfig("abc12345")
+		internal.SetupWorkspace(t, cfg)
+		internal.MockExecCommand(t, map[string]*exec.Cmd{
 			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "true"),
 		})
-		if err := cmdDevcontainerStatus(); err != nil {
+		if err := cmd.DevcontainerStatus(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
 
 	t.Run("stopped", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		setupWorkspace(t, cfg)
-		mockExecCommand(t, map[string]*exec.Cmd{
+		cfg := internal.MinimalConfig("abc12345")
+		internal.SetupWorkspace(t, cfg)
+		internal.MockExecCommand(t, map[string]*exec.Cmd{
 			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "false"),
 		})
-		if err := cmdDevcontainerStatus(); err != nil {
+		if err := cmd.DevcontainerStatus(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
@@ -193,13 +196,13 @@ func TestCmdDevcontainerStatus(t *testing.T) {
 
 func TestCmdDevcontainerRemove(t *testing.T) {
 	t.Run("running container without --force: returns error", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		setupWorkspace(t, cfg)
-		mockExecCommand(t, map[string]*exec.Cmd{
+		cfg := internal.MinimalConfig("abc12345")
+		internal.SetupWorkspace(t, cfg)
+		internal.MockExecCommand(t, map[string]*exec.Cmd{
 			"podman container exists silo-abc12345-dev":                              exec.Command("true"),
 			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "true"),
 		})
-		err := cmdDevcontainerRemove([]string{})
+		err := cmd.DevcontainerRemove([]string{})
 		if err == nil {
 			t.Fatal("expected error when container is running without --force")
 		}
@@ -209,51 +212,51 @@ func TestCmdDevcontainerRemove(t *testing.T) {
 	})
 
 	t.Run("running container with --force: stops and removes", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		setupWorkspace(t, cfg)
-		calls := mockExecCommand(t, map[string]*exec.Cmd{
+		cfg := internal.MinimalConfig("abc12345")
+		internal.SetupWorkspace(t, cfg)
+		calls := internal.MockExecCommand(t, map[string]*exec.Cmd{
 			"podman container exists silo-abc12345-dev":                              exec.Command("true"),
 			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "true"),
 		})
-		if err := cmdDevcontainerRemove([]string{"--force"}); err != nil {
+		if err := cmd.DevcontainerRemove([]string{"--force"}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !anyCall(calls, "podman", "stop", "-t", "0", "silo-abc12345-dev") {
+		if !internal.AnyCall(calls, "podman", "stop", "-t", "0", "silo-abc12345-dev") {
 			t.Errorf("expected podman stop, got %v", *calls)
 		}
-		if !anyCall(calls, "podman", "rm", "-f", "silo-abc12345-dev") {
+		if !internal.AnyCall(calls, "podman", "rm", "-f", "silo-abc12345-dev") {
 			t.Errorf("expected podman rm -f, got %v", *calls)
 		}
 	})
 
 	t.Run("stopped container: removes without stop", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		setupWorkspace(t, cfg)
-		calls := mockExecCommand(t, map[string]*exec.Cmd{
+		cfg := internal.MinimalConfig("abc12345")
+		internal.SetupWorkspace(t, cfg)
+		calls := internal.MockExecCommand(t, map[string]*exec.Cmd{
 			"podman container exists silo-abc12345-dev":                              exec.Command("true"),
 			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "false"),
 		})
-		if err := cmdDevcontainerRemove([]string{}); err != nil {
+		if err := cmd.DevcontainerRemove([]string{}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if anyCall(calls, "podman", "stop") {
+		if internal.AnyCall(calls, "podman", "stop") {
 			t.Errorf("expected no podman stop, got %v", *calls)
 		}
-		if !anyCall(calls, "podman", "rm", "-f", "silo-abc12345-dev") {
+		if !internal.AnyCall(calls, "podman", "rm", "-f", "silo-abc12345-dev") {
 			t.Errorf("expected podman rm -f, got %v", *calls)
 		}
 	})
 
 	t.Run("container absent: no remove call", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		setupWorkspace(t, cfg)
-		calls := mockExecCommand(t, map[string]*exec.Cmd{
+		cfg := internal.MinimalConfig("abc12345")
+		internal.SetupWorkspace(t, cfg)
+		calls := internal.MockExecCommand(t, map[string]*exec.Cmd{
 			"podman container exists silo-abc12345-dev": exec.Command("false"),
 		})
-		if err := cmdDevcontainerRemove([]string{}); err != nil {
+		if err := cmd.DevcontainerRemove([]string{}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if anyCall(calls, "podman", "rm") {
+		if internal.AnyCall(calls, "podman", "rm") {
 			t.Errorf("expected no podman rm, got %v", *calls)
 		}
 	})
@@ -271,7 +274,7 @@ func TestLoadDevcontainerInJSONMalformed(t *testing.T) {
 		if err := os.WriteFile(path, []byte("{invalid json"), 0644); err != nil {
 			t.Fatal(err)
 		}
-		_, err := loadDevcontainerInJSON()
+		_, err := internal.LoadDevcontainerInJSON()
 		if err == nil {
 			t.Error("expected error for malformed JSON")
 		}
@@ -280,9 +283,9 @@ func TestLoadDevcontainerInJSONMalformed(t *testing.T) {
 
 func TestCmdDevcontainerGenerateMerge(t *testing.T) {
 	t.Run("generates merged devcontainer when user provides devcontainer.in.json", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		setupWorkspace(t, cfg)
-		setupUserConfig(t)
+		cfg := internal.MinimalConfig("abc12345")
+		internal.SetupWorkspace(t, cfg)
+		internal.SetupUserConfig(t)
 
 		// Write a user devcontainer.in.json with custom settings
 		base := os.Getenv("XDG_CONFIG_HOME")
@@ -295,7 +298,7 @@ func TestCmdDevcontainerGenerateMerge(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if err := cmdDevcontainerGenerate(); err != nil {
+		if err := cmd.DevcontainerGenerate(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
@@ -322,16 +325,16 @@ func TestCmdDevcontainerGenerateMerge(t *testing.T) {
 
 func TestCmdDevcontainerGenerateExistingFile(t *testing.T) {
 	t.Run("existing .devcontainer.json is not overwritten", func(t *testing.T) {
-		cfg := minimalConfig("abc12345")
-		setupWorkspace(t, cfg)
-		setupUserConfig(t)
+		cfg := internal.MinimalConfig("abc12345")
+		internal.SetupWorkspace(t, cfg)
+		internal.SetupUserConfig(t)
 		// Pre-create .devcontainer.json
 		existing := []byte(`{"name": "custom"}`)
 		if err := os.WriteFile(".devcontainer.json", existing, 0644); err != nil {
 			t.Fatal(err)
 		}
-		mockExecCommand(t, map[string]*exec.Cmd{})
-		if err := cmdDevcontainerGenerate(); err != nil {
+		internal.MockExecCommand(t, map[string]*exec.Cmd{})
+		if err := cmd.DevcontainerGenerate(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		got, err := os.ReadFile(".devcontainer.json")
@@ -348,7 +351,7 @@ func TestDeepMergeJSONMalformedInput(t *testing.T) {
 	t.Run("scalar replaces object", func(t *testing.T) {
 		base := map[string]any{"k": map[string]any{"x": 1.0}}
 		overlay := map[string]any{"k": "string"}
-		got := deepMergeJSON(base, overlay)
+		got := internal.DeepMergeJSON(base, overlay)
 		if got["k"] != "string" {
 			t.Errorf("expected overlay scalar to win, got %v", got["k"])
 		}
@@ -357,7 +360,7 @@ func TestDeepMergeJSONMalformedInput(t *testing.T) {
 	t.Run("object replaces scalar", func(t *testing.T) {
 		base := map[string]any{"k": "string"}
 		overlay := map[string]any{"k": map[string]any{"x": 1.0}}
-		got := deepMergeJSON(base, overlay)
+		got := internal.DeepMergeJSON(base, overlay)
 		obj, ok := got["k"].(map[string]any)
 		if !ok {
 			t.Fatalf("expected merged object, got %v", got["k"])

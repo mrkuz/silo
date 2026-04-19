@@ -4,6 +4,8 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/mrkuz/silo/cmd"
 )
 
 const helpText = `silo - developer sandbox container
@@ -78,28 +80,24 @@ Devcontainer rm flags:
   --force  Stop the container if it is running before removing`
 
 var commands = map[string]func([]string) error{
-	"init":                cmdInit,
-	"build":               withoutArgs(cmdBuild),
-	"create":              cmdCreate,
-	"start":               withoutArgs(cmdStart),
-	"volume setup":        withoutArgs(cmdVolumeSetup),
-	"connect":             cmdConnect,
-	"exec":                cmdExec,
-	"stop":                withoutArgs(cmdStop),
-	"rm":                  cmdRemove,
-	"rmi":                 cmdRemoveImage,
-	"status":              withoutArgs(cmdStatus),
-	"user init":           withoutArgs(cmdUserInit),
-	"user build":          withoutArgs(cmdUserBuild),
-	"user rmi":            withoutArgs(cmdUserRmi),
-	"devcontainer":        withoutArgs(cmdDevcontainerGenerate),
-	"devcontainer stop":   withoutArgs(cmdDevcontainerStop),
-	"devcontainer rm":     cmdDevcontainerRemove,
-	"devcontainer status": withoutArgs(cmdDevcontainerStatus),
-}
-
-func withoutArgs(f func() error) func([]string) error {
-	return func(_ []string) error { return f() }
+	"init":                cmd.Init,
+	"build":               cmd.WithoutArgs(cmd.Build),
+	"create":              cmd.Create,
+	"start":               cmd.WithoutArgs(cmd.Start),
+	"volume setup":        cmd.WithoutArgs(cmd.VolumeSetup),
+	"connect":             cmd.Connect,
+	"exec":                cmd.Exec,
+	"stop":                cmd.WithoutArgs(cmd.Stop),
+	"rm":                  cmd.Remove,
+	"rmi":                 cmd.RemoveImage,
+	"status":              cmd.WithoutArgs(cmd.Status),
+	"user init":           cmd.WithoutArgs(cmd.UserInit),
+	"user build":          cmd.WithoutArgs(cmd.UserBuild),
+	"user rmi":            cmd.WithoutArgs(cmd.UserRmi),
+	"devcontainer":        cmd.WithoutArgs(cmd.DevcontainerGenerate),
+	"devcontainer stop":   cmd.WithoutArgs(cmd.DevcontainerStop),
+	"devcontainer rm":     cmd.DevcontainerRemove,
+	"devcontainer status": cmd.WithoutArgs(cmd.DevcontainerStatus),
 }
 
 func main() {
@@ -132,7 +130,7 @@ func main() {
 			}
 		}
 	}
-	if err := cmdRun(os.Args[1:]); err != nil {
+	if err := cmd.Run(os.Args[1:]); err != nil {
 		fatal(err)
 	}
 }

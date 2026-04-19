@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestRenderFlakeNix(t *testing.T) {
-	out, err := renderTemplate("flake.nix.tmpl", struct {
+	out, err := RenderTemplate("flake.nix.tmpl", struct {
 		User   string
 		System string
 	}{"alice", "x86_64-linux"})
@@ -26,7 +26,7 @@ func TestRenderFlakeNix(t *testing.T) {
 }
 
 func TestRenderFlakeNixAarch64(t *testing.T) {
-	out, err := renderTemplate("flake.nix.tmpl", struct {
+	out, err := RenderTemplate("flake.nix.tmpl", struct {
 		User   string
 		System string
 	}{"bob", "aarch64-linux"})
@@ -42,7 +42,7 @@ func TestRenderFlakeNixAarch64(t *testing.T) {
 }
 
 func TestRenderContainerfileWorkspace(t *testing.T) {
-	out, err := renderTemplate("Containerfile.workspace.tmpl", struct {
+	out, err := RenderTemplate("Containerfile.workspace.tmpl", struct {
 		BaseImage string
 		User      string
 		Home      string
@@ -63,7 +63,7 @@ func TestRenderContainerfileWorkspace(t *testing.T) {
 }
 
 func TestRenderContainerfileUser(t *testing.T) {
-	out, err := renderTemplate("Containerfile.user.tmpl", struct {
+	out, err := RenderTemplate("Containerfile.user.tmpl", struct {
 		User              string
 		Home              string
 		SharedVolumeMount string
@@ -90,26 +90,26 @@ func TestRenderContainerfileUser(t *testing.T) {
 }
 
 func TestHomeEmptyNixConstant(t *testing.T) {
-	if len(workspaceHomeNixTmpl) == 0 {
-		t.Error("workspaceHomeNixTmpl constant should not be empty")
+	if len(WorkspaceHomeNixTmpl) == 0 {
+		t.Error("WorkspaceHomeNixTmpl constant should not be empty")
 	}
-	if !strings.Contains(workspaceHomeNixTmpl, "pkgs") {
-		t.Error("workspaceHomeNixTmpl should contain pkgs argument")
+	if !strings.Contains(WorkspaceHomeNixTmpl, "pkgs") {
+		t.Error("WorkspaceHomeNixTmpl should contain pkgs argument")
 	}
 }
 
 func TestRenderWorkspaceHomeNix(t *testing.T) {
-	content, err := renderWorkspaceHomeNix(true)
+	content, err := RenderWorkspaceHomeNix(true)
 	if err != nil {
-		t.Fatalf("renderWorkspaceHomeNix(true) failed: %v", err)
+		t.Fatalf("RenderWorkspaceHomeNix(true) failed: %v", err)
 	}
 	if !strings.Contains(content, "module.podman.enable = true") {
 		t.Errorf("expected 'module.podman.enable = true' in output, got: %s", content)
 	}
 
-	content, err = renderWorkspaceHomeNix(false)
+	content, err = RenderWorkspaceHomeNix(false)
 	if err != nil {
-		t.Fatalf("renderWorkspaceHomeNix(false) failed: %v", err)
+		t.Fatalf("RenderWorkspaceHomeNix(false) failed: %v", err)
 	}
 	if !strings.Contains(content, "module.podman.enable = false") {
 		t.Errorf("expected 'module.podman.enable = false' in output, got: %s", content)
@@ -123,7 +123,7 @@ func TestRenderDevcontainerJSON(t *testing.T) {
 		ContainerName: "silo-abc12345-dev",
 		ContainerArgs: []string{"--cap-drop=ALL"},
 	}
-	out, err := renderTemplate("devcontainer.json.tmpl", tc)
+	out, err := RenderTemplate("devcontainer.json.tmpl", tc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ func TestRenderDevcontainerJSONWithSharedVolume(t *testing.T) {
 		SharedVolumeName:  "silo-shared",
 		SharedVolumePaths: []string{"/home/alice/.cache/uv", "/home/alice/.config/nvim"},
 	}
-	out, err := renderTemplate("devcontainer.json.tmpl", tc)
+	out, err := RenderTemplate("devcontainer.json.tmpl", tc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +197,7 @@ func TestNewTemplateContextDefaultSuffix(t *testing.T) {
 			Paths: []string{"$HOME/.cache/uv/", "$HOME/.config/nvim/"},
 		},
 	}
-	tc, err := newTemplateContext(cfg)
+	tc, err := NewTemplateContext(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +225,7 @@ func TestNewTemplateContextWithSuffix(t *testing.T) {
 		},
 		Features: FeaturesConfig{Podman: false},
 	}
-	tc, err := newTemplateContext(cfg, "-dev")
+	tc, err := NewTemplateContext(cfg, "-dev")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +247,7 @@ func TestNewTemplateContextWithoutSharedVolume(t *testing.T) {
 		},
 		Features: FeaturesConfig{Podman: false, SharedVolume: false},
 	}
-	tc, err := newTemplateContext(cfg)
+	tc, err := NewTemplateContext(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +266,7 @@ func TestNewTemplateContextWorkspaceMount(t *testing.T) {
 		},
 		Features: FeaturesConfig{Podman: false},
 	}
-	tc, err := newTemplateContext(cfg)
+	tc, err := NewTemplateContext(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -281,11 +281,11 @@ func TestRenderDevcontainerJSONWorkspaceMount(t *testing.T) {
 	tc := TemplateContext{
 		Image:          "silo-abc12345",
 		User:           "alice",
-		ContainerName:  "silo-abc12345-dev",
+		ContainerName: "silo-abc12345-dev",
 		ContainerArgs:  []string{"--cap-drop=ALL"},
 		WorkspaceMount: "/workspace/abc12345/myproject",
 	}
-	out, err := renderTemplate("devcontainer.json.tmpl", tc)
+	out, err := RenderTemplate("devcontainer.json.tmpl", tc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,7 +303,7 @@ func TestRenderDevcontainerJSONWorkspaceMount(t *testing.T) {
 }
 
 func TestDetectNixSystem(t *testing.T) {
-	sys := detectNixSystem()
+	sys := DetectNixSystem()
 	if sys != "x86_64-linux" && sys != "aarch64-linux" {
 		t.Errorf("unexpected nix system %q", sys)
 	}
@@ -319,7 +319,7 @@ func TestJSONTemplateFunc(t *testing.T) {
 		{[]string{}, "[]"},
 		{[]string{"--cap-drop=ALL"}, `["--cap-drop=ALL"]`},
 		{[]string{"a", "b"}, `["a","b"]`},
-		{[]string{`quo"te`}, `["quo\"te"]`},
+		{[]string{"quo\"te"}, `["quo\"te"]`},
 	}
 	for _, tt := range tests {
 		got, err := fn(tt.input)
@@ -333,7 +333,7 @@ func TestJSONTemplateFunc(t *testing.T) {
 }
 
 func TestRenderTemplateError(t *testing.T) {
-	_, err := renderTemplate("nonexistent.tmpl", nil)
+	_, err := RenderTemplate("nonexistent.tmpl", nil)
 	if err == nil {
 		t.Fatal("expected error for nonexistent template, got nil")
 	}

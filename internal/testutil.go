@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"os"
@@ -10,23 +10,23 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// cmdCall records a single execCommand invocation.
-type cmdCall struct {
-	name string
-	args []string
+// TestCmdCall records a single execCommand invocation.
+type TestCmdCall struct {
+	Name string
+	Args []string
 }
 
-// mockExecCommand installs a fake execCommand that records every call and returns
+// MockExecCommand installs a fake execCommand that records every call and returns
 // preset *exec.Cmd values keyed by the full command string (e.g. "podman image exists foo").
 // Calls with no preset entry return exec.Command("true") (exit 0 silently).
 // It also registers a Cleanup that restores the original execCommand.
 // Returns the recorder function (for installation) and a pointer to the recorded calls.
-func mockExecCommand(t *testing.T, responses map[string]*exec.Cmd) *[]cmdCall {
+func MockExecCommand(t *testing.T, responses map[string]*exec.Cmd) *[]TestCmdCall {
 	t.Helper()
-	calls := &[]cmdCall{}
+	calls := &[]TestCmdCall{}
 	orig := execCommand
 	execCommand = func(name string, args ...string) *exec.Cmd {
-		*calls = append(*calls, cmdCall{name: name, args: args})
+		*calls = append(*calls, TestCmdCall{Name: name, Args: args})
 		key := strings.Join(append([]string{name}, args...), " ")
 		if cmd, ok := responses[key]; ok {
 			return cmd
@@ -37,11 +37,11 @@ func mockExecCommand(t *testing.T, responses map[string]*exec.Cmd) *[]cmdCall {
 	return calls
 }
 
-// anyCall reports whether calls contains any entry whose joined string
+// AnyCall reports whether calls contains any entry whose joined string
 // contains all the provided substrings.
-func anyCall(calls *[]cmdCall, substrings ...string) bool {
+func AnyCall(calls *[]TestCmdCall, substrings ...string) bool {
 	for _, c := range *calls {
-		joined := strings.Join(append([]string{c.name}, c.args...), " ")
+		joined := strings.Join(append([]string{c.Name}, c.Args...), " ")
 		match := true
 		for _, sub := range substrings {
 			if !strings.Contains(joined, sub) {
@@ -56,10 +56,10 @@ func anyCall(calls *[]cmdCall, substrings ...string) bool {
 	return false
 }
 
-// setupWorkspace creates a temp directory, writes a .silo/silo.toml from cfg,
+// SetupWorkspace creates a temp directory, writes a .silo/silo.toml from cfg,
 // and os.Chdir into it. The original directory is restored via t.Cleanup.
 // NOTE: os.Chdir is process-global — do not use t.Parallel() in tests calling this.
-func setupWorkspace(t *testing.T, cfg Config) string {
+func SetupWorkspace(t *testing.T, cfg Config) string {
 	t.Helper()
 	orig, err := os.Getwd()
 	if err != nil {
@@ -84,10 +84,10 @@ func setupWorkspace(t *testing.T, cfg Config) string {
 	return dir
 }
 
-// setupUserConfig points XDG_CONFIG_HOME at a new temp directory and writes
-// the minimal files required by ensureStarterFiles and buildUserImage.
-// Needed by any test that calls initWorkspaceConfig or ensureImages.
-func setupUserConfig(t *testing.T) {
+// SetupUserConfig points XDG_CONFIG_HOME at a new temp directory and writes
+// the minimal files required by EnsureUserFiles and BuildUserImage.
+// Needed by any test that calls InitWorkspaceConfig or EnsureImages.
+func SetupUserConfig(t *testing.T) {
 	t.Helper()
 	base := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", base)
@@ -95,7 +95,7 @@ func setupUserConfig(t *testing.T) {
 	if err := os.MkdirAll(siloDir, 0755); err != nil {
 		t.Fatalf("mkdir silo config dir: %v", err)
 	}
-	// home-user.nix is read by buildUserImage; write the minimal empty module.
+	// home-user.nix is read by BuildUserImage; write the minimal empty module.
 	if err := os.WriteFile(filepath.Join(siloDir, "home-user.nix"), []byte("{\n  config,\n  pkgs,\n  ...\n}:\n{\n}\n"), 0644); err != nil {
 		t.Fatalf("write home-user.nix: %v", err)
 	}
@@ -104,8 +104,8 @@ func setupUserConfig(t *testing.T) {
 	}
 }
 
-// minimalConfig returns a Config suitable for use in unit tests.
-func minimalConfig(id string) Config {
+// MinimalConfig returns a Config suitable for use in unit tests.
+func MinimalConfig(id string) Config {
 	return Config{
 		General: GeneralConfig{
 			ID:            id,

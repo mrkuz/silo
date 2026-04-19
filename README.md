@@ -35,6 +35,9 @@ See [Build and Install](#build-and-install) for installation instructions. See [
 # Build binary
 go build .
 
+# Run tests
+go test ./...
+
 # Install to $GOPATH/bin
 go install .
 ```
