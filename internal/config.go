@@ -116,6 +116,19 @@ func ParseTOML(path string) (Config, error) {
 	return c, nil
 }
 
+// WriteTOML encodes and writes cfg to path.
+func WriteTOML(path string, cfg Config) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("create %s: %w", filepath.Base(path), err)
+	}
+	defer f.Close()
+	if err := toml.NewEncoder(f).Encode(cfg); err != nil {
+		return fmt.Errorf("encode %s: %w", filepath.Base(path), err)
+	}
+	return nil
+}
+
 // RequireWorkspaceConfig returns the workspace config or an error if .silo/silo.toml is missing.
 func RequireWorkspaceConfig() (Config, error) {
 	if _, err := os.Stat(SiloToml()); os.IsNotExist(err) {
