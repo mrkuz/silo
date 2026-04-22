@@ -45,13 +45,18 @@ Feature: silo build — Build workspace images
       And the workspace image "silo-abc12345" should be built
       And the output should contain "Building workspace image silo-abc12345..."
 
-  Rule: Requires workspace to be initialized
+  Rule: Init on demand — build initializes workspace if not initialized
 
-    Scenario: build fails when workspace is not initialized
+    Scenario: build creates workspace config if missing
       Given a clean workspace with no existing silo files
+      And the user's XDG_CONFIG_HOME points to a fresh directory
+      And the user's silo config directory has all starter files
+      And no user image exists
+      And no workspace image exists
       When I run `silo build`
-      Then the exit code should not be 0
-      And the error should indicate ".silo/silo.toml" is missing
+      Then a file ".silo/silo.toml" should be created
+      And images should be built
+      And the exit code should be 0
 
   Rule: home.nix is baked into the workspace image
 

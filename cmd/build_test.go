@@ -43,19 +43,19 @@ func TestCmdUserBuildSharedVolumeMount(t *testing.T) {
 
 func TestImageExists(t *testing.T) {
 	t.Run("exists", func(t *testing.T) {
-		calls := internal.MockExecCommand(t, map[string]*exec.Cmd{
+		mock := internal.NewMock(t)
+		mock.MockExec(map[string]*exec.Cmd{
 			"podman image exists silo-test": exec.Command("true"),
 		})
 		if !internal.ImageExists("silo-test") {
 			t.Error("expected ImageExists to return true")
 		}
-		if !internal.AnyCall(calls, "podman", "image", "exists", "silo-test") {
-			t.Errorf("expected podman image exists call, got %v", *calls)
-		}
+		mock.AssertExec("podman", "image", "exists", "silo-test")
 	})
 
 	t.Run("not exists", func(t *testing.T) {
-		internal.MockExecCommand(t, map[string]*exec.Cmd{
+		mock := internal.NewMock(t)
+		mock.MockExec(map[string]*exec.Cmd{
 			"podman image exists silo-test": exec.Command("false"),
 		})
 		if internal.ImageExists("silo-test") {
@@ -75,7 +75,8 @@ func TestCmdUserBuild(t *testing.T) {
 		cfg := internal.MinimalConfig("abc12345")
 		internal.SetupWorkspace(t, cfg)
 		internal.SetupUserConfig(t)
-		calls := internal.MockExecCommand(t, map[string]*exec.Cmd{
+		mock := internal.NewMock(t)
+		mock.MockExec(map[string]*exec.Cmd{
 			"podman image exists " + userImage: exec.Command("true"),
 		})
 
@@ -83,16 +84,15 @@ func TestCmdUserBuild(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		if internal.AnyCall(calls, "podman", "build", "-t", userImage) {
-			t.Errorf("expected no podman build for existing user image, got %v", *calls)
-		}
+		mock.AssertNoExec("podman", "build", "-t", userImage, "<...>")
 	})
 
 	t.Run("missing user image: builds user image", func(t *testing.T) {
 		cfg := internal.MinimalConfig("abc12345")
 		internal.SetupWorkspace(t, cfg)
 		internal.SetupUserConfig(t)
-		calls := internal.MockExecCommand(t, map[string]*exec.Cmd{
+		mock := internal.NewMock(t)
+		mock.MockExec(map[string]*exec.Cmd{
 			"podman image exists " + userImage: exec.Command("false"),
 		})
 
@@ -100,12 +100,8 @@ func TestCmdUserBuild(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		if internal.AnyCall(calls, "podman", "build", "-t", "silo-abc12345") {
-			t.Errorf("expected no workspace image build, got %v", *calls)
-		}
-		if !internal.AnyCall(calls, "podman", "build", "-t", userImage) {
-			t.Errorf("expected podman build -t %s, got %v", userImage, *calls)
-		}
+		mock.AssertNoExec("podman", "build", "-t", "silo-abc12345", "<...>")
+		mock.AssertExec("podman", "build", "-t", userImage, "<...>")
 	})
 }
 
@@ -114,7 +110,8 @@ func TestCmdBuild(t *testing.T) {
 		cfg := internal.MinimalConfig("abc12345")
 		internal.SetupWorkspace(t, cfg)
 		internal.SetupUserConfig(t)
-		calls := internal.MockExecCommand(t, map[string]*exec.Cmd{
+		mock := internal.NewMock(t)
+		mock.MockExec(map[string]*exec.Cmd{
 			"podman image exists silo-abc12345": exec.Command("true"),
 		})
 
@@ -122,22 +119,17 @@ func TestCmdBuild(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		if internal.AnyCall(calls, "podman", "rmi", "silo-abc12345") {
-			t.Errorf("expected no podman rmi for workspace image, got %v", *calls)
-		}
-		if internal.AnyCall(calls, "podman", "build", "-t", "silo-abc12345") {
-			t.Errorf("expected no podman build for existing workspace image, got %v", *calls)
-		}
-		if internal.AnyCall(calls, "podman", "build", "-t", "silo-testuser") {
-			t.Errorf("expected no user image build, got %v", *calls)
-		}
+		mock.AssertNoExec("podman", "rmi", "silo-abc12345")
+		mock.AssertNoExec("podman", "build", "-t", "silo-abc12345", "<...>")
+		mock.AssertNoExec("podman", "build", "-t", "silo-testuser", "<...>")
 	})
 
 	t.Run("missing workspace image: builds workspace image", func(t *testing.T) {
 		cfg := internal.MinimalConfig("abc12345")
 		internal.SetupWorkspace(t, cfg)
 		internal.SetupUserConfig(t)
-		calls := internal.MockExecCommand(t, map[string]*exec.Cmd{
+		mock := internal.NewMock(t)
+		mock.MockExec(map[string]*exec.Cmd{
 			"podman image exists silo-abc12345": exec.Command("false"),
 		})
 
@@ -145,20 +137,17 @@ func TestCmdBuild(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		if !internal.AnyCall(calls, "podman", "build", "-t", "silo-abc12345") {
-			t.Errorf("expected podman build -t silo-abc12345, got %v", *calls)
-		}
-		if internal.AnyCall(calls, "podman", "build", "-t", "silo-testuser") {
-			t.Errorf("expected no user image build, got %v", *calls)
-		}
+		mock.AssertExec("podman", "build", "-t", "silo-abc12345", "<...>")
+		mock.AssertNoExec("podman", "build", "-t", "silo-testuser", "<...>")
 	})
 
 	t.Run("missing user and workspace images: builds user image first", func(t *testing.T) {
 		cfg := internal.MinimalConfig("abc12345")
 		internal.SetupWorkspace(t, cfg)
 		internal.SetupUserConfig(t)
-		calls := internal.MockExecCommand(t, map[string]*exec.Cmd{
-			"podman image exists silo-testuser":  exec.Command("false"),
+		mock := internal.NewMock(t)
+		mock.MockExec(map[string]*exec.Cmd{
+			"podman image exists silo-testuser": exec.Command("false"),
 			"podman image exists silo-abc12345": exec.Command("false"),
 		})
 
@@ -166,12 +155,8 @@ func TestCmdBuild(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		if !internal.AnyCall(calls, "podman", "build", "-t", "silo-testuser") {
-			t.Errorf("expected podman build -t silo-testuser, got %v", *calls)
-		}
-		if !internal.AnyCall(calls, "podman", "build", "-t", "silo-abc12345") {
-			t.Errorf("expected podman build -t silo-abc12345, got %v", *calls)
-		}
+		mock.AssertExec("podman", "build", "-t", "silo-testuser", "<...>")
+		mock.AssertExec("podman", "build", "-t", "silo-abc12345", "<...>")
 	})
 }
 
@@ -182,15 +167,14 @@ func TestBuildWorkspaceImageWithMissingHomeNix(t *testing.T) {
 		internal.SetupUserConfig(t)
 		// Remove home.nix to simulate missing file
 		os.Remove(filepath.Join(internal.SiloDir(), "home.nix"))
-		calls := internal.MockExecCommand(t, map[string]*exec.Cmd{
-			"podman image exists silo-testuser":  exec.Command("false"),
+		mock := internal.NewMock(t)
+		mock.MockExec(map[string]*exec.Cmd{
+			"podman image exists silo-testuser": exec.Command("false"),
 			"podman image exists silo-abc12345": exec.Command("false"),
 		})
 		if err := cmd.Build(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !internal.AnyCall(calls, "podman", "build", "-t", "silo-abc12345") {
-			t.Errorf("expected workspace image build even without home.nix, got %v", *calls)
-		}
+		mock.AssertExec("podman", "build", "-t", "silo-abc12345", "<...>")
 	})
 }

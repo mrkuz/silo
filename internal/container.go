@@ -3,12 +3,9 @@ package internal
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
-
-var execCommand = exec.Command
 
 const volumeMountPath = "/silo/shared"
 
@@ -77,7 +74,7 @@ func VolumeSetup(cfg Config) error {
 			mkdirCmd.WriteString("mkdir -p $(dirname " + volPath + ") && touch " + volPath + " && chmod 644 " + volPath)
 		}
 	}
-	cmd := execCommand("podman", "run", "--rm", "-v", cfg.GetSharedVolumeName()+":"+volumeMountPath+":z", userImage, "sh", "-c", mkdirCmd.String())
+	cmd := ExecCommand("podman", "run", "--rm", "-v", cfg.GetSharedVolumeName()+":"+volumeMountPath+":z", userImage, "sh", "-c", mkdirCmd.String())
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -88,7 +85,7 @@ func VolumeSetup(cfg Config) error {
 
 // ContainerRunning checks if a container is currently running.
 func ContainerRunning(name string) bool {
-	out, err := execCommand("podman", "container", "inspect", "--format", "{{.State.Running}}", name).Output()
+	out, err := ExecCommand("podman", "container", "inspect", "--format", "{{.State.Running}}", name).Output()
 	if err != nil {
 		return false
 	}
@@ -97,7 +94,7 @@ func ContainerRunning(name string) bool {
 
 // ContainerExists checks if a container exists in any state.
 func ContainerExists(name string) bool {
-	return execCommand("podman", "container", "exists", name).Run() == nil
+	return ExecCommand("podman", "container", "exists", name).Run() == nil
 }
 
 // PrintDryRun prints how a podman command would be invoked (without running it).
@@ -214,7 +211,7 @@ func CreateContainer(cfg Config, extra []string) error {
 // StartContainer starts a stopped container.
 func StartContainer(name string) error {
 	fmt.Printf("Starting %s...\n", name)
-	if err := execCommand("podman", "start", name).Run(); err != nil {
+	if err := ExecCommand("podman", "start", name).Run(); err != nil {
 		return fmt.Errorf("start container: %w", err)
 	}
 	return nil
@@ -223,7 +220,7 @@ func StartContainer(name string) error {
 // StopContainer stops a running container immediately.
 func StopContainer(name string) error {
 	fmt.Printf("Stopping %s...\n", name)
-	if err := execCommand("podman", "stop", "-t", "0", name).Run(); err != nil {
+	if err := ExecCommand("podman", "stop", "-t", "0", name).Run(); err != nil {
 		return fmt.Errorf("stop container: %w", err)
 	}
 	return nil
@@ -247,7 +244,7 @@ func RemoveImage(name string) error {
 
 // RunVisible runs a command with stdout and stderr connected to the terminal.
 func RunVisible(name string, args ...string) error {
-	cmd := execCommand(name, args...)
+	cmd := ExecCommand(name, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
@@ -255,7 +252,7 @@ func RunVisible(name string, args ...string) error {
 
 // RunInteractive runs a command with full stdio connected to the terminal.
 func RunInteractive(name string, args ...string) error {
-	cmd := execCommand(name, args...)
+	cmd := ExecCommand(name, args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

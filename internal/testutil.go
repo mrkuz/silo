@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -20,7 +18,6 @@ func FirstRun(t *testing.T) string {
 	t.Cleanup(func() { os.Chdir(orig) })
 	os.Chdir(dir)
 
-	MockExecCommand(t, map[string]*exec.Cmd{})
 	return base
 }
 
@@ -43,16 +40,14 @@ func FirstRunWith(t *testing.T, configFunc func(siloUser string)) string {
 	t.Cleanup(func() { os.Chdir(orig) })
 	os.Chdir(dir)
 
-	MockExecCommand(t, map[string]*exec.Cmd{})
 	return base
 }
 
-// SubsequentRun sets up an existing workspace with config cfg, mocked execCommand,
-// and calls SetupUserConfig for user-level files. Returns the XDG_CONFIG_HOME path.
+// SubsequentRun sets up an existing workspace with config cfg and calls SetupUserConfig
+// for user-level files. Returns the XDG_CONFIG_HOME path.
 func SubsequentRun(t *testing.T, cfg Config) string {
 	SetupWorkspace(t, cfg)
 	SetupUserConfig(t)
-	MockExecCommand(t, map[string]*exec.Cmd{})
 	return os.Getenv("XDG_CONFIG_HOME")
 }
 
@@ -87,52 +82,6 @@ func WriteUserToml(t *testing.T, siloUser, name string, cfg Config) {
 	if err := WriteTOML(path, cfg); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
-}
-
-// TestCmdCall records a single execCommand invocation.
-type TestCmdCall struct {
-	Name string
-	Args []string
-}
-
-// MockExecCommand installs a fake execCommand that records every call and returns
-// preset *exec.Cmd values keyed by the full command string (e.g. "podman image exists foo").
-// Calls with no preset entry return exec.Command("true") (exit 0 silently).
-// It also registers a Cleanup that restores the original execCommand.
-// Returns the recorder function (for installation) and a pointer to the recorded calls.
-func MockExecCommand(t *testing.T, responses map[string]*exec.Cmd) *[]TestCmdCall {
-	t.Helper()
-	calls := &[]TestCmdCall{}
-	orig := execCommand
-	execCommand = func(name string, args ...string) *exec.Cmd {
-		*calls = append(*calls, TestCmdCall{Name: name, Args: args})
-		key := strings.Join(append([]string{name}, args...), " ")
-		if cmd, ok := responses[key]; ok {
-			return cmd
-		}
-		return exec.Command("true")
-	}
-	t.Cleanup(func() { execCommand = orig })
-	return calls
-}
-
-// AnyCall reports whether calls contains any entry whose joined string
-// contains all the provided substrings.
-func AnyCall(calls *[]TestCmdCall, substrings ...string) bool {
-	for _, c := range *calls {
-		joined := strings.Join(append([]string{c.Name}, c.Args...), " ")
-		match := true
-		for _, sub := range substrings {
-			if !strings.Contains(joined, sub) {
-				match = false
-				break
-			}
-		}
-		if match {
-			return true
-		}
-	}
-	return false
 }
 
 // SetupWorkspace creates a temp directory, writes a .silo/silo.toml from cfg,

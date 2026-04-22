@@ -144,29 +144,27 @@ func TestCmdDevcontainerStop(t *testing.T) {
 	t.Run("container running — stops it", func(t *testing.T) {
 		cfg := internal.MinimalConfig("abc12345")
 		internal.SetupWorkspace(t, cfg)
-		calls := internal.MockExecCommand(t, map[string]*exec.Cmd{
+		mock := internal.NewMock(t)
+		mock.MockExec(map[string]*exec.Cmd{
 			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "true"),
 		})
 		if err := cmd.DevcontainerStop(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !internal.AnyCall(calls, "podman", "stop", "-t", "0", "silo-abc12345-dev") {
-			t.Errorf("expected podman stop for dev container, got %v", *calls)
-		}
+		mock.AssertExec("podman", "stop", "-t", "0", "silo-abc12345-dev")
 	})
 
 	t.Run("container not running — no-op", func(t *testing.T) {
 		cfg := internal.MinimalConfig("abc12345")
 		internal.SetupWorkspace(t, cfg)
-		calls := internal.MockExecCommand(t, map[string]*exec.Cmd{
+		mock := internal.NewMock(t)
+		mock.MockExec(map[string]*exec.Cmd{
 			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "false"),
 		})
 		if err := cmd.DevcontainerStop(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if internal.AnyCall(calls, "podman", "stop") {
-			t.Errorf("expected no podman stop, got %v", *calls)
-		}
+		mock.AssertNoExec("podman", "stop", "<...>")
 	})
 }
 
@@ -174,7 +172,8 @@ func TestCmdDevcontainerStatus(t *testing.T) {
 	t.Run("running", func(t *testing.T) {
 		cfg := internal.MinimalConfig("abc12345")
 		internal.SetupWorkspace(t, cfg)
-		internal.MockExecCommand(t, map[string]*exec.Cmd{
+		mock := internal.NewMock(t)
+		mock.MockExec(map[string]*exec.Cmd{
 			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "true"),
 		})
 		if err := cmd.DevcontainerStatus(); err != nil {
@@ -185,7 +184,8 @@ func TestCmdDevcontainerStatus(t *testing.T) {
 	t.Run("stopped", func(t *testing.T) {
 		cfg := internal.MinimalConfig("abc12345")
 		internal.SetupWorkspace(t, cfg)
-		internal.MockExecCommand(t, map[string]*exec.Cmd{
+		mock := internal.NewMock(t)
+		mock.MockExec(map[string]*exec.Cmd{
 			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "false"),
 		})
 		if err := cmd.DevcontainerStatus(); err != nil {
@@ -198,7 +198,8 @@ func TestCmdDevcontainerRemove(t *testing.T) {
 	t.Run("running container without --force: returns error", func(t *testing.T) {
 		cfg := internal.MinimalConfig("abc12345")
 		internal.SetupWorkspace(t, cfg)
-		internal.MockExecCommand(t, map[string]*exec.Cmd{
+		mock := internal.NewMock(t)
+		mock.MockExec(map[string]*exec.Cmd{
 			"podman container exists silo-abc12345-dev":                              exec.Command("true"),
 			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "true"),
 		})
@@ -214,51 +215,44 @@ func TestCmdDevcontainerRemove(t *testing.T) {
 	t.Run("running container with --force: stops and removes", func(t *testing.T) {
 		cfg := internal.MinimalConfig("abc12345")
 		internal.SetupWorkspace(t, cfg)
-		calls := internal.MockExecCommand(t, map[string]*exec.Cmd{
+		mock := internal.NewMock(t)
+		mock.MockExec(map[string]*exec.Cmd{
 			"podman container exists silo-abc12345-dev":                              exec.Command("true"),
 			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "true"),
 		})
 		if err := cmd.DevcontainerRemove([]string{"--force"}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if !internal.AnyCall(calls, "podman", "stop", "-t", "0", "silo-abc12345-dev") {
-			t.Errorf("expected podman stop, got %v", *calls)
-		}
-		if !internal.AnyCall(calls, "podman", "rm", "-f", "silo-abc12345-dev") {
-			t.Errorf("expected podman rm -f, got %v", *calls)
-		}
+		mock.AssertExec("podman", "stop", "-t", "0", "silo-abc12345-dev")
+		mock.AssertExec("podman", "rm", "-f", "silo-abc12345-dev")
 	})
 
 	t.Run("stopped container: removes without stop", func(t *testing.T) {
 		cfg := internal.MinimalConfig("abc12345")
 		internal.SetupWorkspace(t, cfg)
-		calls := internal.MockExecCommand(t, map[string]*exec.Cmd{
+		mock := internal.NewMock(t)
+		mock.MockExec(map[string]*exec.Cmd{
 			"podman container exists silo-abc12345-dev":                              exec.Command("true"),
 			"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "false"),
 		})
 		if err := cmd.DevcontainerRemove([]string{}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if internal.AnyCall(calls, "podman", "stop") {
-			t.Errorf("expected no podman stop, got %v", *calls)
-		}
-		if !internal.AnyCall(calls, "podman", "rm", "-f", "silo-abc12345-dev") {
-			t.Errorf("expected podman rm -f, got %v", *calls)
-		}
+		mock.AssertNoExec("podman", "stop", "<...>")
+		mock.AssertExec("podman", "rm", "-f", "silo-abc12345-dev")
 	})
 
 	t.Run("container absent: no remove call", func(t *testing.T) {
 		cfg := internal.MinimalConfig("abc12345")
 		internal.SetupWorkspace(t, cfg)
-		calls := internal.MockExecCommand(t, map[string]*exec.Cmd{
+		mock := internal.NewMock(t)
+		mock.MockExec(map[string]*exec.Cmd{
 			"podman container exists silo-abc12345-dev": exec.Command("false"),
 		})
 		if err := cmd.DevcontainerRemove([]string{}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if internal.AnyCall(calls, "podman", "rm") {
-			t.Errorf("expected no podman rm, got %v", *calls)
-		}
+		mock.AssertNoExec("podman", "rm", "<...>")
 	})
 }
 
@@ -333,7 +327,8 @@ func TestCmdDevcontainerGenerateExistingFile(t *testing.T) {
 		if err := os.WriteFile(".devcontainer.json", existing, 0644); err != nil {
 			t.Fatal(err)
 		}
-		internal.MockExecCommand(t, map[string]*exec.Cmd{})
+		mock := internal.NewMock(t)
+		mock.MockExec(map[string]*exec.Cmd{})
 		if err := cmd.DevcontainerGenerate(); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

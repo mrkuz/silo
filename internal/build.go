@@ -14,12 +14,12 @@ const (
 
 // ImageExists checks if a Podman image exists.
 func ImageExists(name string) bool {
-	return execCommand("podman", "image", "exists", name).Run() == nil
+	return ExecCommand("podman", "image", "exists", name).Run() == nil
 }
 
 // DetectNixSystem returns the Nix system identifier for the current machine architecture.
 func DetectNixSystem() string {
-	out, err := execCommand("uname", "-m").Output()
+	out, err := ExecCommand("uname", "-m").Output()
 	if err != nil {
 		return "x86_64-linux"
 	}
@@ -77,7 +77,7 @@ func BuildWorkspaceImage(tag string, tc TemplateContext) error {
 		return fmt.Errorf("render Containerfile.workspace template: %w", err)
 	}
 
-	homeWorkspaceNix, err := os.ReadFile(filepath.Join(SiloDir(), "home.nix"))
+	homeWorkspaceNix, err := ReadFile(filepath.Join(SiloDir(), "home.nix"))
 	if err != nil {
 		fallback, renderErr := RenderWorkspaceHomeNix(false)
 		if renderErr != nil {

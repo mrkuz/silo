@@ -169,10 +169,10 @@ func TestRenderDevcontainerJSONWithSharedVolume(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(out)
-	if !strings.Contains(s, `"type=volume,source=silo-shared,target=/home/alice/.cache/uv,subpath=home/alice/.cache/uv,Z"`) {
+	if !strings.Contains(s, `"type=volume,source=silo-shared,target=/home/alice/.cache/uv,subpath=home/alice/.cache/uv,z"`) {
 		t.Error("expected volume mount with subpath for .cache/uv in devcontainer.json")
 	}
-	if !strings.Contains(s, `"type=volume,source=silo-shared,target=/home/alice/.config/nvim,subpath=home/alice/.config/nvim,Z"`) {
+	if !strings.Contains(s, `"type=volume,source=silo-shared,target=/home/alice/.config/nvim,subpath=home/alice/.config/nvim,z"`) {
 		t.Error("expected volume mount with subpath for .config/nvim in devcontainer.json")
 	}
 	var parsed map[string]any
