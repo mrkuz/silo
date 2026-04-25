@@ -101,7 +101,7 @@ Feature: silo create — Create a workspace container
       Given a workspace with silo config "abc12345"
       And the config has create arguments ["--memory=2g", "--cpus=4"]
       And the workspace image "silo-abc12345" exists
-      When I run `silo create --dry-run`
+      When I run `silo create`
       Then the podman create command should include "--memory=2g"
       And the podman create command should include "--cpus=4"
 
@@ -111,19 +111,19 @@ Feature: silo create — Create a workspace container
       Given a workspace with silo config "abc12345"
       And the config has shared_volume=true
       And the workspace image "silo-abc12345" exists
-      When I run `silo create --dry-run`
+      When I run `silo create`
       Then the podman create command should include "--mount" with "type=volume" and "source=silo-shared" and "target=/silo/shared" and ",Z"
 
     Scenario: shared volume paths are mounted as subpath volumes
       Given a workspace with silo config "abc12345"
       And the config has shared_volume=true with paths ["$HOME/.cache/uv/"]
       And the workspace image "silo-abc12345" exists
-      When I run `silo create --dry-run`
+      When I run `silo create`
       Then the podman create command should include "--mount" with "type=volume,source=silo-shared,target=/silo/shared,subpath=home/alice/.cache/uv,Z"
 
     Scenario: shared volume is not mounted when disabled
       Given a workspace with silo config "abc12345"
       And the config has shared_volume=false
       And the workspace image "silo-abc12345" exists
-      When I run `silo create --dry-run`
+      When I run `silo create`
       Then the podman create command should not include "/silo/shared"
