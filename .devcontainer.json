@@ -4,7 +4,8 @@
       "extensions": [
         "lfs.vscode-emacs-friendly",
         "Anthropic.claude-code",
-        "golang.go"
+        "golang.go",
+        "alexkrechik.cucumberautocomplete"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "fish",
