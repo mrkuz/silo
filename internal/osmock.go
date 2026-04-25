@@ -172,6 +172,13 @@ func (m *Mock) nextSeq() int {
 	return m.seq
 }
 
+// Reset clears all recorded calls but preserves mock responses.
+func (m *Mock) Reset() {
+	m.execCalls = nil
+	m.readCalls = nil
+	m.writeCalls = nil
+}
+
 // MockExec installs mock execCommand.responses maps full command string to *exec.Cmd.
 // Patterns use glob-style matching: <any>, <any?>, <...>, <...? >
 func (m *Mock) MockExec(responses map[string]*exec.Cmd) {

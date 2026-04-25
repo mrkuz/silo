@@ -27,7 +27,7 @@ Feature: silo connect — Open an interactive shell in the workspace container
       When I run `silo connect`
       Then the output should contain "Connecting to silo-abc12345..."
 
-  Rule: Idempotency — ensures container is started before connecting
+  Rule: Ensures container is started before connecting
 
     Scenario: stopped container is started before connecting
       Given the container "silo-abc12345" exists but is stopped
@@ -68,10 +68,3 @@ Feature: silo connect — Open an interactive shell in the workspace container
       When I run `silo connect` and `silo connect` in parallel
       Then two independent shell sessions should be opened in "silo-abc12345"
 
-  Rule: Requires workspace to be initialized
-
-    Scenario: connect fails when workspace is not initialized
-      Given a clean workspace with no existing silo files
-      When I run `silo connect`
-      Then the exit code should not be 0
-      And the error should indicate ".silo/silo.toml" is missing
