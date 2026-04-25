@@ -58,6 +58,9 @@ representing rules and scenarios.
        })
    })
    ```
+
+   Add the comments before the implementation or concrete assertion.
+
 6. **Implement steps** (use comments matching the step text):
    - `Given/And` → setup fixtures, mock responses
    - `When` → call the function under test
