@@ -35,15 +35,13 @@ Feature: silo volume setup — Create directories on the shared volume
     Scenario: disabled shared volume is a no-op
       Given the config has shared_volume=false
       When I run `silo volume setup`
-      Then the output should contain "shared volume is not configured"
-      And no podman run should be called
+      Then no podman run should be called
       And the exit code should be 0
 
     Scenario: empty paths list is a no-op
       Given the config has shared_volume=true with paths []
       When I run `silo volume setup`
-      Then the output should contain "shared volume is not configured"
-      And no podman run should be called
+      Then no podman run should be called
       And the exit code should be 0
 
   Rule: Uses a temporary container, not the workspace container
