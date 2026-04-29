@@ -5,7 +5,7 @@ description: Create or update a README for the current project based on its code
 
 ## Description
 
-Create a README for the project.
+Create or update a README for the project.
 
 ## Scope
 

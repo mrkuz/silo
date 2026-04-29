@@ -54,7 +54,7 @@ func DevcontainerGenerate() error {
 		if err := json.Unmarshal(content, &generated); err != nil {
 			return fmt.Errorf("parse generated devcontainer.json: %w", err)
 		}
-		merged := DeepMergeJSON(userDC, generated)
+		merged := DeepMergeJSON(generated, userDC)
 		content, err = json.MarshalIndent(merged, "", "  ")
 		if err != nil {
 			return fmt.Errorf("marshal devcontainer.json: %w", err)

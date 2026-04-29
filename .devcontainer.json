@@ -23,6 +23,7 @@
   "image": "silo-xqmrs9xj",
   "mounts": [
     "type=volume,source=silo-shared,target=/home/markus/.local/share/fish/fish_history,subpath=home/markus/.local/share/fish/fish_history,z",
+    "type=volume,source=silo-shared,target=/home/markus/.claude.json,subpath=home/markus/.claude.json,z",
     "type=volume,source=silo-shared,target=/home/markus/.claude,subpath=home/markus/.claude,z"
   ],
   "name": "silo-xqmrs9xj-dev",
