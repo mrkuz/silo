@@ -71,7 +71,7 @@ func DefaultConfig() (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("get current user: %w", err)
 	}
-	id := generateID()
+	id := generatedIDFunc()
 	return Config{
 		General: GeneralConfig{
 			ID:            id,
@@ -95,6 +95,8 @@ func DefaultConfig() (Config, error) {
 		},
 	}, nil
 }
+
+var generatedIDFunc = generateID
 
 // generateID returns an 8-character random lowercase alphanumeric identifier.
 func generateID() string {

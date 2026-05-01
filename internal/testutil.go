@@ -8,6 +8,17 @@ import (
 	"testing"
 )
 
+// SetGeneratedIDFunc overrides the ID generation function for tests.
+// Call it with nil to reset to the default.
+func SetGeneratedIDFunc(t *testing.T, fn func() string) {
+	t.Helper()
+	if fn == nil {
+		generatedIDFunc = generateID
+		return
+	}
+	generatedIDFunc = fn
+}
+
 // FirstRun sets up a first-run scenario: fresh XDG_CONFIG_HOME, empty workspace dir,
 // and mocked execCommand. Returns the XDG_CONFIG_HOME base path.
 func FirstRun(t *testing.T) string {
@@ -41,6 +52,17 @@ func FirstRunWith(t *testing.T, configFunc func(siloUser string)) string {
 	os.Chdir(dir)
 
 	return base
+}
+
+// FirstRunWithFiles sets up a first-run scenario with user config files written.
+// starterFiles maps filename to content (e.g., "home-user.nix" -> content).
+// Returns the XDG_CONFIG_HOME base path.
+func FirstRunWithFiles(t *testing.T, starterFiles map[string]string) string {
+	return FirstRunWith(t, func(siloUser string) {
+		for name, content := range starterFiles {
+			WriteUserFile(t, siloUser, name, content)
+		}
+	})
 }
 
 // SubsequentRun sets up an existing workspace with config cfg and calls SetupUserConfig

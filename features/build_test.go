@@ -152,7 +152,13 @@ func TestFeatureBuild(t *testing.T) {
 			// Given a clean workspace with no existing silo files
 			// And the user's XDG_CONFIG_HOME points to a fresh directory
 			// And the user's silo config directory has all starter files
-			internal.FirstRun(t)
+			internal.FirstRunWithFiles(t, map[string]string{
+				"home-user.nix": internal.HomeUserNix,
+				"silo.in.toml":  "",
+			})
+
+			// Control the generated ID so we can verify exact names
+			internal.SetGeneratedIDFunc(t, func() string { return "abc12345" })
 
 			// And no user image exists
 			// And no workspace image exists
@@ -170,9 +176,14 @@ func TestFeatureBuild(t *testing.T) {
 			if _, err := os.Stat(internal.SiloToml()); os.IsNotExist(err) {
 				t.Error("expected .silo/silo.toml to be created")
 			}
-			// And images should be built
-			mock.AssertExec("podman", "build", "<...>")
-			// And the exit code should be 0 (implicit)
+			// And the user image "silo-markus" should be built
+			userBuild := mock.AssertExec("podman", "build", "-t", "silo-markus", "<...>")
+			// And the workspace image "silo-abc12345" should be built
+			workspaceBuild := mock.AssertExec("podman", "build", "-t", "silo-abc12345", "<...>")
+			// Verify sequence: user image built before workspace image
+			if userBuild != nil && workspaceBuild != nil && userBuild.Seq >= workspaceBuild.Seq {
+				t.Error("expected user image to be built before workspace image")
+			}
 		})
 	})
 
