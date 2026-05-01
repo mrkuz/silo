@@ -262,7 +262,7 @@ func RunInteractive(name string, args ...string) error {
 // PrintInitFileStatus prints the status of an init file.
 func PrintInitFileStatus(path string) error {
 	if _, err := os.Stat(path); err == nil {
-		fmt.Printf("%s already exists\n", path)
+		fmt.Printf("'%s' already exists\n", path)
 		return nil
 	} else if os.IsNotExist(err) {
 		fmt.Printf("Creating %s\n", path)

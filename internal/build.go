@@ -47,7 +47,7 @@ func BuildUserImage(tag string, tc TemplateContext) error {
 	if err != nil {
 		return fmt.Errorf("get user config directory: %w", err)
 	}
-	homeUserNix, err := os.ReadFile(filepath.Join(configDir, "home-user.nix"))
+	homeUserNix, err := ReadFile(filepath.Join(configDir, "home-user.nix"))
 	if err != nil {
 		return fmt.Errorf("read home-user.nix: %w", err)
 	}
