@@ -27,6 +27,7 @@ representing rules and scenarios.
 - Use `t.Run` to nest background, rules, and scenarios
 - Write unit tests: Call functions directly, do not run the program or its binary.
 - Adhere to the conventions provided by the examples
+- If there is a discrepancy between the spec and existing tests, ask for clarification
 
 ## Phase 1: Preparation
 
@@ -57,6 +58,9 @@ representing rules and scenarios.
        })
    })
    ```
+
+   Add the comments before the implementation or concrete assertion.
+
 6. **Implement steps** (use comments matching the step text):
    - `Given/And` → setup fixtures, mock responses
    - `When` → call the function under test

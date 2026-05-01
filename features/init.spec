@@ -132,6 +132,28 @@ Feature: silo init — Initialize workspace
       Then the config should have shared_volume=false
       And the exit code should be 0
 
+    Scenario: --podman flag overrides seeded config from silo.in.toml
+      Given the user's silo config directory has "silo.in.toml" with content:
+        """
+        [features]
+        podman = true
+        """
+      And a clean workspace with no existing silo files
+      When I run `silo init --no-podman`
+      Then the workspace config should have podman=false
+      And the exit code should be 0
+
+    Scenario: --shared-volume flag overrides seeded config from silo.in.toml
+      Given the user's silo config directory has "silo.in.toml" with content:
+        """
+        [features]
+        shared_volume = true
+        """
+      And a clean workspace with no existing silo files
+      When I run `silo init --no-shared-volume`
+      Then the workspace config should have shared_volume=false
+      And the exit code should be 0
+
   Rule: Podman flag affects workspace home.nix
 
     Scenario: --podman adds podman module to home.nix

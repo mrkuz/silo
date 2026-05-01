@@ -71,7 +71,7 @@ func DefaultConfig() (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("get current user: %w", err)
 	}
-	id := generateID()
+	id := generatedIDFunc()
 	return Config{
 		General: GeneralConfig{
 			ID:            id,
@@ -96,6 +96,8 @@ func DefaultConfig() (Config, error) {
 	}, nil
 }
 
+var generatedIDFunc = generateID
+
 // generateID returns an 8-character random lowercase alphanumeric identifier.
 func generateID() string {
 	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -114,6 +116,19 @@ func ParseTOML(path string) (Config, error) {
 		return Config{}, fmt.Errorf("parse %s: %w", filepath.Base(path), err)
 	}
 	return c, nil
+}
+
+// WriteTOML encodes and writes cfg to path.
+func WriteTOML(path string, cfg Config) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("create %s: %w", filepath.Base(path), err)
+	}
+	defer f.Close()
+	if err := toml.NewEncoder(f).Encode(cfg); err != nil {
+		return fmt.Errorf("encode %s: %w", filepath.Base(path), err)
+	}
+	return nil
 }
 
 // RequireWorkspaceConfig returns the workspace config or an error if .silo/silo.toml is missing.
