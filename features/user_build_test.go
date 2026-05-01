@@ -3,8 +3,8 @@ package features_test
 import (
 	"os"
 	"os/exec"
-	"path/filepath"
 	"os/user"
+	"path/filepath"
 	"strings"
 	"testing"
 

@@ -25,7 +25,7 @@ func TestFeatureStop(t *testing.T) {
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-				"podman stop -t 0 silo-abc12345":                                   exec.Command("true"),
+				"podman stop -t 0 silo-abc12345":                                     exec.Command("true"),
 			})
 
 			// When I run `silo stop`
@@ -70,7 +70,7 @@ func TestFeatureStop(t *testing.T) {
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-				"podman stop <any>":                                                 exec.Command("true"),
+				"podman stop <any>": exec.Command("true"),
 			})
 
 			// When I run `silo stop`

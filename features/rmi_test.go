@@ -80,12 +80,12 @@ func TestFeatureRmi(t *testing.T) {
 			internal.SubsequentRun(t, cfg)
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman container exists silo-abc12345": exec.Command("true"),
+				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-				"podman stop -t 0 silo-abc12345":       exec.Command("true"),
-				"podman rm -f silo-abc12345":           exec.Command("true"),
-				"podman image exists silo-abc12345":    exec.Command("true"),
-				"podman rmi silo-abc12345":             exec.Command("true"),
+				"podman stop -t 0 silo-abc12345":                                     exec.Command("true"),
+				"podman rm -f silo-abc12345":                                         exec.Command("true"),
+				"podman image exists silo-abc12345":                                  exec.Command("true"),
+				"podman rmi silo-abc12345":                                           exec.Command("true"),
 			})
 
 			// When I run `silo rmi --force`
@@ -113,10 +113,10 @@ func TestFeatureRmi(t *testing.T) {
 			internal.SubsequentRun(t, cfg)
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman container exists silo-abc12345": exec.Command("true"),
+				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
-				"podman image exists silo-abc12345":    exec.Command("true"),
-				"podman rmi silo-abc12345":             exec.Command("true"),
+				"podman image exists silo-abc12345":                                  exec.Command("true"),
+				"podman rmi silo-abc12345":                                           exec.Command("true"),
 			})
 
 			// When I run `silo rmi --force`
@@ -143,8 +143,8 @@ func TestFeatureRmi(t *testing.T) {
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
-				"podman image exists silo-abc12345":    exec.Command("true"),
-				"podman rmi silo-abc12345":             exec.Command("true"),
+				"podman image exists silo-abc12345":     exec.Command("true"),
+				"podman rmi silo-abc12345":              exec.Command("true"),
 			})
 
 			// When I run `silo rmi --force`
@@ -172,10 +172,10 @@ func TestFeatureRmi(t *testing.T) {
 			internal.SubsequentRun(t, cfg)
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman container exists silo-abc12345": exec.Command("true"),
+				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-				"podman image exists silo-abc12345":    exec.Command("true"),
-				"podman rmi silo-abc12345":             exec.Command("false"),
+				"podman image exists silo-abc12345":                                  exec.Command("true"),
+				"podman rmi silo-abc12345":                                           exec.Command("false"),
 			})
 
 			// When I run `silo rmi`

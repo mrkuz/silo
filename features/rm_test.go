@@ -26,7 +26,7 @@ func TestFeatureRm(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
 				"podman container exists silo-abc12345":                              exec.Command("true"),
-				"podman rm -f silo-abc12345":                                        exec.Command("true"),
+				"podman rm -f silo-abc12345":                                         exec.Command("true"),
 			})
 
 			// When I run `silo rm`
@@ -77,8 +77,8 @@ func TestFeatureRm(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
 				"podman container exists silo-abc12345":                              exec.Command("true"),
-				"podman stop -t 0 silo-abc12345":                                   exec.Command("true"),
-				"podman rm -f silo-abc12345":                                        exec.Command("true"),
+				"podman stop -t 0 silo-abc12345":                                     exec.Command("true"),
+				"podman rm -f silo-abc12345":                                         exec.Command("true"),
 			})
 
 			// When I run `silo rm --force`
@@ -130,7 +130,7 @@ func TestFeatureRm(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
 				"podman container exists silo-abc12345":                              exec.Command("true"),
-				"podman rm <any>":                                                   exec.Command("true"),
+				"podman rm <any>":                                                    exec.Command("true"),
 			})
 
 			// When I run `silo rm`

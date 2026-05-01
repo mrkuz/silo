@@ -126,11 +126,11 @@ func TestFeatureStart(t *testing.T) {
 			internal.SubsequentRun(t, cfg)
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman container exists silo-abc12345":    exec.Command("false"),
-				"podman image exists silo-alice":          exec.Command("false"),
-				"podman image exists silo-abc12345":      exec.Command("false"),
+				"podman container exists silo-abc12345": exec.Command("false"),
+				"podman image exists silo-alice":        exec.Command("false"),
+				"podman image exists silo-abc12345":     exec.Command("false"),
 				"podman build -t silo-alice <...>":      exec.Command("true"),
-				"podman build -t silo-abc12345 <...>":    exec.Command("true"),
+				"podman build -t silo-abc12345 <...>":   exec.Command("true"),
 				"podman create <...>":                   exec.Command("true"),
 				"podman start silo-abc12345":            exec.Command("true"),
 			})

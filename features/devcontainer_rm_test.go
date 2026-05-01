@@ -26,7 +26,7 @@ func TestFeatureDevcontainerRm(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "false"),
 				"podman container exists silo-abc12345-dev":                              exec.Command("true"),
-				"podman rm -f silo-abc12345-dev":                                        exec.Command("true"),
+				"podman rm -f silo-abc12345-dev":                                         exec.Command("true"),
 			})
 
 			// When I run `silo devcontainer rm`
@@ -77,8 +77,8 @@ func TestFeatureDevcontainerRm(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "true"),
 				"podman container exists silo-abc12345-dev":                              exec.Command("true"),
-				"podman stop -t 0 silo-abc12345-dev":                                   exec.Command("true"),
-				"podman rm -f silo-abc12345-dev":                                        exec.Command("true"),
+				"podman stop -t 0 silo-abc12345-dev":                                     exec.Command("true"),
+				"podman rm -f silo-abc12345-dev":                                         exec.Command("true"),
 			})
 
 			// When I run `silo devcontainer rm --force`
@@ -150,10 +150,10 @@ func TestFeatureDevcontainerRm(t *testing.T) {
 			internal.SubsequentRun(t, cfg)
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman container inspect --format {{.State.Running}} silo-abc12345-dev":   exec.Command("echo", "false"),
+				"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "false"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345":     exec.Command("echo", "true"),
 				"podman container exists silo-abc12345-dev":                              exec.Command("true"),
-				"podman rm <any>":                                                         exec.Command("true"),
+				"podman rm <any>": exec.Command("true"),
 			})
 
 			// When I run `silo devcontainer rm`
@@ -165,7 +165,6 @@ func TestFeatureDevcontainerRm(t *testing.T) {
 			// And podman should not run "rm" on "silo-abc12345"
 			mock.AssertNoExec("podman", "rm", "silo-abc12345")
 		})
-
 		t.Run("Scenario: rm only removes the devcontainer, not the workspace image", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
 			cfg.General.User = "alice"
@@ -174,7 +173,7 @@ func TestFeatureDevcontainerRm(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "false"),
 				"podman container exists silo-abc12345-dev":                              exec.Command("true"),
-				"podman rm <any>":                                                        exec.Command("true"),
+				"podman rm <any>": exec.Command("true"),
 			})
 
 			// When I run `silo devcontainer rm`

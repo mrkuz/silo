@@ -24,7 +24,7 @@ func TestFeatureUserRmi(t *testing.T) {
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists " + userImage: exec.Command("true"),
-				"podman rmi " + userImage:           exec.Command("true"),
+				"podman rmi " + userImage:          exec.Command("true"),
 			})
 
 			// When I run `silo user rmi`
@@ -50,7 +50,7 @@ func TestFeatureUserRmi(t *testing.T) {
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists " + userImage: exec.Command("true"),
-				"podman rmi " + userImage:           exec.Command("true"),
+				"podman rmi " + userImage:          exec.Command("true"),
 			})
 
 			// When I run `silo user rmi`

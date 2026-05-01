@@ -335,7 +335,7 @@ func TestFeatureCreate(t *testing.T) {
 				"podman image exists silo-alice":        exec.Command("true"),
 				"podman image exists silo-abc12345":     exec.Command("true"),
 				"podman container exists silo-abc12345": exec.Command("false"),
-				"podman create <...>":                  exec.Command("true"),
+				"podman create <...>":                   exec.Command("true"),
 			})
 
 			// When I run `silo create`
@@ -372,7 +372,7 @@ func TestFeatureCreate(t *testing.T) {
 				"podman image exists silo-alice":        exec.Command("true"),
 				"podman image exists silo-abc12345":     exec.Command("true"),
 				"podman container exists silo-abc12345": exec.Command("false"),
-				"podman create <...>":                  exec.Command("true"),
+				"podman create <...>":                   exec.Command("true"),
 			})
 
 			// When I run `silo create`
@@ -415,7 +415,7 @@ func TestFeatureCreate(t *testing.T) {
 				"podman image exists silo-alice":        exec.Command("true"),
 				"podman image exists silo-abc12345":     exec.Command("true"),
 				"podman container exists silo-abc12345": exec.Command("false"),
-				"podman create <...>":                  exec.Command("true"),
+				"podman create <...>":                   exec.Command("true"),
 			})
 
 			// When I run `silo create`
@@ -445,7 +445,7 @@ func TestFeatureCreate(t *testing.T) {
 				"podman image exists silo-alice":        exec.Command("true"),
 				"podman image exists silo-abc12345":     exec.Command("true"),
 				"podman container exists silo-abc12345": exec.Command("false"),
-				"podman create <...>":                  exec.Command("true"),
+				"podman create <...>":                   exec.Command("true"),
 			})
 
 			// When I run `silo create`
