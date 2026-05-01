@@ -32,10 +32,10 @@ go vet ./...            # Run static analysis
 **Key files in `cmd/`:**
 - `init.go` — `Init`, `UserInit`, `VolumeSetup`, `ParseInitFlags`
 - `run.go` — `Run`, `Connect`, `Exec`, `ParseRunFlags`
-- `stop.go` — `Stop`, `Status`, `Remove`, `RemoveImage`, `UserRmi`
-- `create.go` — `Create`, `Start`, `ParseCreateFlags`
+- `stop.go` — `Stop`, `Status`, `Remove`, `UserRm`, `ParseRemoveFlags`, `parseForceFlag`
 - `build.go` — `Build`, `UserBuild`
-- `devcontainer.go` — `DevcontainerGenerate`, `DevcontainerStop`, etc.
+- `devcontainer.go` — `DevcontainerGenerate`, `DevcontainerStop`, `DevcontainerStatus`
+- `create.go` — `Start` (create step is handled internally by `EnsureCreated`)
 
 **Key files in `internal/`:**
 - `config.go` — Config types, `ParseTOML`, `EnsureInit`, `EnsureBuilt`, etc.
@@ -50,7 +50,7 @@ go vet ./...            # Run static analysis
 init → build → create → start → connect
 ```
 
-Note: `start` internally runs `volume setup` before starting the container.
+Note: `start` internally calls `EnsureCreated` (which creates the container if needed) and `VolumeSetup` before starting the container. `silo stop` stops and removes the container. `silo rm` removes the image.
 
 **The `Ensure*` chain** provides lazy initialization:
 - `EnsureInit` → initializes config and creates starter files

@@ -2,6 +2,16 @@
 
 Per-directory developer containers, powered by Podman, Nix, and home-manager.
 
+## Goals
+
+- Simple way to create and run personal workspace containers, configured via home-manager
+
+## Non-Goals
+
+- Full secured agent sandbox
+- Deterministic reproducibility — builds may vary across machines or time
+- Sharability — workspaces are personal and local to a user
+
 ---
 
 ## Features
