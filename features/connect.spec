@@ -2,8 +2,8 @@
 Feature: silo connect — Open an interactive shell in the workspace container
 
   `silo connect` opens an interactive shell session inside the running workspace
-  container. It runs the full lifecycle chain (init → build → create → start) if
-  needed before connecting. It does not accept any arguments.
+  container. It requires the container to exist and be running. It does not accept
+  any arguments.
 
   Background:
     Given a workspace with silo config "abc12345"
@@ -27,26 +27,26 @@ Feature: silo connect — Open an interactive shell in the workspace container
       When I run `silo connect`
       Then the output should contain "Connecting to silo-abc12345..."
 
-  Rule: Ensures container is started before connecting
 
-    Scenario: stopped container is started before connecting
+  Rule: Requires container to be running
+
+
+    Scenario: connect fails if container is not running
       Given the container "silo-abc12345" exists but is stopped
       And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo connect`
-      Then the container "silo-abc12345" should be started
-      And podman should run "exec" with "-ti" on "silo-abc12345"
-      And the exit code should be 0
+      Then the exit code should not be 0
+      And the error should contain "not running"
 
-    Scenario: missing container triggers full lifecycle before connecting
+
+    Scenario: connect fails if container does not exist
       Given no container exists
       And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo connect`
-      Then the container "silo-abc12345" should be created
-      And the container "silo-abc12345" should be running
-      And podman should run "exec" with "-ti" on "silo-abc12345"
-      And the exit code should be 0
+      Then the exit code should not be 0
+      And the error should contain "not found" or "does not exist"
 
   Rule: Exiting the shell leaves the container running
 

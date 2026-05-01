@@ -73,8 +73,8 @@ func TestFeatureConnect(t *testing.T) {
 		})
 	})
 
-	t.Run("Rule: Ensures container is started before connecting", func(t *testing.T) {
-		t.Run("Scenario: stopped container is started before connecting", func(t *testing.T) {
+	t.Run("Rule: Requires container to be running", func(t *testing.T) {
+		t.Run("Scenario: connect fails if container is not running", func(t *testing.T) {
 			// Given the container "silo-abc12345" exists but is stopped
 			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
@@ -91,17 +91,17 @@ func TestFeatureConnect(t *testing.T) {
 
 			// When I run `silo connect`
 			err := cmd.Connect(nil)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
+			if err == nil {
+				t.Fatal("expected error when container is not running")
 			}
-
-			// Then the container "silo-abc12345" should be started
-			mock.AssertExec("podman", "start", "silo-abc12345")
-			// And podman should run "exec" with "-ti" on "silo-abc12345"
-			mock.AssertExec("podman", "exec", "-ti", "silo-abc12345", "<...>")
+			if !strings.Contains(err.Error(), "not running") {
+				t.Errorf("expected error about container not running, got: %v", err)
+			}
 		})
+	})
 
-		t.Run("Scenario: missing container triggers full lifecycle before connecting", func(t *testing.T) {
+	t.Run("Rule: Requires container to exist", func(t *testing.T) {
+		t.Run("Scenario: connect fails if container does not exist", func(t *testing.T) {
 			// Given no container exists
 			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
@@ -117,16 +117,12 @@ func TestFeatureConnect(t *testing.T) {
 
 			// When I run `silo connect`
 			err := cmd.Connect(nil)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
+			if err == nil {
+				t.Fatal("expected error when container does not exist")
 			}
-
-			// Then the container "silo-abc12345" should be created
-			mock.AssertExec("podman", "create", "<...>")
-			// And the container "silo-abc12345" should be running
-			mock.AssertExec("podman", "start", "silo-abc12345")
-			// And podman should run "exec" with "-ti" on "silo-abc12345"
-			mock.AssertExec("podman", "exec", "-ti", "silo-abc12345", "<...>")
+			if !strings.Contains(err.Error(), "does not exist") {
+				t.Errorf("expected error about container not existing, got: %v", err)
+			}
 		})
 	})
 
@@ -188,6 +184,12 @@ func TestFeatureConnect(t *testing.T) {
 			}
 
 			mock.Reset()
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman image exists silo-alice":                                     exec.Command("true"),
+				"podman image exists silo-abc12345":                                  exec.Command("true"),
+				"podman container exists silo-abc12345":                              exec.Command("true"),
+				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
+			})
 
 			err = cmd.Connect(nil)
 			if err != nil {

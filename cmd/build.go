@@ -35,6 +35,9 @@ func UserBuild() error {
 	if err != nil {
 		return fmt.Errorf("build template context: %w", err)
 	}
+	if err := internal.EnsureUserFiles(); err != nil {
+		return fmt.Errorf("ensure user files: %w", err)
+	}
 	if internal.ImageExists(tc.BaseImage) {
 		fmt.Printf("%s already exists\n", tc.BaseImage)
 		return nil

@@ -85,22 +85,47 @@ func TestFeatureUserBuild(t *testing.T) {
 		})
 	})
 
-	t.Run("Rule: Requires home-user.nix to be present", func(t *testing.T) {
-		t.Run("Scenario: build fails if home-user.nix is missing", func(t *testing.T) {
+	t.Run("Rule: Automatically runs user init if needed", func(t *testing.T) {
+		t.Run("Scenario: missing user files triggers automatic user init", func(t *testing.T) {
 			// Given a fresh XDG_CONFIG_HOME without starter files
 			base := t.TempDir()
 			t.Setenv("XDG_CONFIG_HOME", base)
+			// And no user image exists
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman image exists " + userImage:        exec.Command("false"),
+				"podman build -t " + userImage + " <...>": exec.Command("true"),
+			})
 
 			// When I run `silo user build`
 			err := cmd.UserBuild()
 
-			// Then the exit code should not be 0
-			// And the error should indicate "home-user.nix" could not be read
-			if err == nil {
-				t.Error("expected error when home-user.nix is missing")
+			// Then the user files should be created
+			// And the user image should be built
+			mock.AssertExec("podman", "build", "-t", userImage, "<...>")
+			// And the exit code should be 0
+			if err != nil {
+				t.Errorf("expected exit code 0, got error: %v", err)
 			}
-			if err != nil && !strings.Contains(err.Error(), "home-user.nix") {
-				t.Errorf("expected error about 'home-user.nix', got: %v", err)
+		})
+
+		t.Run("Scenario: existing user files are preserved during auto init", func(t *testing.T) {
+			internal.SetupUserConfig(t)
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman image exists " + userImage:        exec.Command("false"),
+				"podman build -t " + userImage + " <...>": exec.Command("true"),
+			})
+
+			// When I run `silo user build`
+			err := cmd.UserBuild()
+
+			// Then the user files should not be modified
+			// And the user image should be built
+			mock.AssertExec("podman", "build", "-t", userImage, "<...>")
+			// And the exit code should be 0
+			if err != nil {
+				t.Errorf("expected exit code 0, got error: %v", err)
 			}
 		})
 	})

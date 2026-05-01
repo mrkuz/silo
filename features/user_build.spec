@@ -32,14 +32,25 @@ Feature: silo user build — Build the shared user image
       And no build should occur
       And the exit code should be 0
 
-  Rule: Requires home-user.nix to be present
+  Rule: Automatically runs user init if needed
 
-    Scenario: build fails if home-user.nix is missing
+    Scenario: missing user files triggers automatic user init
       Given the user image "silo-alice" does not exist
       But the user's silo config directory is missing "home-user.nix"
+      And the user's silo config directory is missing "devcontainer.in.json"
+      And the user's silo config directory is missing "silo.in.toml"
       When I run `silo user build`
-      Then the exit code should not be 0
-      And the error should indicate "home-user.nix" could not be read
+      Then the user files should be created
+      And the user image "silo-alice" should be built
+      And the exit code should be 0
+
+    Scenario: existing user files are preserved during auto init
+      Given the user image "silo-alice" does not exist
+      And the user's silo config directory has all starter files
+      When I run `silo user build`
+      Then the user files should not be modified
+      And the user image "silo-alice" should be built
+      And the exit code should be 0
 
   Rule: home-user.nix is baked into the user image
 
