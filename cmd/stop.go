@@ -44,11 +44,11 @@ func Status() error {
 	return nil
 }
 
-// RemoveImage implements `silo rmi [--force]`.
-func RemoveImage(args []string) error {
-	force, err := ParseRemoveImageFlags(args)
+// Remove implements `silo rm [--force]`.
+func Remove(args []string) error {
+	force, err := ParseRemoveFlags(args)
 	if err != nil {
-		return fmt.Errorf("parse rmi flags: %w", err)
+		return fmt.Errorf("parse rm flags: %w", err)
 	}
 	cfg, err := internal.RequireWorkspaceConfig()
 	if err != nil {
@@ -79,8 +79,8 @@ func RemoveImage(args []string) error {
 	return nil
 }
 
-// UserRmi implements `silo user rmi`. Removes the user image.
-func UserRmi() error {
+// UserRm implements `silo user rm`. Removes the user image.
+func UserRm() error {
 	u, err := user.Current()
 	if err != nil {
 		return fmt.Errorf("get current user: %w", err)
@@ -97,9 +97,9 @@ func UserRmi() error {
 	return nil
 }
 
-// ParseRemoveImageFlags parses the flags for `silo rmi`.
-func ParseRemoveImageFlags(args []string) (bool, error) {
-	return parseForceFlag(args, "silo rmi", "Stop and remove the container before removing the image", "parse rmi flags")
+// ParseRemoveFlags parses the flags for `silo rm`.
+func ParseRemoveFlags(args []string) (bool, error) {
+	return parseForceFlag(args, "silo rm", "Stop and remove the container before removing the image", "parse rm flags")
 }
 
 func parseForceFlag(args []string, name, usage, context string) (bool, error) {

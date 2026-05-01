@@ -36,12 +36,13 @@ The README should contain:
 
 1. **Title**
 2. **Short description**
-3. **Core features**
-4. **Quick start guide**
-5. **Detailed running instructions** — use CLI help output where available
-6. **Build and install instructions**
-7. **Configuration reference** — include examples
-8. **How it works** — explanation of the tool's internals
+3. **Goals and Non-Goals**
+4. **Core features**
+5. **Quick start guide**
+6. **Detailed running instructions** — use CLI help output where available
+7. **Build and install instructions**
+8. **Configuration reference** — include examples
+9. **How it works** — explanation of the tool's internals
 
 ## Phase 3: Verification
 

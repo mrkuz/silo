@@ -58,13 +58,13 @@ Feature: silo (default invocation) — Run lifecycle and connect to the containe
       And the interactive session ends
       Then podman should not run "rmi" on "silo-abc12345"
 
-  Rule: --rmi stops, removes container, and removes image after the session exits
+  Rule: --rm stops, removes container, and removes image after the session exits
 
     Scenario: container and image are removed
       Given the container "silo-abc12345" is running
       And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
-      When I run `silo --rmi`
+      When I run `silo --rm`
       And the interactive session ends
       Then podman should run "stop" with "-t" and "0" on "silo-abc12345"
       And podman should run "rm" with "-f" on "silo-abc12345"

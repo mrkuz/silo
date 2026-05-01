@@ -10,11 +10,11 @@ import (
 	"github.com/mrkuz/silo/internal"
 )
 
-// Feature: silo rmi — Remove the workspace image
-// `silo rmi` removes the workspace image. With `--force`, it also stops and removes
+// Feature: silo rm — Remove the workspace image
+// `silo rm` removes the workspace image. With `--force`, it also stops and removes
 // the container first if it is running. Unlike `silo user rmi`, this removes the
 // per-workspace image (`silo-<id>`), not the shared user image (`silo-<user>`).
-func TestFeatureRmi(t *testing.T) {
+func TestFeatureRm(t *testing.T) {
 	// Background: a workspace with silo config "abc12345"
 	// and the user's XDG_CONFIG_HOME points to a fresh directory
 
@@ -29,10 +29,10 @@ func TestFeatureRmi(t *testing.T) {
 				"podman rmi silo-abc12345":          exec.Command("true"),
 			})
 
-			// When I run `silo rmi`
+			// When I run `silo rm`
 			var err error
 			output := internal.CaptureStdout(func() {
-				err = cmd.RemoveImage(nil)
+				err = cmd.Remove(nil)
 			})
 
 			// Then podman should run "rmi" on "silo-abc12345"
@@ -56,10 +56,10 @@ func TestFeatureRmi(t *testing.T) {
 				"podman image exists silo-abc12345": exec.Command("false"),
 			})
 
-			// When I run `silo rmi`
+			// When I run `silo rm`
 			var err error
 			output := internal.CaptureStdout(func() {
-				err = cmd.RemoveImage(nil)
+				err = cmd.Remove(nil)
 			})
 
 			// Then the output should contain "silo-abc12345 not found"
@@ -88,10 +88,10 @@ func TestFeatureRmi(t *testing.T) {
 				"podman rmi silo-abc12345":                                           exec.Command("true"),
 			})
 
-			// When I run `silo rmi --force`
+			// When I run `silo rm --force`
 			var err error
 			output := internal.CaptureStdout(func() {
-				err = cmd.RemoveImage([]string{"--force"})
+				err = cmd.Remove([]string{"--force"})
 			})
 
 			// Then podman should run "stop" with "-t" and "0" on "silo-abc12345"
@@ -119,10 +119,10 @@ func TestFeatureRmi(t *testing.T) {
 				"podman rmi silo-abc12345":                                           exec.Command("true"),
 			})
 
-			// When I run `silo rmi --force`
+			// When I run `silo rm --force`
 			var err error
 			output := internal.CaptureStdout(func() {
-				err = cmd.RemoveImage([]string{"--force"})
+				err = cmd.Remove([]string{"--force"})
 			})
 
 			// Then podman should run "rmi" on "silo-abc12345"
@@ -147,10 +147,10 @@ func TestFeatureRmi(t *testing.T) {
 				"podman rmi silo-abc12345":              exec.Command("true"),
 			})
 
-			// When I run `silo rmi --force`
+			// When I run `silo rm --force`
 			var err error
 			output := internal.CaptureStdout(func() {
-				err = cmd.RemoveImage([]string{"--force"})
+				err = cmd.Remove([]string{"--force"})
 			})
 
 			// Then podman should run "rmi" on "silo-abc12345"
@@ -177,10 +177,10 @@ func TestFeatureRmi(t *testing.T) {
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 			})
 
-			// When I run `silo rmi`
+			// When I run `silo rm`
 			var err error
 			output := internal.CaptureStdout(func() {
-				err = cmd.RemoveImage(nil)
+				err = cmd.Remove(nil)
 			})
 
 			// Then the exit code should not be 0
@@ -210,8 +210,8 @@ func TestFeatureRmi(t *testing.T) {
 			t.Cleanup(func() { os.Chdir(orig) })
 			os.Chdir(dir)
 
-			// When I run `silo rmi`
-			err := cmd.RemoveImage(nil)
+			// When I run `silo rm`
+			err := cmd.Remove(nil)
 
 			// Then the exit code should not be 0
 			// And the error should indicate ".silo/silo.toml" is missing
@@ -233,8 +233,8 @@ func TestFeatureRmi(t *testing.T) {
 				"podman rmi silo-abc12345":          exec.Command("true"),
 			})
 
-			// When I run `silo rmi`
-			err := cmd.RemoveImage(nil)
+			// When I run `silo rm`
+			err := cmd.Remove(nil)
 
 			// Then podman should run "rmi" on "silo-abc12345"
 			mock.AssertExec("podman", "rmi", "silo-abc12345")

@@ -10,10 +10,10 @@ import (
 	"github.com/mrkuz/silo/internal"
 )
 
-// Feature: silo user rmi — Remove the shared user image
-// `silo user rmi` removes the shared user image (`silo-<username>`) for the
+// Feature: silo user rm — Remove the shared user image
+// `silo user rm` removes the shared user image (`silo-<username>`) for the
 // current user. It has no effect if the image does not exist.
-func TestFeatureUserRmi(t *testing.T) {
+func TestFeatureUserRm(t *testing.T) {
 	// Background: the user's XDG_CONFIG_HOME points to a fresh directory
 	currentUser, _ := user.Current()
 	userImage := "silo-" + currentUser.Username
@@ -27,10 +27,10 @@ func TestFeatureUserRmi(t *testing.T) {
 				"podman rmi " + userImage:          exec.Command("true"),
 			})
 
-			// When I run `silo user rmi`
+			// When I run `silo user rm`
 			var err error
 			output := internal.CaptureStdout(func() {
-				err = cmd.UserRmi()
+				err = cmd.UserRm()
 			})
 
 			// Then the user image should be removed
@@ -53,9 +53,9 @@ func TestFeatureUserRmi(t *testing.T) {
 				"podman rmi " + userImage:          exec.Command("true"),
 			})
 
-			// When I run `silo user rmi`
+			// When I run `silo user rm`
 			output := internal.CaptureStdout(func() {
-				cmd.UserRmi()
+				cmd.UserRm()
 			})
 
 			// Then the output should contain "Removing <userImage>..."
@@ -73,10 +73,10 @@ func TestFeatureUserRmi(t *testing.T) {
 				"podman image exists " + userImage: exec.Command("false"),
 			})
 
-			// When I run `silo user rmi`
+			// When I run `silo user rm`
 			var err error
 			output := internal.CaptureStdout(func() {
-				err = cmd.UserRmi()
+				err = cmd.UserRm()
 			})
 
 			// Then the output should contain "<userImage> not found"
@@ -96,8 +96,8 @@ func TestFeatureUserRmi(t *testing.T) {
 				"podman image exists " + userImage: exec.Command("false"),
 			})
 
-			// When I run `silo user rmi`
-			err := cmd.UserRmi()
+			// When I run `silo user rm`
+			err := cmd.UserRm()
 
 			// Then no podman rmi call should be made
 			mock.AssertNoExec("podman", "rmi", "<any>")

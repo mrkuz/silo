@@ -10,12 +10,12 @@ func TestParseRunFlags(t *testing.T) {
 	tests := []struct {
 		args     []string
 		wantStop bool
-		wantRmi  bool
+		wantRemove  bool
 		wantErr  bool
 	}{
 		{[]string{}, false, false, false},
 		{[]string{"--stop"}, true, false, false},
-		{[]string{"--rmi"}, true, true, false},
+		{[]string{"--rm"}, true, true, false},
 		{[]string{"--unknown"}, false, false, true},
 	}
 	for _, tt := range tests {
@@ -30,9 +30,9 @@ func TestParseRunFlags(t *testing.T) {
 			t.Errorf("ParseRunFlags(%v): unexpected error: %v", tt.args, err)
 			continue
 		}
-		if f.Stop != tt.wantStop || f.Rmi != tt.wantRmi {
+		if f.Stop != tt.wantStop || f.Remove != tt.wantRemove {
 			t.Errorf("ParseRunFlags(%v) = {Stop:%v Rmi:%v}, want {Stop:%v Rmi:%v}",
-				tt.args, f.Stop, f.Rmi, tt.wantStop, tt.wantRmi)
+				tt.args, f.Stop, f.Remove, tt.wantStop, tt.wantRemove)
 		}
 	}
 }
@@ -202,7 +202,7 @@ func TestParseCreateFlags(t *testing.T) {
 	}
 }
 
-func TestParseRemoveImageFlags(t *testing.T) {
+func TestParseRemoveFlags(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    []string
@@ -235,7 +235,7 @@ func TestParseRemoveImageFlags(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f, err := cmd.ParseRemoveImageFlags(tt.args)
+			f, err := cmd.ParseRemoveFlags(tt.args)
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("expected error")

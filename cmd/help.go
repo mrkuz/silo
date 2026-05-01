@@ -6,7 +6,7 @@ import "fmt"
 const HelpText = `silo - developer container
 
 Usage:
-  silo [--stop|--rmi] [-- args...]
+  silo [--stop|--rm] [-- args...]
   silo init [--podman|--no-podman] [--shared-volume|--no-shared-volume]
   silo build
   silo create [--dry-run]
@@ -15,11 +15,11 @@ Usage:
   silo connect
   silo exec <cmd> [args...]
   silo stop
-  silo rmi [-f|--force]
+  silo rm [-f|--force]
   silo status
   silo user init
   silo user build
-  silo user rmi
+  silo user rm
   silo devcontainer
   silo devcontainer stop
   silo devcontainer status
@@ -35,11 +35,11 @@ Commands:
   connect              Connect to the silo container
   exec                 Run a command in the running container
   stop                 Stop and remove the running container
-  rmi                  Remove the workspace image
+  rm                   Remove the workspace image
   status               Print container status
   user init            Create user files
   user build           Build the user image
-  user rmi             Remove the user image
+  user rm              Remove the user image
   devcontainer         Generate .devcontainer.json
   devcontainer stop    Stop and remove the devcontainer
   devcontainer status  Print devcontainer status
@@ -47,7 +47,7 @@ Commands:
 
 Default command flags:
   --stop  Stop and remove the container when the session exits
-  --rmi   Stop, remove container, and remove image when the session exits
+  --rm    Stop, remove container, and remove image when the session exits
   -- ...  Pass remaining arguments to podman exec
 
 Init flags:

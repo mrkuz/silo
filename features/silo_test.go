@@ -182,7 +182,7 @@ func TestFeatureSilo(t *testing.T) {
 		})
 	})
 
-	t.Run("Rule: --rmi stops, removes container, and removes image after the session exits", func(t *testing.T) {
+	t.Run("Rule: --rm stops, removes container, and removes image after the session exits", func(t *testing.T) {
 		t.Run("Scenario: container and image are removed", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			cfg := internal.MinimalConfig("abc12345")
@@ -200,8 +200,8 @@ func TestFeatureSilo(t *testing.T) {
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 			})
 
-			// When I run `silo --rmi`
-			err := cmd.Run([]string{"--rmi"})
+			// When I run `silo --rm`
+			err := cmd.Run([]string{"--rm"})
 
 			// And the interactive session ends
 			// Then podman should run "stop" with "-t" and "0" on "silo-abc12345"

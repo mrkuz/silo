@@ -77,7 +77,7 @@ silo connect       # Connect to container (triggers missing steps automatically)
 ## Commands
 
 ```
-silo [--stop|--rmi] [-- args...]
+silo [--stop|--rm] [-- args...]
 silo init [--podman|--no-podman] [--shared-volume|--no-shared-volume]
 silo build
 silo create [--dry-run]
@@ -86,11 +86,11 @@ silo volume setup
 silo connect
 silo exec <cmd> [args...]
 silo stop
-silo rmi [-f|--force]
+silo rm [-f|--force]
 silo status
 silo user init
 silo user build
-silo user rmi
+silo user rm
 silo devcontainer
 silo devcontainer stop
 silo devcontainer status
@@ -103,9 +103,8 @@ Run the full lifecycle chain if needed, then connect to the container for the cu
 
 | Flag | Description |
 |---|---|
-| `--stop` | Stop the container when the session exits |
-| `--rm` | Stop and remove the container when the session exits |
-| `--rmi` | Stop, remove container, and remove workspace image when the session exits |
+| `--stop` | Stop and remove the container when the session exits |
+| `--rm` | Stop, remove container, and remove workspace image when the session exits |
 | `-- ...` | Pass remaining arguments to `podman exec` |
 
 ### `silo init`
@@ -147,7 +146,7 @@ Run a command inside the running container. Fails if the container is not runnin
 
 Stop and remove the running container (immediate, no grace period).
 
-### `silo rmi`
+### `silo rm`
 
 Remove the workspace image. With `--force`, also stops and removes the container first.
 
@@ -167,7 +166,7 @@ Create user starter files under `$XDG_CONFIG_HOME/silo/` if they do not exist:
 
 Build the user image if it does not exist yet. The user image is shared across all workspaces.
 
-### `silo user rmi`
+### `silo user rm`
 
 Remove the user image.
 
