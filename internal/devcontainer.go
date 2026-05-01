@@ -17,7 +17,8 @@ func DevContainerName(cfg Config) string {
 }
 
 // DevcontainerGenerate generates a .devcontainer.json for VS Code.
-func DevcontainerGenerate() error {
+// If force is true, the file is always overwritten.
+func DevcontainerGenerate(force bool) error {
 	cfg, err := RequireWorkspaceConfig()
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
@@ -41,7 +42,8 @@ func DevcontainerGenerate() error {
 
 	const devcontainerFile = ".devcontainer.json"
 
-	if _, statErr := os.Stat(devcontainerFile); statErr == nil {
+	if _, statErr := os.Stat(devcontainerFile); statErr == nil && !force {
+		PrintInitFileStatus(devcontainerFile)
 		return nil
 	}
 

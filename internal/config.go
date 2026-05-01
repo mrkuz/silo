@@ -203,13 +203,20 @@ func EnsureUserHomeNix() error {
 }
 
 // EnsureWorkspaceHomeNix creates .silo/home.nix if it does not exist.
-// If podman is true, module.podman.enable is set to true.
-func EnsureWorkspaceHomeNix(podman bool) error {
+// If force is true, the file is always overwritten.
+func EnsureWorkspaceHomeNix(podman bool, force bool) error {
 	content, err := RenderWorkspaceHomeNix(podman)
 	if err != nil {
 		return fmt.Errorf("render workspace home.nix: %w", err)
 	}
-	return EnsureFile(filepath.Join(SiloDir(), "home.nix"), []byte(content))
+	path := filepath.Join(SiloDir(), "home.nix")
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return fmt.Errorf("create directory for file: %w", err)
+	}
+	if force {
+		return os.WriteFile(path, []byte(content), 0644)
+	}
+	return EnsureFile(path, []byte(content))
 }
 
 // EnsureDevcontainerInJSON creates $XDG_CONFIG_HOME/silo/devcontainer.in.json if it does not exist.
@@ -269,58 +276,73 @@ func UserStarterFiles() ([]UserStarterFile, error) {
 	}, nil
 }
 
+// SeedWorkspaceConfig returns a new config seeded from silo.in.toml and built-in defaults.
+// Unlike InitWorkspaceConfig, this always seeds fresh and ignores any existing silo.toml.
+func SeedWorkspaceConfig() (Config, error) {
+	defaults, err := DefaultConfig()
+	if err != nil {
+		return Config{}, err
+	}
+	cfg, err := LoadSiloInTOML()
+	if err != nil {
+		return Config{}, fmt.Errorf("load user silo.in.toml: %w", err)
+	}
+	cfg.General = defaults.General
+	if cfg.Connect.Command == "" {
+		cfg.Connect.Command = defaults.Connect.Command
+	}
+	if cfg.Features == (FeaturesConfig{}) {
+		cfg.Features = defaults.Features
+	}
+	return cfg, nil
+}
+
 // InitWorkspaceConfig initializes workspace config from defaults or user settings.
 // Returns (cfg, firstRun, error). On first run, cfg is built from defaults and silo.in.toml.
 // On subsequent runs, cfg is loaded from silo.toml. Does NOT save — caller must save on first run.
 func InitWorkspaceConfig() (Config, bool, error) {
-	var cfg Config
 	if _, err := os.Stat(SiloToml()); os.IsNotExist(err) {
 		// First run: seed from user config, fall back to built-in defaults.
-		defaults, err := DefaultConfig()
-		if err != nil {
-			return cfg, false, err
-		}
-		cfg, err = LoadSiloInTOML()
-		if err != nil {
-			return cfg, false, fmt.Errorf("load user silo.in.toml: %w", err)
-		}
-		cfg.General = defaults.General
-		if cfg.Connect.Command == "" {
-			cfg.Connect.Command = defaults.Connect.Command
-		}
-		if cfg.Features == (FeaturesConfig{}) {
-			cfg.Features = defaults.Features
-		}
-		return cfg, true, nil
-	} else {
-		// Subsequent runs: use workspace config as-is.
-		var err error
-		cfg, err = ParseTOML(SiloToml())
-		if err != nil {
-			return cfg, false, fmt.Errorf("load workspace silo.toml: %w", err)
-		}
-		return cfg, false, nil
+		cfg, err := SeedWorkspaceConfig()
+		return cfg, true, err
 	}
+	// Subsequent runs: use workspace config as-is.
+	cfg, err := ParseTOML(SiloToml())
+	if err != nil {
+		return cfg, false, fmt.Errorf("load workspace silo.toml: %w", err)
+	}
+	return cfg, false, nil
 }
 
-// EnsureUserFiles silently creates user starter files if they do not exist.
-func EnsureUserFiles() error {
-	if err := EnsureUserHomeNix(); err != nil {
-		return fmt.Errorf("ensure home-user.nix: %w", err)
+// EnsureUserFiles creates user starter files if they do not exist.
+// If force is true, existing files are overwritten.
+func EnsureUserFiles(force bool) error {
+	files, err := UserStarterFiles()
+	if err != nil {
+		return err
 	}
-	if err := EnsureDevcontainerInJSON(); err != nil {
-		return fmt.Errorf("ensure devcontainer.in.json: %w", err)
-	}
-	if err := EnsureSiloInTOML(); err != nil {
-		return fmt.Errorf("ensure silo.in.toml: %w", err)
+	for _, f := range files {
+		if err := os.MkdirAll(filepath.Dir(f.Path), 0755); err != nil {
+			return fmt.Errorf("create directory for file: %w", err)
+		}
+		if force {
+			if err := os.WriteFile(f.Path, f.Content, 0644); err != nil {
+				return fmt.Errorf("write file: %w", err)
+			}
+		} else {
+			if err := EnsureFile(f.Path, f.Content); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
 
 // EnsureUserImage builds the shared user image if it does not exist.
-func EnsureUserImage(tc TemplateContext) error {
+// If force is true, the image is always rebuilt regardless of whether it exists.
+func EnsureUserImage(tc TemplateContext, force bool) error {
 	userImage := tc.BaseImage
-	if ImageExists(userImage) {
+	if !force && ImageExists(userImage) {
 		return nil
 	}
 	fmt.Printf("Building user image %s...\n", userImage)
@@ -332,22 +354,20 @@ func EnsureUserImage(tc TemplateContext) error {
 
 // EnsureWorkspaceFiles silently creates workspace starter files if they do not exist.
 func EnsureWorkspaceFiles(podman bool) error {
-	if err := EnsureWorkspaceHomeNix(podman); err != nil {
-		return fmt.Errorf("ensure workspace home.nix: %w", err)
-	}
-	return nil
+	return EnsureWorkspaceHomeNix(podman, false)
 }
 
 // EnsureImages builds the user and workspace images if they don't yet exist.
-func EnsureImages(cfg Config) error {
+// If force is true, workspace image is always rebuilt regardless of whether it exists.
+func EnsureImages(cfg Config, force bool) error {
 	tc, err := NewTemplateContext(cfg)
 	if err != nil {
 		return fmt.Errorf("build template context: %w", err)
 	}
-	if err := EnsureUserImage(tc); err != nil {
+	if err := EnsureUserImage(tc, false); err != nil {
 		return err
 	}
-	if ImageExists(cfg.General.ImageName) {
+	if !force && ImageExists(cfg.General.ImageName) {
 		return nil
 	}
 	fmt.Printf("Building workspace image %s...\n", cfg.General.ImageName)
@@ -357,12 +377,21 @@ func EnsureImages(cfg Config) error {
 	return nil
 }
 
+// DefaultCreateArgs returns the default container create arguments based on podman setting.
+func DefaultCreateArgs(podman bool) []string {
+	if podman {
+		return []string{"--security-opt", "label=disable", "--device", "/dev/fuse"}
+	}
+	return []string{"--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"}
+}
+
 // EnsureInit initializes workspace config, workspace starter files, and
 // user starter files. It delegates user-file creation to EnsureUserFiles so
 // `silo init` and `silo user init` share a single implementation.
 // If podman is non-nil, .silo/home.nix will include module.podman.enable based on the value.
 // If podman is nil, the podman setting seeded from silo.in.toml is preserved.
-func EnsureInit(podman *bool) (Config, bool, error) {
+// If sharedVolume is non-nil on first run, it overrides the seeded shared_volume setting.
+func EnsureInit(podman *bool, sharedVolume *bool) (Config, bool, error) {
 	cfg, firstRun, err := InitWorkspaceConfig()
 	if err != nil {
 		return cfg, firstRun, fmt.Errorf("initialize workspace configuration: %w", err)
@@ -370,20 +399,17 @@ func EnsureInit(podman *bool) (Config, bool, error) {
 	if err := EnsureWorkspaceFiles(podman != nil && *podman); err != nil {
 		return cfg, firstRun, fmt.Errorf("ensure workspace files: %w", err)
 	}
-	if err := EnsureUserFiles(); err != nil {
+	if err := EnsureUserFiles(false); err != nil {
 		return cfg, firstRun, fmt.Errorf("ensure user files: %w", err)
 	}
 	if firstRun {
 		if podman != nil {
 			cfg.Features.Podman = *podman
 		}
-		var defaultArgs []string
-		if cfg.Features.Podman {
-			defaultArgs = []string{"--security-opt", "label=disable", "--device", "/dev/fuse"}
-		} else {
-			defaultArgs = []string{"--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"}
+		if sharedVolume != nil {
+			cfg.Features.SharedVolume = *sharedVolume
 		}
-		cfg.Create.Arguments = append(cfg.Create.Arguments, defaultArgs...)
+		cfg.Create.Arguments = append(cfg.Create.Arguments, DefaultCreateArgs(cfg.Features.Podman)...)
 		if err := cfg.SaveWorkspaceConfig(); err != nil {
 			return cfg, firstRun, fmt.Errorf("save workspace config: %w", err)
 		}
@@ -393,11 +419,11 @@ func EnsureInit(podman *bool) (Config, bool, error) {
 
 // EnsureBuilt ensures images exist, building them if needed.
 func EnsureBuilt() (Config, error) {
-	cfg, _, err := EnsureInit(nil)
+	cfg, _, err := EnsureInit(nil, nil)
 	if err != nil {
 		return cfg, fmt.Errorf("initialize workspace: %w", err)
 	}
-	if err := EnsureImages(cfg); err != nil {
+	if err := EnsureImages(cfg, false); err != nil {
 		return cfg, fmt.Errorf("ensure images: %w", err)
 	}
 	return cfg, nil

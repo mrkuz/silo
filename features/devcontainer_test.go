@@ -28,7 +28,7 @@ func TestFeatureDevcontainer(t *testing.T) {
 			internal.SetupUserConfig(t)
 
 			// When I run `silo devcontainer`
-			err := cmd.DevcontainerGenerate()
+			err := cmd.DevcontainerGenerate([]string{})
 
 			// Then a file ".devcontainer.json" should be created
 			if err != nil {
@@ -53,7 +53,7 @@ func TestFeatureDevcontainer(t *testing.T) {
 			}
 
 			// When I run `silo devcontainer`
-			cmd.DevcontainerGenerate()
+			output := internal.CaptureStdout(func() { cmd.DevcontainerGenerate([]string{}) })
 
 			// Then the file ".devcontainer.json" should still contain '{"name": "custom"}'
 			got, err := os.ReadFile(".devcontainer.json")
@@ -63,8 +63,36 @@ func TestFeatureDevcontainer(t *testing.T) {
 			if string(got) != string(existing) {
 				t.Errorf("expected existing file to be preserved, got %s", string(got))
 			}
-			// And no new .devcontainer.json should be generated
-			// And the exit code should be 0
+			// And the output should contain ".devcontainer.json already exists"
+			if !strings.Contains(output, "'.devcontainer.json' already exists") {
+				t.Errorf("expected 'already exists' in output, got: %s", output)
+			}
+		})
+
+		t.Run("Scenario: --force overwrites existing .devcontainer.json", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			internal.SetupWorkspace(t, cfg)
+			internal.SetupUserConfig(t)
+
+			// Given a file ".devcontainer.json" already exists with content '{"name": "custom"}'
+			existing := []byte(`{"name": "custom"}`)
+			if err := os.WriteFile(".devcontainer.json", existing, 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			// When I run `silo devcontainer --force`
+			if err := cmd.DevcontainerGenerate([]string{"--force"}); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			// Then the file ".devcontainer.json" should not contain '{"name": "custom"}'
+			got, err := os.ReadFile(".devcontainer.json")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(got) == string(existing) {
+				t.Errorf("expected file to be overwritten, still contains custom content")
+			}
 		})
 
 		t.Run("Scenario: devcontainer uses the workspace image", func(t *testing.T) {
@@ -73,7 +101,7 @@ func TestFeatureDevcontainer(t *testing.T) {
 			internal.SetupUserConfig(t)
 
 			// When I run `silo devcontainer`
-			if err := cmd.DevcontainerGenerate(); err != nil {
+			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
@@ -99,7 +127,7 @@ func TestFeatureDevcontainer(t *testing.T) {
 			internal.SetupUserConfig(t)
 
 			// When I run `silo devcontainer`
-			if err := cmd.DevcontainerGenerate(); err != nil {
+			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
@@ -134,7 +162,7 @@ func TestFeatureDevcontainer(t *testing.T) {
 			})
 
 			// When I run `silo devcontainer`
-			cmd.DevcontainerGenerate()
+			cmd.DevcontainerGenerate([]string{})
 
 			// Then shared volume directories should be created before generating .devcontainer.json.
 			record := mock.AssertExec("podman", "run", "--rm", "<...>")
@@ -156,7 +184,7 @@ func TestFeatureDevcontainer(t *testing.T) {
 			internal.SetupWorkspace(t, cfg)
 
 			// When I run `silo devcontainer`
-			if err := cmd.DevcontainerGenerate(); err != nil {
+			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
@@ -191,7 +219,7 @@ func TestFeatureDevcontainer(t *testing.T) {
 			internal.SetupWorkspace(t, cfg)
 
 			// When I run `silo devcontainer`
-			if err := cmd.DevcontainerGenerate(); err != nil {
+			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
@@ -223,7 +251,7 @@ func TestFeatureDevcontainer(t *testing.T) {
 			internal.SetupWorkspace(t, cfg)
 
 			// When I run `silo devcontainer`
-			if err := cmd.DevcontainerGenerate(); err != nil {
+			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
@@ -253,7 +281,7 @@ func TestFeatureDevcontainer(t *testing.T) {
 			os.Chdir(dir)
 
 			// When I run `silo devcontainer`
-			err := cmd.DevcontainerGenerate()
+			err := cmd.DevcontainerGenerate([]string{})
 
 			// Then the exit code should not be 0
 			if err == nil {
@@ -277,7 +305,7 @@ func TestFeatureDevcontainer(t *testing.T) {
 			})
 
 			// When I run `silo devcontainer`
-			cmd.DevcontainerGenerate()
+			cmd.DevcontainerGenerate([]string{})
 
 			// Then no workspace container should be created
 			mock.AssertNoExec("podman", "create", "<any>")

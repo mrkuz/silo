@@ -33,7 +33,7 @@ func TestFeatureUserBuild(t *testing.T) {
 			})
 
 			// When I run `silo user build`
-			err := cmd.UserBuild()
+			err := cmd.UserBuild([]string{})
 
 			// Then the user image should be built
 			mock.AssertExec("podman", "build", "-t", userImage, "<...>")
@@ -53,7 +53,7 @@ func TestFeatureUserBuild(t *testing.T) {
 
 			// When I run `silo user build`
 			output := internal.CaptureStdout(func() {
-				cmd.UserBuild()
+				cmd.UserBuild([]string{})
 			})
 
 			// Then the output should contain "Building user image <userImage>..."
@@ -73,7 +73,7 @@ func TestFeatureUserBuild(t *testing.T) {
 
 			// When I run `silo user build`
 			output := internal.CaptureStdout(func() {
-				cmd.UserBuild()
+				cmd.UserBuild([]string{})
 			})
 
 			// Then the output should contain "<userImage> already exists"
@@ -98,7 +98,7 @@ func TestFeatureUserBuild(t *testing.T) {
 			})
 
 			// When I run `silo user build`
-			err := cmd.UserBuild()
+			err := cmd.UserBuild([]string{})
 
 			// Then the user files should be created
 			// And the user image should be built
@@ -118,7 +118,7 @@ func TestFeatureUserBuild(t *testing.T) {
 			})
 
 			// When I run `silo user build`
-			err := cmd.UserBuild()
+			err := cmd.UserBuild([]string{})
 
 			// Then the user files should not be modified
 			// And the user image should be built
@@ -148,7 +148,7 @@ func TestFeatureUserBuild(t *testing.T) {
 			})
 
 			// When I run `silo user build`
-			if err := cmd.UserBuild(); err != nil {
+			if err := cmd.UserBuild([]string{}); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
@@ -156,6 +156,25 @@ func TestFeatureUserBuild(t *testing.T) {
 			mock.AssertExec("podman", "build", "-t", userImage, "<...>")
 			// And the build context should include home-user.nix
 			mock.AssertRead(homeUserNix)
+		})
+	})
+
+	t.Run("Rule: --force forces user image rebuild", func(t *testing.T) {
+		t.Run("Scenario: user build --force rebuilds even when image exists", func(t *testing.T) {
+			internal.SetupUserConfig(t)
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman image exists " + userImage:        exec.Command("true"),
+				"podman build -t " + userImage + " <...>": exec.Command("true"),
+			})
+
+			// When I run `silo user build --force`
+			if err := cmd.UserBuild([]string{"--force"}); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			// Then the user image "silo-alice" should be built
+			mock.AssertExec("podman", "build", "-t", userImage, "<...>")
 		})
 	})
 }

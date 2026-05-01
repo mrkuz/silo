@@ -350,7 +350,7 @@ func TestEnsureUserFiles(t *testing.T) {
 	t.Run("creates user files when absent", func(t *testing.T) {
 		base := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", base)
-		if err := EnsureUserFiles(); err != nil {
+		if err := EnsureUserFiles(false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		dir := filepath.Join(base, "silo")
@@ -369,7 +369,7 @@ func TestEnsureUserFiles(t *testing.T) {
 		sentinel := []byte("# custom\n")
 		os.WriteFile(filepath.Join(dir, "home-user.nix"), sentinel, 0644)
 
-		if err := EnsureUserFiles(); err != nil {
+		if err := EnsureUserFiles(false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		got, _ := os.ReadFile(filepath.Join(dir, "home-user.nix"))
@@ -383,7 +383,7 @@ func TestEnsureUserFilesError(t *testing.T) {
 	t.Run("returns error when user config directory cannot be created", func(t *testing.T) {
 		// Set XDG_CONFIG_HOME to a path in a non-existent directory to force failure
 		t.Setenv("XDG_CONFIG_HOME", "/nonexistent/deeply/nested/path")
-		err := EnsureUserFiles()
+		err := EnsureUserFiles(false)
 		if err == nil {
 			t.Error("expected error when user config directory is inaccessible")
 		}
@@ -408,7 +408,7 @@ func TestEnsureInitError(t *testing.T) {
 		}
 
 		SetupUserConfig(t)
-		_, _, err := EnsureInit(nil)
+		_, _, err := EnsureInit(nil, nil)
 		if err == nil {
 			t.Error("expected error when workspace files cannot be created")
 		}

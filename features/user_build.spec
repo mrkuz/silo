@@ -62,3 +62,10 @@ Feature: silo user build — Build the shared user image
       And no user image exists
       When I run `silo user build`
       Then the podman build context should include a file "home-user.nix" containing "vim git"
+
+  Rule: --force forces user image rebuild
+
+    Scenario: user build --force rebuilds even when image exists
+      Given the user image "silo-alice" already exists
+      When I run `silo user build --force`
+      Then the user image "silo-alice" should be built

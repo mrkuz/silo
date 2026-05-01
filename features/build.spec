@@ -70,3 +70,28 @@ Feature: silo build — Build workspace images
       And no workspace image exists
       When I run `silo build`
       Then the workspace image build should include a file "home-workspace.nix" containing "nodejs python3"
+
+  Rule: --force forces workspace image rebuild
+
+    Scenario: build --force rebuilds even when image exists
+      Given the user image "silo-alice" exists
+      And the workspace image "silo-abc12345" exists
+      And the container "silo-abc12345" does not exist
+      When I run `silo build --force`
+      Then the workspace image "silo-abc12345" should be built
+
+    Scenario: build --force aborts if container is running
+      Given the user image "silo-alice" exists
+      And the workspace image "silo-abc12345" exists
+      And the container "silo-abc12345" is running
+      When I run `silo build --force`
+      Then the exit code should not be 0
+      And the error should contain "running"
+
+    Scenario: build --force aborts if container exists (stopped)
+      Given the user image "silo-alice" exists
+      And the workspace image "silo-abc12345" exists
+      And the container "silo-abc12345" exists but is stopped
+      When I run `silo build --force`
+      Then the exit code should not be 0
+      And the error should contain "exists"

@@ -8,23 +8,37 @@ import (
 )
 
 // Build implements `silo build`. Builds the workspace image if missing.
-func Build() error {
-	cfg, _, err := internal.EnsureInit(nil)
+func Build(args []string) error {
+	force, err := parseForceFlag(args, "silo build", "Force rebuild workspace image", "parse build flags")
+	if err != nil {
+		return err
+	}
+	cfg, _, err := internal.EnsureInit(nil, nil)
 	if err != nil {
 		return fmt.Errorf("initialize workspace: %w", err)
 	}
-	if internal.ImageExists(cfg.General.ImageName) {
+	if !force && internal.ImageExists(cfg.General.ImageName) {
 		fmt.Printf("%s already exists\n", cfg.General.ImageName)
 		return nil
 	}
-	if err := internal.EnsureImages(cfg); err != nil {
+	if internal.ContainerRunning(cfg.General.ContainerName) {
+		return fmt.Errorf("container %s is running", cfg.General.ContainerName)
+	}
+	if internal.ContainerExists(cfg.General.ContainerName) {
+		return fmt.Errorf("container %s exists", cfg.General.ContainerName)
+	}
+	if err := internal.EnsureImages(cfg, force); err != nil {
 		return err
 	}
 	return nil
 }
 
 // UserBuild implements `silo user build`. Builds the user image if missing.
-func UserBuild() error {
+func UserBuild(args []string) error {
+	force, err := parseForceFlag(args, "silo user build", "Force rebuild user image", "parse user build flags")
+	if err != nil {
+		return err
+	}
 	u, err := user.Current()
 	if err != nil {
 		return fmt.Errorf("get current user: %w", err)
@@ -39,14 +53,14 @@ func UserBuild() error {
 	if err != nil {
 		return fmt.Errorf("build template context: %w", err)
 	}
-	if err := internal.EnsureUserFiles(); err != nil {
+	if err := internal.EnsureUserFiles(false); err != nil {
 		return fmt.Errorf("ensure user files: %w", err)
 	}
-	if internal.ImageExists(tc.BaseImage) {
+	if !force && internal.ImageExists(tc.BaseImage) {
 		fmt.Printf("%s already exists\n", tc.BaseImage)
 		return nil
 	}
-	if err := internal.EnsureUserImage(tc); err != nil {
+	if err := internal.EnsureUserImage(tc, force); err != nil {
 		return err
 	}
 	return nil

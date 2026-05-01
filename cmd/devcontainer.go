@@ -7,8 +7,9 @@ import (
 )
 
 // DevcontainerGenerate generates a .devcontainer.json for VS Code.
-func DevcontainerGenerate() error {
-	return internal.DevcontainerGenerate()
+func DevcontainerGenerate(args []string) error {
+	force, _ := extractForceFlag(args)
+	return internal.DevcontainerGenerate(force)
 }
 
 // DevcontainerStop implements `silo devcontainer stop`.

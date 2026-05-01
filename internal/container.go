@@ -52,7 +52,7 @@ func VolumeSetup(cfg Config) (bool, error) {
 		if err != nil {
 			return false, fmt.Errorf("build template context: %w", err)
 		}
-		if err := EnsureUserImage(tc); err != nil {
+		if err := EnsureUserImage(tc, false); err != nil {
 			return false, fmt.Errorf("ensure user image: %w", err)
 		}
 	}

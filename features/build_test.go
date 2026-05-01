@@ -34,10 +34,11 @@ func TestFeatureBuild(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-alice":    exec.Command("false"),
 				"podman image exists silo-abc12345": exec.Command("false"),
+				"podman container exists silo-abc12345": exec.Command("false"),
 			})
 
 			// When I run `silo build`
-			if err := cmd.Build(); err != nil {
+			if err := cmd.Build([]string{}); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
@@ -66,10 +67,11 @@ func TestFeatureBuild(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-alice":    exec.Command("false"),
 				"podman image exists silo-abc12345": exec.Command("false"),
+				"podman container exists silo-abc12345": exec.Command("false"),
 			})
 
 			// When I run `silo build`
-			output := internal.CaptureStdout(func() { cmd.Build() })
+			output := internal.CaptureStdout(func() { cmd.Build([]string{}) })
 
 			// Then the output should contain "Building user image silo-alice..."
 			userIdx := strings.Index(output, "Building user image silo-alice...")
@@ -102,10 +104,11 @@ func TestFeatureBuild(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-alice":    exec.Command("true"),
 				"podman image exists silo-abc12345": exec.Command("true"),
+				"podman container exists silo-abc12345": exec.Command("false"),
 			})
 
 			// When I run `silo build`
-			output := internal.CaptureStdout(func() { cmd.Build() })
+			output := internal.CaptureStdout(func() { cmd.Build([]string{}) })
 
 			// Then the output should contain "silo-abc12345 already exists"
 			// Note: EnsureUserImage does not print when user image exists
@@ -131,10 +134,11 @@ func TestFeatureBuild(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-alice":    exec.Command("true"),
 				"podman image exists silo-abc12345": exec.Command("false"),
+				"podman container exists silo-abc12345": exec.Command("false"),
 			})
 
 			// When I run `silo build`
-			output := internal.CaptureStdout(func() { cmd.Build() })
+			output := internal.CaptureStdout(func() { cmd.Build([]string{}) })
 
 			// Then the user image should not be rebuilt
 			mock.AssertNoExec("podman", "build", "-t", "silo-alice", "<...>")
@@ -164,11 +168,12 @@ func TestFeatureBuild(t *testing.T) {
 			// And no workspace image exists
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman image exists <any>": exec.Command("false"),
+				"podman image exists <any>":        exec.Command("false"),
+				"podman container exists silo-abc12345": exec.Command("false"),
 			})
 
 			// When I run `silo build`
-			if err := cmd.Build(); err != nil {
+			if err := cmd.Build([]string{}); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
@@ -207,13 +212,14 @@ func TestFeatureBuild(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-alice":    exec.Command("false"),
 				"podman image exists silo-abc12345": exec.Command("false"),
+				"podman container exists silo-abc12345": exec.Command("false"),
 			})
 			mock.MockRead(map[string][]byte{
 				homeNix: []byte(expectedContent),
 			})
 
 			// When I run `silo build`
-			if err := cmd.Build(); err != nil {
+			if err := cmd.Build([]string{}); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
@@ -221,6 +227,87 @@ func TestFeatureBuild(t *testing.T) {
 			mock.AssertExec("podman", "build", "-t", "silo-abc12345", "<...>")
 			// And the workspace image build should include a file "home-workspace.nix" containing "nodejs python3"
 			mock.AssertRead(homeNix)
+		})
+	})
+
+	t.Run("Rule: --force forces workspace image rebuild", func(t *testing.T) {
+		t.Run("Scenario: build --force rebuilds even when image exists", func(t *testing.T) {
+			// Given the user image "silo-alice" exists
+			// And the workspace image "silo-abc12345" exists
+			// And the container "silo-abc12345" does not exist
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.General.User = "alice"
+			internal.SubsequentRun(t, cfg)
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman image exists silo-alice":    exec.Command("true"),
+				"podman image exists silo-abc12345": exec.Command("true"),
+				"podman container exists silo-abc12345": exec.Command("false"),
+			})
+
+			// When I run `silo build --force`
+			if err := cmd.Build([]string{"--force"}); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			// Then the workspace image "silo-abc12345" should be built
+			mock.AssertExec("podman", "build", "-t", "silo-abc12345", "<...>")
+		})
+
+		t.Run("Scenario: build --force aborts if container is running", func(t *testing.T) {
+			// Given the user image "silo-alice" exists
+			// And the workspace image "silo-abc12345" exists
+			// And the container "silo-abc12345" is running
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.General.User = "alice"
+			internal.SubsequentRun(t, cfg)
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman image exists silo-alice":    exec.Command("true"),
+				"podman image exists silo-abc12345": exec.Command("true"),
+				"podman container exists silo-abc12345":    exec.Command("true"),
+				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
+			})
+
+			// When I run `silo build --force`
+			err := cmd.Build([]string{"--force"})
+
+			// Then the exit code should not be 0
+			// And the error should contain "running"
+			if err == nil {
+				t.Fatal("expected error when container is running")
+			}
+			if !strings.Contains(err.Error(), "running") {
+				t.Errorf("expected error about running, got: %v", err)
+			}
+		})
+
+		t.Run("Scenario: build --force aborts if container exists (stopped)", func(t *testing.T) {
+			// Given the user image "silo-alice" exists
+			// And the workspace image "silo-abc12345" exists
+			// And the container "silo-abc12345" exists but is stopped
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.General.User = "alice"
+			internal.SubsequentRun(t, cfg)
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman image exists silo-alice":    exec.Command("true"),
+				"podman image exists silo-abc12345": exec.Command("true"),
+				"podman container exists silo-abc12345":    exec.Command("true"),
+				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
+			})
+
+			// When I run `silo build --force`
+			err := cmd.Build([]string{"--force"})
+
+			// Then the exit code should not be 0
+			// And the error should contain "exists"
+			if err == nil {
+				t.Fatal("expected error when container exists")
+			}
+			if !strings.Contains(err.Error(), "exists") {
+				t.Errorf("expected error about exists, got: %v", err)
+			}
 		})
 	})
 }

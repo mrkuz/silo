@@ -124,10 +124,15 @@ Initialize workspace files. Creates `.silo/silo.toml` and `.silo/home.nix`, then
 | `--no-podman` | Disable Podman inside the container |
 | `--shared-volume` | Enable shared volume |
 | `--no-shared-volume` | Disable shared volume |
+| `-f`, `--force` | Overwrite existing workspace files |
 
 ### `silo build`
 
 Ensure the user image exists, then build the workspace image if it does not exist yet.
+
+| Flag | Description |
+|---|---|
+| `-f`, `--force` | Force rebuild workspace image; aborts if container exists or is running |
 
 ### `silo start`
 
@@ -161,9 +166,17 @@ Create user starter files under `$XDG_CONFIG_HOME/silo/` if they do not exist:
 - `silo.in.toml` — default values for new workspaces
 - `devcontainer.in.json` — merged into every generated `.devcontainer.json`
 
+| Flag | Description |
+|---|---|
+| `-f`, `--force` | Overwrite existing user files |
+
 ### `silo user build`
 
 Build the user image if it does not exist yet. The user image is shared across all workspaces.
+
+| Flag | Description |
+|---|---|
+| `-f`, `--force` | Force rebuild user image |
 
 ### `silo user rm`
 
@@ -176,6 +189,10 @@ Print `Running` or `Stopped` for the workspace container.
 ### `silo devcontainer`
 
 Generate a `.devcontainer.json` for VS Code in the current host directory. Does nothing if `.devcontainer.json` already exists. The generated container name is `<workspace-container-name>-dev`. See [VS Code devcontainer](#vs-code-devcontainer) for details.
+
+| Flag | Description |
+|---|---|
+| `-f`, `--force` | Overwrite existing `.devcontainer.json` |
 
 ### `silo devcontainer stop`
 
