@@ -27,8 +27,7 @@ Create or update a README for the project.
 ## Phase 1: Preparation
 
 1. **Read the code**: Examine project files to understand structure, functionality, and style
-2. **Build**: Build the project to confirm it compiles
-3. **CLI help**: If the project produces a CLI tool, run its help command
+2. **CLI help**: Discover available commands and arguments
 
 ## Phase 2: Execution
 

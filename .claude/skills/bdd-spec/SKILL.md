@@ -29,9 +29,8 @@ Create feature specifications using Gherkin syntax to document user-facing behav
 ## Phase 1: Preparation
 
 1. **Read README**: Discover features and understand terminology
-2. **Build tool**: Confirm project compiles
-3. **CLI help**: Discover available commands and arguments
-4. **Check source code**: Examine relevant files for step definitions and expected outcomes
+2. **CLI help**: Discover available commands and arguments
+3. **Check source code**: Examine relevant files for step definitions and expected outcomes
 
 ## Phase 2: Execution
 

@@ -57,22 +57,6 @@ func Connect(args []string) error {
 	return nil
 }
 
-// Exec runs a command in the running container.
-func Exec(args []string) error {
-	cfg, err := internal.RequireWorkspaceConfig()
-	if err != nil {
-		return fmt.Errorf("load workspace configuration: %w", err)
-	}
-	if !internal.ContainerRunning(cfg.General.ContainerName) {
-		return fmt.Errorf("container %s is not running", cfg.General.ContainerName)
-	}
-	execArgs := append([]string{"exec", "-ti", cfg.General.ContainerName}, args...)
-	if err := internal.RunInteractive("podman", execArgs...); err != nil {
-		return fmt.Errorf("execute command in container: %w", err)
-	}
-	return nil
-}
-
 // RunFlags holds parsed flags for the run command.
 type RunFlags struct {
 	Stop    bool

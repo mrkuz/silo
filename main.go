@@ -14,7 +14,6 @@ var commands = map[string]func([]string) error{
 	"start":               cmd.WithoutArgs(cmd.Start),
 	"volume setup":        cmd.WithoutArgs(cmd.VolumeSetup),
 	"connect":             cmd.Connect,
-	"exec":                cmd.Exec,
 	"stop":                cmd.WithoutArgs(cmd.Stop),
 	"rm":                  cmd.Remove,
 	"status":              cmd.WithoutArgs(cmd.Status),

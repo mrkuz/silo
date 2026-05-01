@@ -91,7 +91,6 @@ silo build
 silo start
 silo volume setup
 silo connect
-silo exec <cmd> [args...]
 silo stop
 silo rm [-f|--force]
 silo status
@@ -140,10 +139,6 @@ Creates directories on the shared volume for paths configured in `[shared_volume
 ### `silo connect`
 
 Connect to the container for the current workspace. Requires the container to exist and be running. Does not trigger build, create, or start steps.
-
-### `silo exec <cmd> [args...]`
-
-Run a command inside the running container. Fails if the container is not running.
 
 ### `silo stop`
 
