@@ -68,10 +68,13 @@ func VolumeSetup() error {
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
-	if err := internal.VolumeSetup(cfg); err != nil {
+	performed, err := internal.VolumeSetup(cfg)
+	if err != nil {
 		return fmt.Errorf("volume setup: %w", err)
 	}
-	fmt.Println("volume setup complete")
+	if performed {
+		fmt.Println("volume setup complete")
+	}
 	return nil
 }
 

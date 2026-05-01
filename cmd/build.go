@@ -13,6 +13,10 @@ func Build() error {
 	if err != nil {
 		return fmt.Errorf("initialize workspace: %w", err)
 	}
+	if internal.ImageExists(cfg.General.ImageName) {
+		fmt.Printf("%s already exists\n", cfg.General.ImageName)
+		return nil
+	}
 	if err := internal.EnsureImages(cfg); err != nil {
 		return err
 	}

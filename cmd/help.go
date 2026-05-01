@@ -3,7 +3,7 @@ package cmd
 import "fmt"
 
 // HelpText is the full command reference for silo.
-const HelpText = `silo - developer sandbox container
+const HelpText = `silo - developer container
 
 Usage:
   silo [--stop|--rm|--rmi] [-- args...]

@@ -175,19 +175,28 @@ func TestFeatureRmi(t *testing.T) {
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
-				"podman rmi silo-abc12345":                                           exec.Command("false"),
 			})
 
 			// When I run `silo rmi`
-			err := cmd.RemoveImage(nil)
+			var err error
+			output := internal.CaptureStdout(func() {
+				err = cmd.RemoveImage(nil)
+			})
 
 			// Then the exit code should not be 0
-			// Note: Implementation calls rmi even with running container, but rmi fails because image is in use
 			if err == nil {
 				t.Error("expected error when container is running without --force")
 			}
-			// And rmi is still called (the implementation doesn't block beforehand)
-			// but it fails because the image is in use by the container
+			// And the error should indicate "silo-abc12345 is running"
+			if err != nil && !strings.Contains(err.Error(), "silo-abc12345 is running") {
+				t.Errorf("expected error to contain 'silo-abc12345 is running', got: %v", err)
+			}
+			// And the output should not contain "Removing"
+			if strings.Contains(output, "Removing") {
+				t.Errorf("expected no 'Removing' in output, got: %s", output)
+			}
+			// And podman rmi should not be called
+			mock.AssertNoExec("podman", "rmi", "<any>")
 		})
 	})
 

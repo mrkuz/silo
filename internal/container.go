@@ -39,10 +39,10 @@ func ResolveContainerPath(path string, user string) string {
 
 // VolumeSetup creates directories on the silo-shared volume from the host side
 // by running a temporary container with the user image, ensuring directories exist
-// before they are mounted as subpath volumes.
-func VolumeSetup(cfg Config) error {
+// before they are mounted as subpath volumes. Returns true if directories were created.
+func VolumeSetup(cfg Config) (bool, error) {
 	if !cfg.Features.SharedVolume || len(cfg.SharedVolume.Paths) == 0 {
-		return nil
+		return false, nil
 	}
 
 	// Ensure the user image exists before using it for volume setup
@@ -50,10 +50,10 @@ func VolumeSetup(cfg Config) error {
 	if !ImageExists(userImage) {
 		tc, err := NewTemplateContext(cfg)
 		if err != nil {
-			return fmt.Errorf("build template context: %w", err)
+			return false, fmt.Errorf("build template context: %w", err)
 		}
 		if err := EnsureUserImage(tc); err != nil {
-			return fmt.Errorf("ensure user image: %w", err)
+			return false, fmt.Errorf("ensure user image: %w", err)
 		}
 	}
 
@@ -78,9 +78,9 @@ func VolumeSetup(cfg Config) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("volume setup: %w", err)
+		return false, fmt.Errorf("volume setup: %w", err)
 	}
-	return nil
+	return true, nil
 }
 
 // ContainerRunning checks if a container is currently running.

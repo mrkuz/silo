@@ -106,10 +106,17 @@ func TestFeatureVolumeSetup(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{})
 
 			// When I run `silo volume setup`
-			err := cmd.VolumeSetup()
+			var err error
+			output := internal.CaptureStdout(func() {
+				err = cmd.VolumeSetup()
+			})
 
 			// Then no podman run should be called
 			mock.AssertNoExec("podman", "run", "<...>")
+			// And the output should not contain "volume setup complete"
+			if strings.Contains(output, "volume setup complete") {
+				t.Errorf("expected no output for no-op, got: %s", output)
+			}
 			// And the exit code should be 0
 			if err != nil {
 				t.Errorf("expected exit code 0, got error: %v", err)
@@ -126,10 +133,17 @@ func TestFeatureVolumeSetup(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{})
 
 			// When I run `silo volume setup`
-			err := cmd.VolumeSetup()
+			var err error
+			output := internal.CaptureStdout(func() {
+				err = cmd.VolumeSetup()
+			})
 
 			// Then no podman run should be called
 			mock.AssertNoExec("podman", "run", "<...>")
+			// And the output should not contain "volume setup complete"
+			if strings.Contains(output, "volume setup complete") {
+				t.Errorf("expected no output for no-op, got: %s", output)
+			}
 			// And the exit code should be 0
 			if err != nil {
 				t.Errorf("expected exit code 0, got error: %v", err)

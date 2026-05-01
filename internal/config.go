@@ -348,7 +348,6 @@ func EnsureImages(cfg Config) error {
 		return err
 	}
 	if ImageExists(cfg.General.ImageName) {
-		fmt.Printf("%s already exists\n", cfg.General.ImageName)
 		return nil
 	}
 	fmt.Printf("Building workspace image %s...\n", cfg.General.ImageName)
@@ -425,7 +424,7 @@ func EnsureStarted() (Config, error) {
 		return cfg, fmt.Errorf("create container: %w", err)
 	}
 	if !ContainerRunning(cfg.General.ContainerName) {
-		if err := VolumeSetup(cfg); err != nil {
+		if _, err := VolumeSetup(cfg); err != nil {
 			return cfg, err
 		}
 		if err := StartContainer(cfg.General.ContainerName); err != nil {

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What is Silo
 
-Silo is a Go CLI tool for creating per-directory developer sandbox containers powered by Podman, Nix, and home-manager. It provides isolated development environments with persistent shared storage across workspaces.
+Silo is a Go CLI tool for creating per-directory developer containers powered by Podman, Nix, and home-manager. It provides isolated development environments with persistent shared storage across workspaces.
 
 Requires Go 1.23+ and Podman.
 

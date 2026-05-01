@@ -221,7 +221,7 @@ func TestVolumeSetup(t *testing.T) {
 		cfg.Features.SharedVolume = false
 		mock := NewMock(t)
 		mock.MockExec(map[string]*exec.Cmd{})
-		if err := VolumeSetup(cfg); err != nil {
+		if _, err := VolumeSetup(cfg); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		mock.AssertNoExec("podman", "run", "<...>")
@@ -233,7 +233,7 @@ func TestVolumeSetup(t *testing.T) {
 		cfg.SharedVolume.Paths = []string{}
 		mock := NewMock(t)
 		mock.MockExec(map[string]*exec.Cmd{})
-		if err := VolumeSetup(cfg); err != nil {
+		if _, err := VolumeSetup(cfg); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		mock.AssertNoExec("podman", "run", "<...>")
@@ -245,7 +245,7 @@ func TestVolumeSetup(t *testing.T) {
 		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 		mock := NewMock(t)
 		mock.MockExec(map[string]*exec.Cmd{})
-		_ = VolumeSetup(cfg)
+		_, _ = VolumeSetup(cfg)
 		mock.AssertExec("podman", "run", "--rm", "-v", "silo-shared:/silo/shared:z", "silo-testuser", "sh", "-c", "<...>")
 	})
 }

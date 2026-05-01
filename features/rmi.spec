@@ -58,6 +58,8 @@ Feature: silo rmi — Remove the workspace image
       And the workspace image "silo-abc12345" exists
       When I run `silo rmi`
       Then the exit code should not be 0
+      And the error should indicate "silo-abc12345 is running"
+      And the output should not contain "Removing"
       And the workspace image "silo-abc12345" should still exist
 
   Rule: Requires workspace to be initialized

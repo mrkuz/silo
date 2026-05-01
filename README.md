@@ -1,6 +1,6 @@
 # silo
 
-Per-directory developer sandbox containers, powered by Podman, Nix, and home-manager.
+Per-directory developer containers, powered by Podman, Nix, and home-manager.
 
 ---
 
@@ -342,7 +342,7 @@ Example: `$HOME/.cache/uv/` creates a volume mount with `target=/home/alice/.cac
 
 ### Nested Podman
 
-When `--podman` is passed to `silo init`, Podman is installed and configured inside the container, allowing you to run containers within the sandbox container. This is useful for testing containerized workflows or running Docker-in-Docker style setups.
+When `--podman` is passed to `silo init`, Podman is installed and configured inside the container, allowing you to run containers within the container. This is useful for testing containerized workflows or running Docker-in-Docker style setups.
 
 The `module.podman.enable = true` option is set in `.silo/home.nix` when `--podman` is used, which activates the Podman service via home-manager.
 

@@ -36,12 +36,14 @@ Feature: silo volume setup — Create directories on the shared volume
       Given the config has shared_volume=false
       When I run `silo volume setup`
       Then no podman run should be called
+      And the output should not contain "volume setup complete"
       And the exit code should be 0
 
     Scenario: empty paths list is a no-op
       Given the config has shared_volume=true with paths []
       When I run `silo volume setup`
       Then no podman run should be called
+      And the output should not contain "volume setup complete"
       And the exit code should be 0
 
   Rule: Uses a temporary container, not the workspace container

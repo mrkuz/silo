@@ -99,6 +99,8 @@ Feature: silo (default invocation) — Run lifecycle and connect to the containe
       When I run `silo`
       Then podman should run "start" on "silo-abc12345"
       And podman should run "exec" with "-ti" on "silo-abc12345"
+      And the output should not contain "already exists"
+      And the output should not contain "Building"
 
     Scenario: missing container triggers full build-and-create chain
       Given no container exists
@@ -108,6 +110,8 @@ Feature: silo (default invocation) — Run lifecycle and connect to the containe
       Then the container "silo-abc12345" should be created
       And podman should run "start" on "silo-abc12345"
       And podman should run "exec" with "-ti" on "silo-abc12345"
+      And the output should contain "Creating silo-abc12345..."
+      And the output should contain "Starting silo-abc12345..."
 
     Scenario: fresh workspace triggers full lifecycle: init, user image build, workspace image build, create, volume setup, start, connect
       Given a clean workspace with no existing silo files

@@ -6,7 +6,7 @@ Feature: silo help — Show command reference
 
   Scenario: help prints the command reference
     When I run `silo help`
-    Then the output should contain "silo - developer sandbox container"
+    Then the output should contain "silo - developer container"
     And the output should contain "Usage:"
     And the output should contain "silo init"
     And the output should contain "silo build"
@@ -16,10 +16,10 @@ Feature: silo help — Show command reference
 
   Scenario: --help flag on silo prints the command reference
     When I run `silo --help`
-    Then the output should contain "silo - developer sandbox container"
+    Then the output should contain "silo - developer container"
     And the exit code should be 0
 
   Scenario: -h flag on silo prints the command reference
     When I run `silo -h`
-    Then the output should contain "silo - developer sandbox container"
+    Then the output should contain "silo - developer container"
     And the exit code should be 0

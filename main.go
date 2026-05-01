@@ -1,4 +1,4 @@
-// silo is a CLI tool for creating per-directory developer sandbox containers.
+// silo is a CLI tool for creating per-directory developer containers.
 package main
 
 import (

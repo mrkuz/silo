@@ -60,6 +60,9 @@ func RemoveImage(args []string) error {
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
+	if !force && internal.ContainerExists(cfg.General.ContainerName) && internal.ContainerRunning(cfg.General.ContainerName) {
+		return fmt.Errorf("%s is running", cfg.General.ContainerName)
+	}
 	if force && internal.ContainerExists(cfg.General.ContainerName) {
 		if internal.ContainerRunning(cfg.General.ContainerName) {
 			if err := internal.StopContainer(cfg.General.ContainerName); err != nil {
