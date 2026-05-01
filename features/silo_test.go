@@ -149,7 +149,7 @@ func TestFeatureSilo(t *testing.T) {
 			}
 		})
 
-		t.Run("Scenario: --stop does not remove container or image", func(t *testing.T) {
+		t.Run("Scenario: --stop removes the container", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			cfg := internal.MinimalConfig("abc12345")
 			cfg.General.User = "alice"
@@ -164,7 +164,6 @@ func TestFeatureSilo(t *testing.T) {
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
 				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
-				"podman stop -t 0 silo-abc12345":                                     exec.Command("true"),
 			})
 
 			// When I run `silo --stop`
@@ -173,69 +172,9 @@ func TestFeatureSilo(t *testing.T) {
 			// And the interactive session ends
 			// Then podman should run "stop" on "silo-abc12345"
 			mock.AssertExec("podman", "stop", "-t", "0", "silo-abc12345")
-			// But podman should not run "rm" on "silo-abc12345"
-			mock.AssertNoExec("podman", "rm", "<any>")
-			// And podman should not run "rmi" on "silo-abc12345"
-			mock.AssertNoExec("podman", "rmi", "<any>")
-			if err != nil {
-				t.Errorf("expected exit code 0, got error: %v", err)
-			}
-		})
-	})
-
-	t.Run("Rule: --rm stops and removes the container after the session exits", func(t *testing.T) {
-		t.Run("Scenario: container is stopped and removed", func(t *testing.T) {
-			// Given a workspace with silo config "abc12345"
-			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
-
-			// And the container "silo-abc12345" is running
-			// And the user image "silo-alice" exists
-			// And the workspace image "silo-abc12345" exists
-			mock := internal.NewMock(t)
-			mock.MockExec(map[string]*exec.Cmd{
-				"podman container exists silo-abc12345":                              exec.Command("true"),
-				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-				"podman image exists silo-alice":                                     exec.Command("true"),
-				"podman image exists silo-abc12345":                                  exec.Command("true"),
-			})
-
-			// When I run `silo --rm`
-			err := cmd.Run([]string{"--rm"})
-
-			// And the interactive session ends
-			// Then podman should run "stop" with "-t" and "0" on "silo-abc12345"
-			mock.AssertExec("podman", "stop", "-t", "0", "silo-abc12345")
-			// And podman should run "rm" with "-f" on "silo-abc12345"
+			// And podman should run "rm" on "silo-abc12345"
 			mock.AssertExec("podman", "rm", "-f", "silo-abc12345")
-			if err != nil {
-				t.Errorf("expected exit code 0, got error: %v", err)
-			}
-		})
-
-		t.Run("Scenario: --rm does not remove the image", func(t *testing.T) {
-			// Given a workspace with silo config "abc12345"
-			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
-
-			// And the container "silo-abc12345" is running
-			// And the user image "silo-alice" exists
-			// And the workspace image "silo-abc12345" exists
-			mock := internal.NewMock(t)
-			mock.MockExec(map[string]*exec.Cmd{
-				"podman container exists silo-abc12345":                              exec.Command("true"),
-				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-				"podman image exists silo-alice":                                     exec.Command("true"),
-				"podman image exists silo-abc12345":                                  exec.Command("true"),
-			})
-
-			// When I run `silo --rm`
-			err := cmd.Run([]string{"--rm"})
-
-			// And the interactive session ends
-			// Then podman should not run "rmi" on "silo-abc12345"
+			// But podman should not run "rmi" on "silo-abc12345"
 			mock.AssertNoExec("podman", "rmi", "<any>")
 			if err != nil {
 				t.Errorf("expected exit code 0, got error: %v", err)

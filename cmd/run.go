@@ -22,11 +22,11 @@ func Run(args []string) error {
 	// Best-effort cleanup; original session error (if any) takes precedence.
 	if flags.Stop {
 		internal.StopContainer(cfg.General.ContainerName)
-	}
-	if flags.Rm {
 		internal.RemoveContainer(cfg.General.ContainerName)
 	}
 	if flags.Rmi {
+		internal.StopContainer(cfg.General.ContainerName)
+		internal.RemoveContainer(cfg.General.ContainerName)
 		internal.RemoveImage(cfg.General.ImageName)
 	}
 	if err != nil {
@@ -76,7 +76,6 @@ func Exec(args []string) error {
 // RunFlags holds parsed flags for the run command.
 type RunFlags struct {
 	Stop  bool
-	Rm    bool
 	Rmi   bool
 	Extra []string
 }
@@ -84,12 +83,11 @@ type RunFlags struct {
 // ParseRunFlags parses the flags for the default run command.
 func ParseRunFlags(args []string) (RunFlags, error) {
 	fs := flag.NewFlagSet("silo", flag.ContinueOnError)
-	stop := fs.Bool("stop", false, "Stop the container when the session exits")
-	rm := fs.Bool("rm", false, "Stop and remove the container when the session exits")
+	stop := fs.Bool("stop", false, "Stop and remove the container when the session exits")
 	rmi := fs.Bool("rmi", false, "Stop, remove container, and remove image when the session exits")
 	fs.Usage = func() {} // suppress; handled by main helpText
 	if err := fs.Parse(args); err != nil {
 		return RunFlags{}, fmt.Errorf("parse run flags: %w", err)
 	}
-	return RunFlags{Stop: *stop || *rm || *rmi, Rm: *rm || *rmi, Rmi: *rmi, Extra: fs.Args()}, nil
+	return RunFlags{Stop: *stop || *rmi, Rmi: *rmi, Extra: fs.Args()}, nil
 }

@@ -77,7 +77,7 @@ silo connect       # Connect to container (triggers missing steps automatically)
 ## Commands
 
 ```
-silo [--stop|--rm|--rmi] [-- args...]
+silo [--stop|--rmi] [-- args...]
 silo init [--podman|--no-podman] [--shared-volume|--no-shared-volume]
 silo build
 silo create [--dry-run]
@@ -86,7 +86,6 @@ silo volume setup
 silo connect
 silo exec <cmd> [args...]
 silo stop
-silo rm [-f|--force]
 silo rmi [-f|--force]
 silo status
 silo user init
@@ -94,7 +93,6 @@ silo user build
 silo user rmi
 silo devcontainer
 silo devcontainer stop
-silo devcontainer rm [--force]
 silo devcontainer status
 silo help
 ```
@@ -147,15 +145,7 @@ Run a command inside the running container. Fails if the container is not runnin
 
 ### `silo stop`
 
-Stop the running container (immediate, no grace period).
-
-### `silo rm`
-
-Remove the container. Fails if the container is running unless `--force` is given.
-
-| Flag | Description |
-|---|---|
-| `-f`, `--force` | Stop the container if it is running before removing |
+Stop and remove the running container (immediate, no grace period).
 
 ### `silo rmi`
 
@@ -191,11 +181,7 @@ Generate a `.devcontainer.json` for VS Code in the current host directory. Does 
 
 ### `silo devcontainer stop`
 
-Stop the devcontainer.
-
-### `silo devcontainer rm`
-
-Remove the devcontainer. Fails if the container is running unless `--force` is given.
+Stop and remove the devcontainer (immediate, no grace period).
 
 | Flag | Description |
 |---|---|

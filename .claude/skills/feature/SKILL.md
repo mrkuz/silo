@@ -10,7 +10,8 @@ A comprehensive workflow for implementing a new feature from idea to completion.
 ## General rules
 
 1. Ask if anything is unclear - do not guess
-2. Track non-trivial steps with tasks
+2. All phases are mandatory - do not skip without user approval
+3. Track non-trivial steps with tasks
 
 ## Skill-specific rules
 

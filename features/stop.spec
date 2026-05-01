@@ -1,40 +1,42 @@
 @stop
-Feature: silo stop — Stop the workspace container
+Feature: silo stop — Stop and remove the workspace container
 
-  `silo stop` stops the running workspace container immediately (no grace period).
-  It is a no-op if the container is already stopped.
+  `silo stop` stops the running workspace container immediately (no grace period),
+  then removes the container. If the container is not running, it prints a message
+  and still attempts to remove. If the container does not exist, it prints "not found".
 
   Background:
     Given a workspace with silo config "abc12345"
     And the user's XDG_CONFIG_HOME points to a fresh directory
 
-  Rule: Stops the running container
+  Rule: Running container is stopped and removed
 
-    Scenario: stop terminates the container immediately
+    Scenario: stop terminates and removes the container
       Given the container "silo-abc12345" is running
       When I run `silo stop`
       Then podman should run "stop" with "-t" and "0" on "silo-abc12345"
+      And podman should run "rm" with "-f" on "silo-abc12345"
       And the output should contain "Stopping silo-abc12345..."
+      And the output should contain "Removing silo-abc12345..."
       And the exit code should be 0
 
-  Rule: No-op if container is already stopped
+  Rule: Stopped container is removed
 
-    Scenario: stopped container is not an error
-      Given the container "silo-abc12345" is stopped
+    Scenario: stopped container prints message and is removed
+      Given the container "silo-abc12345" exists but is stopped
       When I run `silo stop`
-      Then the output should contain "silo-abc12345 is not running"
-      And no podman stop should be called
+      Then podman should run "rm" with "-f" on "silo-abc12345"
+      And the output should contain "silo-abc12345 is not running"
+      And the output should contain "Removing silo-abc12345..."
       And the exit code should be 0
 
-  Rule: Stop does not remove container or image
+  Rule: Non-existing container prints not found
 
-    Scenario: stop only stops, it does not remove anything
-      Given the container "silo-abc12345" is running
+    Scenario: absent container prints not found and exits 0
+      Given no container exists
       When I run `silo stop`
-      Then podman should run "stop" on "silo-abc12345"
-      But podman should not run "rm" on "silo-abc12345"
-      And podman should not run "rmi" on "silo-abc12345"
-      And the container "silo-abc12345" should still exist
+      Then the output should contain "silo-abc12345 not found"
+      And the exit code should be 0
 
   Rule: Requires workspace to be initialized
 

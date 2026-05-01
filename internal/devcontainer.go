@@ -75,12 +75,21 @@ func DevcontainerStop() error {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
 	name := DevContainerName(cfg)
-	if !ContainerRunning(name) {
-		fmt.Printf("%s is not running\n", name)
+	if !ContainerExists(name) {
+		PrintNotFound(name)
 		return nil
 	}
-	if err := StopContainer(name); err != nil {
-		return fmt.Errorf("stop container: %w", err)
+	if ContainerRunning(name) {
+		fmt.Printf("Stopping %s...\n", name)
+		if err := StopContainer(name); err != nil {
+			return fmt.Errorf("stop container: %w", err)
+		}
+	} else {
+		fmt.Printf("%s is not running\n", name)
+	}
+	fmt.Printf("Removing %s...\n", name)
+	if err := RemoveContainer(name); err != nil {
+		return fmt.Errorf("remove container: %w", err)
 	}
 	return nil
 }
@@ -93,19 +102,6 @@ func DevcontainerStatus() error {
 	}
 	name := DevContainerName(cfg)
 	PrintRunningStatus(ContainerRunning(name))
-	return nil
-}
-
-// DevcontainerRemove implements `silo devcontainer rm [-f|--force]`.
-func DevcontainerRemove(force bool) error {
-	cfg, err := RequireWorkspaceConfig()
-	if err != nil {
-		return fmt.Errorf("load workspace configuration: %w", err)
-	}
-	name := DevContainerName(cfg)
-	if err := RemoveNamedContainer(name, force); err != nil {
-		return err
-	}
 	return nil
 }
 

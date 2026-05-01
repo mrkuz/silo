@@ -14,12 +14,22 @@ func Stop() error {
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
-	if !internal.ContainerRunning(cfg.General.ContainerName) {
-		fmt.Printf("%s is not running\n", cfg.General.ContainerName)
+	name := cfg.General.ContainerName
+	if !internal.ContainerExists(name) {
+		internal.PrintNotFound(name)
 		return nil
 	}
-	if err := internal.StopContainer(cfg.General.ContainerName); err != nil {
-		return fmt.Errorf("stop container: %w", err)
+	if internal.ContainerRunning(name) {
+		fmt.Printf("Stopping %s...\n", name)
+		if err := internal.StopContainer(name); err != nil {
+			return fmt.Errorf("stop container: %w", err)
+		}
+	} else {
+		fmt.Printf("%s is not running\n", name)
+	}
+	fmt.Printf("Removing %s...\n", name)
+	if err := internal.RemoveContainer(name); err != nil {
+		return fmt.Errorf("remove container: %w", err)
 	}
 	return nil
 }
@@ -31,22 +41,6 @@ func Status() error {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
 	internal.PrintRunningStatus(internal.ContainerRunning(cfg.General.ContainerName))
-	return nil
-}
-
-// Remove removes the workspace container.
-func Remove(args []string) error {
-	force, err := ParseRemoveFlags(args)
-	if err != nil {
-		return fmt.Errorf("parse remove flags: %w", err)
-	}
-	cfg, err := internal.RequireWorkspaceConfig()
-	if err != nil {
-		return fmt.Errorf("load workspace configuration: %w", err)
-	}
-	if err := internal.RemoveNamedContainer(cfg.General.ContainerName, force); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -101,11 +95,6 @@ func UserRmi() error {
 		internal.PrintNotFound(userImage)
 	}
 	return nil
-}
-
-// ParseRemoveFlags parses the flags for `silo rm`.
-func ParseRemoveFlags(args []string) (bool, error) {
-	return parseForceFlag(args, "silo rm", "Stop and remove a running container", "parse remove flags")
 }
 
 // ParseRemoveImageFlags parses the flags for `silo rmi`.

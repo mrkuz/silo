@@ -1,40 +1,50 @@
 @devcontainer_stop
-Feature: silo devcontainer stop — Stop the devcontainer
+Feature: silo devcontainer stop — Stop and remove the devcontainer
 
-  `silo devcontainer stop` stops the devcontainer. It is a no-op if the
-  devcontainer is not running.
+  `silo devcontainer stop` stops the devcontainer immediately (no grace period),
+  then removes it. If the devcontainer is not running, it prints a message and still
+  attempts to remove. If the devcontainer does not exist, it prints "not found".
 
   Background:
     Given a workspace with silo config "abc12345"
     And the user's XDG_CONFIG_HOME points to a fresh directory
 
-  Rule: Stops the running devcontainer
+  Rule: Running devcontainer is stopped and removed
 
-    Scenario: stop stops the devcontainer
+    Scenario: stop terminates and removes the devcontainer
       Given the devcontainer "silo-abc12345-dev" is running
       When I run `silo devcontainer stop`
       Then podman should run "stop" with "-t" and "0" on "silo-abc12345-dev"
+      And podman should run "rm" with "-f" on "silo-abc12345-dev"
+      And the output should contain "Stopping silo-abc12345-dev..."
+      And the output should contain "Removing silo-abc12345-dev..."
       And the exit code should be 0
 
-    Scenario: stop prints a message
-      Given the devcontainer "silo-abc12345-dev" is running
-      When I run `silo devcontainer stop`
-      Then the output should contain "Stopping silo-abc12345-dev..."
-
-    Scenario: stop does not stop the workspace container
+    Scenario: stop does not affect the workspace container
       Given the devcontainer "silo-abc12345-dev" is running
       And the workspace container "silo-abc12345" is running
       When I run `silo devcontainer stop`
       Then podman should run "stop" on "silo-abc12345-dev"
+      And podman should run "rm" on "silo-abc12345-dev"
       But podman should not run "stop" on "silo-abc12345"
+      And podman should not run "rm" on "silo-abc12345"
 
-  Rule: No-op if devcontainer is not running
+  Rule: Stopped devcontainer is removed
 
-    Scenario: stopped devcontainer is not an error
-      Given the devcontainer "silo-abc12345-dev" is stopped
+    Scenario: stopped devcontainer prints message and is removed
+      Given the devcontainer "silo-abc12345-dev" exists but is stopped
       When I run `silo devcontainer stop`
-      Then the output should contain "silo-abc12345-dev is not running"
-      And no podman stop should be called
+      Then podman should run "rm" with "-f" on "silo-abc12345-dev"
+      And the output should contain "silo-abc12345-dev is not running"
+      And the output should contain "Removing silo-abc12345-dev..."
+      And the exit code should be 0
+
+  Rule: Non-existing devcontainer prints not found
+
+    Scenario: absent devcontainer prints not found and exits 0
+      Given no devcontainer exists
+      When I run `silo devcontainer stop`
+      Then the output should contain "silo-abc12345-dev not found"
       And the exit code should be 0
 
   Rule: Requires workspace to be initialized

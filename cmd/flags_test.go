@@ -10,15 +10,13 @@ func TestParseRunFlags(t *testing.T) {
 	tests := []struct {
 		args     []string
 		wantStop bool
-		wantRm   bool
 		wantRmi  bool
 		wantErr  bool
 	}{
-		{[]string{}, false, false, false, false},
-		{[]string{"--stop"}, true, false, false, false},
-		{[]string{"--rm"}, true, true, false, false},
-		{[]string{"--rmi"}, true, true, true, false},
-		{[]string{"--unknown"}, false, false, false, true},
+		{[]string{}, false, false, false},
+		{[]string{"--stop"}, true, false, false},
+		{[]string{"--rmi"}, true, true, false},
+		{[]string{"--unknown"}, false, false, true},
 	}
 	for _, tt := range tests {
 		f, err := cmd.ParseRunFlags(tt.args)
@@ -32,9 +30,9 @@ func TestParseRunFlags(t *testing.T) {
 			t.Errorf("ParseRunFlags(%v): unexpected error: %v", tt.args, err)
 			continue
 		}
-		if f.Stop != tt.wantStop || f.Rm != tt.wantRm || f.Rmi != tt.wantRmi {
-			t.Errorf("ParseRunFlags(%v) = {Stop:%v Rm:%v Rmi:%v}, want {Stop:%v Rm:%v Rmi:%v}",
-				tt.args, f.Stop, f.Rm, f.Rmi, tt.wantStop, tt.wantRm, tt.wantRmi)
+		if f.Stop != tt.wantStop || f.Rmi != tt.wantRmi {
+			t.Errorf("ParseRunFlags(%v) = {Stop:%v Rmi:%v}, want {Stop:%v Rmi:%v}",
+				tt.args, f.Stop, f.Rmi, tt.wantStop, tt.wantRmi)
 		}
 	}
 }
@@ -204,56 +202,6 @@ func TestParseCreateFlags(t *testing.T) {
 	}
 }
 
-func TestParseRemoveFlags(t *testing.T) {
-	tests := []struct {
-		name    string
-		args    []string
-		wantF   bool
-		wantErr bool
-	}{
-		{
-			name:    "no flags",
-			args:    []string{},
-			wantF:   false,
-			wantErr: false,
-		},
-		{
-			name:    "-f",
-			args:    []string{"-f"},
-			wantF:   true,
-			wantErr: false,
-		},
-		{
-			name:    "--force",
-			args:    []string{"--force"},
-			wantF:   true,
-			wantErr: false,
-		},
-		{
-			name:    "unknown flag",
-			args:    []string{"--unknown"},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			f, err := cmd.ParseRemoveFlags(tt.args)
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("expected error")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if f != tt.wantF {
-				t.Errorf("expected force=%v, got %v", tt.wantF, f)
-			}
-		})
-	}
-}
-
 func TestParseRemoveImageFlags(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -288,50 +236,6 @@ func TestParseRemoveImageFlags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f, err := cmd.ParseRemoveImageFlags(tt.args)
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("expected error")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if f != tt.wantF {
-				t.Errorf("expected force=%v, got %v", tt.wantF, f)
-			}
-		})
-	}
-}
-
-func TestParseDevcontainerRemoveFlags(t *testing.T) {
-	tests := []struct {
-		name    string
-		args    []string
-		wantF   bool
-		wantErr bool
-	}{
-		{
-			name:    "no flags",
-			args:    []string{},
-			wantF:   false,
-			wantErr: false,
-		},
-		{
-			name:    "--force",
-			args:    []string{"--force"},
-			wantF:   true,
-			wantErr: false,
-		},
-		{
-			name:    "unknown flag",
-			args:    []string{"--unknown"},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			f, err := cmd.ParseDevcontainerRemoveFlags(tt.args)
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("expected error")

@@ -17,7 +17,6 @@ var commands = map[string]func([]string) error{
 	"connect":             cmd.Connect,
 	"exec":                cmd.Exec,
 	"stop":                cmd.WithoutArgs(cmd.Stop),
-	"rm":                  cmd.Remove,
 	"rmi":                 cmd.RemoveImage,
 	"status":              cmd.WithoutArgs(cmd.Status),
 	"user init":           cmd.WithoutArgs(cmd.UserInit),
@@ -25,7 +24,6 @@ var commands = map[string]func([]string) error{
 	"user rmi":            cmd.WithoutArgs(cmd.UserRmi),
 	"devcontainer":        cmd.WithoutArgs(cmd.DevcontainerGenerate),
 	"devcontainer stop":   cmd.WithoutArgs(cmd.DevcontainerStop),
-	"devcontainer rm":     cmd.DevcontainerRemove,
 	"devcontainer status": cmd.WithoutArgs(cmd.DevcontainerStatus),
 }
 

@@ -39,42 +39,22 @@ Feature: silo (default invocation) — Run lifecycle and connect to the containe
       When I run `silo -- -p 8080:8080`
       Then podman should run "exec" with "-ti" on "silo-abc12345" with extra args "--" "-p" "8080:8080"
 
-  Rule: --stop stops the container after the session exits
+  Rule: --stop stops and removes the container after the session exits
 
-    Scenario: container is stopped after shell exits
+    Scenario: container is stopped and removed after shell exits
       Given the container "silo-abc12345" is running
       And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo --stop`
-      And the interactive session ends
-      Then podman should run "stop" with "-t" and "0" on "silo-abc12345"
-
-    Scenario: --stop does not remove container or image
-      Given the container "silo-abc12345" is running
-      And the user image "silo-alice" exists
-      And the workspace image "silo-abc12345" exists
-      When I run `silo --stop`
-      And the interactive session ends
-      Then podman should run "stop" on "silo-abc12345"
-      But podman should not run "rm" on "silo-abc12345"
-      And podman should not run "rmi" on "silo-abc12345"
-
-  Rule: --rm stops and removes the container after the session exits
-
-    Scenario: container is stopped and removed
-      Given the container "silo-abc12345" is running
-      And the user image "silo-alice" exists
-      And the workspace image "silo-abc12345" exists
-      When I run `silo --rm`
       And the interactive session ends
       Then podman should run "stop" with "-t" and "0" on "silo-abc12345"
       And podman should run "rm" with "-f" on "silo-abc12345"
 
-    Scenario: --rm does not remove the image
+    Scenario: --stop does not remove the image
       Given the container "silo-abc12345" is running
       And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
-      When I run `silo --rm`
+      When I run `silo --stop`
       And the interactive session ends
       Then podman should not run "rmi" on "silo-abc12345"
 
