@@ -98,6 +98,7 @@ silo user init
 silo user build
 silo user rm
 silo devcontainer
+silo devcontainer connect
 silo devcontainer stop
 silo devcontainer status
 silo help
@@ -187,6 +188,10 @@ Stop and remove the devcontainer (immediate, no grace period).
 ### `silo devcontainer status`
 
 Print `Running` or `Stopped` for the devcontainer.
+
+### `silo devcontainer connect`
+
+Connect to the devcontainer for the current workspace. Requires the devcontainer to exist and be running.
 
 ### `silo help`
 

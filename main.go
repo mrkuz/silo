@@ -9,20 +9,21 @@ import (
 )
 
 var commands = map[string]func([]string) error{
-	"init":                cmd.Init,
-	"build":               cmd.WithoutArgs(cmd.Build),
-	"start":               cmd.WithoutArgs(cmd.Start),
-	"volume setup":        cmd.WithoutArgs(cmd.VolumeSetup),
-	"connect":             cmd.Connect,
-	"stop":                cmd.WithoutArgs(cmd.Stop),
-	"rm":                  cmd.Remove,
-	"status":              cmd.WithoutArgs(cmd.Status),
-	"user init":           cmd.WithoutArgs(cmd.UserInit),
-	"user build":          cmd.WithoutArgs(cmd.UserBuild),
-	"user rm":             cmd.WithoutArgs(cmd.UserRm),
-	"devcontainer":        cmd.WithoutArgs(cmd.DevcontainerGenerate),
-	"devcontainer stop":   cmd.WithoutArgs(cmd.DevcontainerStop),
-	"devcontainer status": cmd.WithoutArgs(cmd.DevcontainerStatus),
+	"init":                 cmd.Init,
+	"build":                cmd.WithoutArgs(cmd.Build),
+	"start":                cmd.WithoutArgs(cmd.Start),
+	"volume setup":         cmd.WithoutArgs(cmd.VolumeSetup),
+	"connect":              cmd.Connect,
+	"stop":                 cmd.WithoutArgs(cmd.Stop),
+	"rm":                   cmd.Remove,
+	"status":               cmd.WithoutArgs(cmd.Status),
+	"user init":            cmd.WithoutArgs(cmd.UserInit),
+	"user build":           cmd.WithoutArgs(cmd.UserBuild),
+	"user rm":              cmd.WithoutArgs(cmd.UserRm),
+	"devcontainer":         cmd.WithoutArgs(cmd.DevcontainerGenerate),
+	"devcontainer connect": cmd.WithoutArgs(cmd.DevcontainerConnect),
+	"devcontainer stop":    cmd.WithoutArgs(cmd.DevcontainerStop),
+	"devcontainer status":  cmd.WithoutArgs(cmd.DevcontainerStatus),
 }
 
 func main() {
