@@ -158,50 +158,6 @@ func TestParseInitFlags(t *testing.T) {
 	}
 }
 
-func TestParseCreateFlags(t *testing.T) {
-	tests := []struct {
-		name    string
-		args    []string
-		wantD   bool
-		wantErr bool
-	}{
-		{
-			name:    "no flags",
-			args:    []string{},
-			wantD:   false,
-			wantErr: false,
-		},
-		{
-			name:    "--dry-run",
-			args:    []string{"--dry-run"},
-			wantD:   true,
-			wantErr: false,
-		},
-		{
-			name:    "unknown flag",
-			args:    []string{"--unknown"},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			f, err := cmd.ParseCreateFlags(tt.args)
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("expected error")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if f.DryRun != tt.wantD {
-				t.Errorf("expected DryRun=%v, got %v", tt.wantD, f.DryRun)
-			}
-		})
-	}
-}
-
 func TestParseRemoveFlags(t *testing.T) {
 	tests := []struct {
 		name    string

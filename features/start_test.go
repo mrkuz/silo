@@ -10,9 +10,9 @@ import (
 )
 
 // Feature: silo start — Start the workspace container
-// `silo start` ensures the container is running. It runs the full lifecycle chain
-// (init → build → create) if needed, then starts the container. If the container is
-// already running, it is a no-op. Unlike `silo connect`, it does not attach to the
+// `silo start` ensures the container is running. It builds images and creates
+// the container if needed, then starts it. If the container is already running,
+// it is a no-op. Unlike the default silo invocation, it does not attach to the
 // container — it returns after starting.
 func TestFeatureStart(t *testing.T) {
 	// Background: a workspace with silo config "abc12345"

@@ -20,7 +20,6 @@ func Stop() error {
 		return nil
 	}
 	if internal.ContainerRunning(name) {
-		fmt.Printf("Stopping %s...\n", name)
 		if err := internal.StopContainer(name); err != nil {
 			return fmt.Errorf("stop container: %w", err)
 		}

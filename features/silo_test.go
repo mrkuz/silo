@@ -12,7 +12,7 @@ import (
 
 // Feature: silo (default invocation) — Run lifecycle and connect to the container
 // The default `silo` invocation (no subcommand) runs the full lifecycle chain
-// (init → build → create → start) if needed, then opens an interactive shell session
+// (init → build → start) if needed, then opens an interactive shell session
 // inside the running container. After the session exits, cleanup flags control what
 // is stopped or removed.
 func TestFeatureSilo(t *testing.T) {

@@ -9,7 +9,6 @@ Usage:
   silo [--stop|--rm] [-- args...]
   silo init [--podman|--no-podman] [--shared-volume|--no-shared-volume]
   silo build
-  silo create [--dry-run]
   silo start
   silo volume setup
   silo connect
@@ -29,7 +28,6 @@ Commands:
   (default)            Run lifecycle and connect to the silo container
   init                 Initialize user and workspace files
   build                Build the workspace image
-  create               Create the container
   start                Start the container
   volume setup         Create directories on the shared volume
   connect              Connect to the silo container
@@ -55,10 +53,6 @@ Init flags:
   --no-podman          Disable Podman inside the container
   --shared-volume      Enable shared volume mount
   --no-shared-volume   Disable shared volume mount
-
-Create flags:
-  --dry-run  Print the podman create command without running it
-  -- ...     Pass remaining arguments to podman create
 
 Remove image flags:
   -f, --force  Stop and remove the container before removing the image`

@@ -49,15 +49,14 @@ go install .
 Every workspace goes through a fixed chain of steps. Each step depends on the ones before it. Running `silo` (or `silo connect`) triggers the full chain automatically.
 
 ```
-init → build → create → setup → start → connect
+init → build → setup → start → connect
 ```
 
 | Step | Description | Output | Idempotency |
 |---|---|---|---|
 | **init** | Creates `.silo/silo.toml`, `.silo/home.nix`; runs `silo user init` to create user files | Workspace + user files | Writes config only on first run |
 | **build** | Ensures user image exists, then builds workspace image if needed | Container image | Images are cached; only missing ones are built |
-| **create** | Creates the container from the workspace image | Stopped container | Skipped if container already exists |
-| **start** | Starts the stopped container | Running container | Skipped if container is already running |
+| **start** | Creates the container if needed, then starts it | Running container | Skipped if container is already running |
 | **setup** | Creates directories on the shared volume using a temporary container | Configured container | Safe to re-run |
 | **connect** | Opens an interactive shell inside the running container | Terminal session | — |
 
@@ -66,8 +65,7 @@ You can run individual steps:
 ```bash
 silo init          # Initialize workspace and user files
 silo build         # Build images (if not already built)
-silo create        # Create container (if not already created)
-silo start         # Start container (if not already running)
+silo start         # Start container (creates if needed)
 silo volume setup  # Run shared volume setup
 silo connect       # Connect to container (triggers missing steps automatically)
 ```
@@ -80,7 +78,6 @@ silo connect       # Connect to container (triggers missing steps automatically)
 silo [--stop|--rm] [-- args...]
 silo init [--podman|--no-podman] [--shared-volume|--no-shared-volume]
 silo build
-silo create [--dry-run]
 silo start
 silo volume setup
 silo connect
@@ -122,13 +119,9 @@ Initialize workspace files. Creates `.silo/silo.toml` and `.silo/home.nix`, then
 
 Ensure the user image exists, then build the workspace image if it does not exist yet.
 
-### `silo create`
-
-Create the container without starting it. Builds images if needed. Additional arguments can be set in `.silo/silo.toml` under `[create].arguments`.
-
 ### `silo start`
 
-Start the container and run post-start setup. Does not connect. If the container is already running, this command does nothing.
+Start the container and run post-start setup. Creates the container if it doesn't exist. If the container is already running, this command does nothing.
 
 ### `silo volume setup`
 
@@ -136,7 +129,7 @@ Creates directories on the shared volume for paths configured in `[shared_volume
 
 ### `silo connect`
 
-Connect to the container for the current workspace. Runs the full lifecycle chain automatically if any step has not completed yet, then opens an interactive shell inside the running container.
+Connect to the container for the current workspace. Requires the container to exist and be running. Does not trigger build, create, or start steps.
 
 ### `silo exec <cmd> [args...]`
 

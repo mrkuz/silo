@@ -80,7 +80,6 @@ func DevcontainerStop() error {
 		return nil
 	}
 	if ContainerRunning(name) {
-		fmt.Printf("Stopping %s...\n", name)
 		if err := StopContainer(name); err != nil {
 			return fmt.Errorf("stop container: %w", err)
 		}

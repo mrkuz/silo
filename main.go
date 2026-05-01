@@ -11,7 +11,6 @@ import (
 var commands = map[string]func([]string) error{
 	"init":                cmd.Init,
 	"build":               cmd.WithoutArgs(cmd.Build),
-	"create":              cmd.Create,
 	"start":               cmd.WithoutArgs(cmd.Start),
 	"volume setup":        cmd.WithoutArgs(cmd.VolumeSetup),
 	"connect":             cmd.Connect,
