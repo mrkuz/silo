@@ -1,8 +1,6 @@
 [general]
 id = "xqmrs9xj"
 user = "markus"
-container_name = "silo-xqmrs9xj"
-image_name = "silo-xqmrs9xj"
 
 [features]
 shared_volume = true
@@ -15,5 +13,5 @@ paths = ["$HOME/.local/share/fish/fish_history", "$HOME/.claude.json", "$HOME/.c
 [connect]
 command = "fish --login"
 
-[create]
+[podman.create]
 arguments = ["--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"]

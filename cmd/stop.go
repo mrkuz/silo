@@ -13,7 +13,7 @@ func Stop() error {
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
-	name := cfg.General.ContainerName
+	name := internal.WorkspaceContainerName(cfg.General.ID)
 	if !internal.ContainerExists(name) {
 		internal.PrintNotFound(name)
 		return nil

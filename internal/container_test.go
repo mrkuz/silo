@@ -10,7 +10,7 @@ import (
 
 func TestContainerArgsBasic(t *testing.T) {
 	cfg := Config{
-		General:  GeneralConfig{ContainerName: "silo-abc12345", User: "testuser"},
+		General:  GeneralConfig{ID: "abc12345", User: "testuser"},
 		Features: FeaturesConfig{Podman: true},
 	}
 	args := ContainerArgs(cfg)
@@ -28,7 +28,7 @@ func TestContainerArgsBasic(t *testing.T) {
 
 func TestContainerArgsNonNested(t *testing.T) {
 	cfg := Config{
-		General:  GeneralConfig{ContainerName: "silo-abc12345", User: "testuser"},
+		General:  GeneralConfig{ID: "abc12345", User: "testuser"},
 		Features: FeaturesConfig{Podman: false},
 	}
 	args := ContainerArgs(cfg)
@@ -43,7 +43,7 @@ func TestContainerArgsNonNested(t *testing.T) {
 
 func TestContainerArgsNameSuffix(t *testing.T) {
 	cfg := Config{
-		General:  GeneralConfig{ContainerName: "silo-abc12345"},
+		General:  GeneralConfig{ID: "abc12345"},
 		Features: FeaturesConfig{Podman: false},
 	}
 	args := ContainerArgs(cfg, "-dev")
@@ -74,10 +74,8 @@ func TestWorkspaceMountPath(t *testing.T) {
 func TestBuildContainerArgsMinimal(t *testing.T) {
 	cfg := Config{
 		General: GeneralConfig{
-			ID:            "abc12345",
-			User:          "alice",
-			ContainerName: "silo-abc12345",
-			ImageName:     "silo-abc12345",
+			ID:   "abc12345",
+			User: "alice",
 		},
 		Features: FeaturesConfig{
 			SharedVolume: false,
@@ -106,10 +104,8 @@ func TestBuildContainerArgsMinimal(t *testing.T) {
 func TestBuildContainerArgsNoDuplicateFlags(t *testing.T) {
 	cfg := Config{
 		General: GeneralConfig{
-			ID:            "abc12345",
-			User:          "alice",
-			ContainerName: "silo-abc12345",
-			ImageName:     "silo-abc12345",
+			ID:   "abc12345",
+			User: "alice",
 		},
 		Features: FeaturesConfig{
 			SharedVolume: true,
@@ -136,10 +132,8 @@ func TestBuildContainerArgsNoDuplicateFlags(t *testing.T) {
 func TestBuildContainerArgsSharedVolume(t *testing.T) {
 	cfg := Config{
 		General: GeneralConfig{
-			ID:            "abc12345",
-			User:          "alice",
-			ContainerName: "silo-abc12345",
-			ImageName:     "silo-abc12345",
+			ID:   "abc12345",
+			User: "alice",
 		},
 		Features: FeaturesConfig{
 			SharedVolume: true,
@@ -162,10 +156,10 @@ func TestBuildContainerArgsSharedVolume(t *testing.T) {
 
 func TestCreateContainerArguments(t *testing.T) {
 	cfg := MinimalConfig("abc12345")
-	cfg.Create.Arguments = []string{"--memory", "512m"}
+	cfg.Podman.Create.Arguments = []string{"--memory", "512m"}
 	mock := NewMock(t)
 	mock.MockExec(map[string]*exec.Cmd{})
-	_ = CreateContainer(cfg, cfg.Create.Arguments)
+	_ = CreateContainer(cfg, cfg.Podman.Create.Arguments)
 	rec := mock.AssertExec("podman", "create", "<...>")
 	if rec != nil {
 		if !strings.Contains(rec.String(), "--memory") {
@@ -176,10 +170,10 @@ func TestCreateContainerArguments(t *testing.T) {
 
 func TestCreateContainerArgumentsNested(t *testing.T) {
 	cfg := MinimalConfig("abc12345")
-	cfg.Create.Arguments = []string{"--security-opt", "label=disable", "--device", "/dev/fuse"}
+	cfg.Podman.Create.Arguments = []string{"--security-opt", "label=disable", "--device", "/dev/fuse"}
 	mock := NewMock(t)
 	mock.MockExec(map[string]*exec.Cmd{})
-	_ = CreateContainer(cfg, cfg.Create.Arguments)
+	_ = CreateContainer(cfg, cfg.Podman.Create.Arguments)
 	// Verify the specific arguments - check each appears somewhere in the command
 	rec := mock.AssertExec("podman", "create", "<...>")
 	if rec != nil {
@@ -195,10 +189,10 @@ func TestCreateContainerArgumentsNested(t *testing.T) {
 
 func TestCreateContainerArgumentsNonNested(t *testing.T) {
 	cfg := MinimalConfig("abc12345")
-	cfg.Create.Arguments = []string{"--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"}
+	cfg.Podman.Create.Arguments = []string{"--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"}
 	mock := NewMock(t)
 	mock.MockExec(map[string]*exec.Cmd{})
-	_ = CreateContainer(cfg, cfg.Create.Arguments)
+	_ = CreateContainer(cfg, cfg.Podman.Create.Arguments)
 	// Verify the specific arguments - check each appears in the command
 	rec := mock.AssertExec("podman", "create", "<...>")
 	if rec != nil {

@@ -187,9 +187,8 @@ func TestRenderDevcontainerJSONWithSharedVolume(t *testing.T) {
 func TestNewTemplateContextDefaultSuffix(t *testing.T) {
 	cfg := Config{
 		General: GeneralConfig{
-			User:          "alice",
-			ContainerName: "silo-abc12345",
-			ImageName:     "silo-abc12345",
+			ID:   "abc12345",
+			User: "alice",
 		},
 		Features: FeaturesConfig{Podman: false, SharedVolume: true},
 		SharedVolume: SharedVolumeConfig{
@@ -219,9 +218,8 @@ func TestNewTemplateContextDefaultSuffix(t *testing.T) {
 func TestNewTemplateContextWithSuffix(t *testing.T) {
 	cfg := Config{
 		General: GeneralConfig{
-			User:          "alice",
-			ContainerName: "silo-abc12345",
-			ImageName:     "silo-abc12345",
+			ID:   "abc12345",
+			User: "alice",
 		},
 		Features: FeaturesConfig{Podman: false},
 	}
@@ -241,9 +239,8 @@ func TestNewTemplateContextWithSuffix(t *testing.T) {
 func TestNewTemplateContextWithoutSharedVolume(t *testing.T) {
 	cfg := Config{
 		General: GeneralConfig{
-			User:          "alice",
-			ContainerName: "silo-abc12345",
-			ImageName:     "silo-abc12345",
+			ID:   "abc12345",
+			User: "alice",
 		},
 		Features: FeaturesConfig{Podman: false, SharedVolume: false},
 	}
@@ -259,10 +256,8 @@ func TestNewTemplateContextWithoutSharedVolume(t *testing.T) {
 func TestNewTemplateContextWorkspaceMount(t *testing.T) {
 	cfg := Config{
 		General: GeneralConfig{
-			ID:            "abc12345",
-			User:          "alice",
-			ContainerName: "silo-abc12345",
-			ImageName:     "silo-abc12345",
+			ID:   "abc12345",
+			User: "alice",
 		},
 		Features: FeaturesConfig{Podman: false},
 	}

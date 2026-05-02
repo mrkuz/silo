@@ -12,6 +12,6 @@ func Status() error {
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
-	internal.PrintRunningStatus(internal.ContainerRunning(cfg.General.ContainerName))
+	internal.PrintRunningStatus(internal.ContainerRunning(internal.WorkspaceContainerName(cfg.General.ID)))
 	return nil
 }

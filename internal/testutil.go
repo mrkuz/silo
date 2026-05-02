@@ -158,14 +158,12 @@ func SetupUserConfig(t *testing.T) {
 func MinimalConfig(id string) Config {
 	return Config{
 		General: GeneralConfig{
-			ID:            id,
-			User:          "testuser",
-			ContainerName: "silo-" + id,
-			ImageName:     "silo-" + id,
+			ID:   id,
+			User: "testuser",
 		},
 		Features:     FeaturesConfig{SharedVolume: false, Podman: false},
 		SharedVolume: SharedVolumeConfig{Paths: []string{}},
 		Connect:      ConnectConfig{Command: "/bin/sh"},
-		Create:       CreateConfig{Arguments: []string{}},
+		Podman:       PodmanConfig{Create: CreateConfig{Arguments: []string{}}},
 	}
 }

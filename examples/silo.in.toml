@@ -13,5 +13,5 @@ paths = [
   "$HOME/.claude/"
 ]
 
-[create]
+[podman.create]
 arguments = []

@@ -234,8 +234,6 @@ Created automatically on first run. Seeded from `$XDG_CONFIG_HOME/silo/silo.in.t
 [general]
 id             = "ab3f9c12"          # 8-char random ID; names container and image
 user           = "alice"
-container_name = "silo-ab3f9c12"
-image_name     = "silo-ab3f9c12"
 
 [connect]
 command = "/bin/sh"                  # Command executed when connecting to container
@@ -251,7 +249,7 @@ paths = [
     "$HOME/.cache/uv/",                      # persist and share directory (trailing /)
 ]
 
-[create]
+[silo.create]
 arguments = [
   "--cap-drop=ALL",
   "--cap-add=NET_BIND_SERVICE",
@@ -266,8 +264,6 @@ arguments = [
 |---|---|
 | `id` | 8-character random alphanumeric workspace ID |
 | `user` | Current username on the host |
-| `container_name` | Name of the Podman container |
-| `image_name` | Name of the workspace image |
 
 **`[connect]`**
 
@@ -289,7 +285,7 @@ arguments = [
 | `name` | `silo-shared` | Shared volume name. |
 | `paths` | `[]` | Paths inside the container backed by the shared volume. A trailing slash means directory; no trailing slash means file. `$HOME` is the only supported placeholder prefix. |
 
-**`[create]`**
+**`[silo.create]`**
 
 | Key | Default | Description |
 |---|---|---|

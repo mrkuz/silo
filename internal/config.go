@@ -17,14 +17,16 @@ type Config struct {
 	Features     FeaturesConfig     `toml:"features"`
 	SharedVolume SharedVolumeConfig `toml:"shared_volume"`
 	Connect      ConnectConfig      `toml:"connect"`
-	Create       CreateConfig       `toml:"create"`
+	Podman       PodmanConfig       `toml:"podman"`
+}
+
+type PodmanConfig struct {
+	Create CreateConfig `toml:"create"`
 }
 
 type GeneralConfig struct {
-	ID            string `toml:"id"`
-	User          string `toml:"user"`
-	ContainerName string `toml:"container_name"`
-	ImageName     string `toml:"image_name"`
+	ID   string `toml:"id"`
+	User string `toml:"user"`
 }
 
 type FeaturesConfig struct {
@@ -43,6 +45,16 @@ type ConnectConfig struct {
 
 type CreateConfig struct {
 	Arguments []string `toml:"arguments"`
+}
+
+// WorkspaceContainerName returns container name derived from id.
+func WorkspaceContainerName(id string) string {
+	return "silo-" + id
+}
+
+// WorkspaceImageName returns image name derived from id.
+func WorkspaceImageName(id string) string {
+	return "silo-" + id
 }
 
 const emptyJSON = "{}\n"
@@ -74,10 +86,8 @@ func DefaultConfig() (Config, error) {
 	id := generatedIDFunc()
 	return Config{
 		General: GeneralConfig{
-			ID:            id,
-			User:          u.Username,
-			ContainerName: "silo-" + id,
-			ImageName:     "silo-" + id,
+			ID:   id,
+			User: u.Username,
 		},
 		Features: FeaturesConfig{
 			SharedVolume: false,
@@ -90,9 +100,9 @@ func DefaultConfig() (Config, error) {
 		Connect: ConnectConfig{
 			Command: "/bin/sh",
 		},
-		Create: CreateConfig{
+		Podman: PodmanConfig{Create: CreateConfig{
 			Arguments: []string{},
-		},
+		}},
 	}, nil
 }
 
@@ -159,8 +169,8 @@ func (c Config) SaveWorkspaceConfig() error {
 	if c.SharedVolume.Paths == nil {
 		c.SharedVolume.Paths = []string{}
 	}
-	if c.Create.Arguments == nil {
-		c.Create.Arguments = []string{}
+	if c.Podman.Create.Arguments == nil {
+		c.Podman.Create.Arguments = []string{}
 	}
 	enc := toml.NewEncoder(f)
 	enc.Indent = ""
@@ -367,11 +377,11 @@ func EnsureImages(cfg Config, force bool) error {
 	if err := EnsureUserImage(tc, false); err != nil {
 		return err
 	}
-	if !force && ImageExists(cfg.General.ImageName) {
+	if !force && ImageExists(WorkspaceImageName(cfg.General.ID)) {
 		return nil
 	}
-	fmt.Printf("Building workspace image %s...\n", cfg.General.ImageName)
-	if err := BuildWorkspaceImage(cfg.General.ImageName, tc); err != nil {
+	fmt.Printf("Building workspace image %s...\n", WorkspaceImageName(cfg.General.ID))
+	if err := BuildWorkspaceImage(WorkspaceImageName(cfg.General.ID), tc); err != nil {
 		return fmt.Errorf("build workspace image: %w", err)
 	}
 	return nil
@@ -409,7 +419,7 @@ func EnsureInit(podman *bool, sharedVolume *bool) (Config, bool, error) {
 		if sharedVolume != nil {
 			cfg.Features.SharedVolume = *sharedVolume
 		}
-		cfg.Create.Arguments = append(cfg.Create.Arguments, DefaultCreateArgs(cfg.Features.Podman)...)
+		cfg.Podman.Create.Arguments = append(cfg.Podman.Create.Arguments, DefaultCreateArgs(cfg.Features.Podman)...)
 		if err := cfg.SaveWorkspaceConfig(); err != nil {
 			return cfg, firstRun, fmt.Errorf("save workspace config: %w", err)
 		}
@@ -435,8 +445,8 @@ func EnsureCreated() (Config, error) {
 	if err != nil {
 		return cfg, fmt.Errorf("build images: %w", err)
 	}
-	if !ContainerExists(cfg.General.ContainerName) {
-		if err := CreateContainer(cfg, cfg.Create.Arguments); err != nil {
+	if !ContainerExists(WorkspaceContainerName(cfg.General.ID)) {
+		if err := CreateContainer(cfg, cfg.Podman.Create.Arguments); err != nil {
 			return cfg, fmt.Errorf("create container: %w", err)
 		}
 	}
@@ -449,11 +459,11 @@ func EnsureStarted() (Config, error) {
 	if err != nil {
 		return cfg, fmt.Errorf("create container: %w", err)
 	}
-	if !ContainerRunning(cfg.General.ContainerName) {
+	if !ContainerRunning(WorkspaceContainerName(cfg.General.ID)) {
 		if _, err := VolumeSetup(cfg); err != nil {
 			return cfg, err
 		}
-		if err := StartContainer(cfg.General.ContainerName); err != nil {
+		if err := StartContainer(WorkspaceContainerName(cfg.General.ID)); err != nil {
 			return cfg, fmt.Errorf("start container: %w", err)
 		}
 	}

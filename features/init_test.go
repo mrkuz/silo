@@ -123,7 +123,7 @@ func TestFeatureInit(t *testing.T) {
 					name = "my-shared"
 					paths = ["$HOME/.cache/uv/"]
 
-					[create]
+					[podman.create]
 					arguments = ["--memory=2g"]
 				`)
 			})
@@ -149,11 +149,11 @@ func TestFeatureInit(t *testing.T) {
 				t.Errorf("expected SharedVolume.Name=\"my-shared\", got %q", saved.SharedVolume.Name)
 			}
 			// And the workspace config should have create arguments ["--memory=2g"]
-			if len(saved.Create.Arguments) < 2 {
-				t.Errorf("expected at least 2 create arguments, got %v", saved.Create.Arguments)
+			if len(saved.Podman.Create.Arguments) < 2 {
+				t.Errorf("expected at least 2 create arguments, got %v", saved.Podman.Create.Arguments)
 			}
-			if saved.Create.Arguments[0] != "--memory=2g" {
-				t.Errorf("expected first argument --memory=2g, got %v", saved.Create.Arguments)
+			if saved.Podman.Create.Arguments[0] != "--memory=2g" {
+				t.Errorf("expected first argument --memory=2g, got %v", saved.Podman.Create.Arguments)
 			}
 		})
 
@@ -164,8 +164,6 @@ func TestFeatureInit(t *testing.T) {
 					[general]
 					id = "ignored-id"
 					user = "ignored-user"
-					container_name = "ignored-container"
-					image_name = "ignored-image"
 				`)
 			})
 
@@ -185,10 +183,6 @@ func TestFeatureInit(t *testing.T) {
 			u, _ := user.Current()
 			if saved.General.User != u.Username {
 				t.Errorf("expected current user %q, got %q", u.Username, saved.General.User)
-			}
-			// And the workspace config should have container_name starting with "silo-"
-			if !strings.HasPrefix(saved.General.ContainerName, "silo-") {
-				t.Errorf("expected container_name starting with \"silo-\", got %q", saved.General.ContainerName)
 			}
 		})
 
@@ -247,7 +241,7 @@ func TestFeatureInit(t *testing.T) {
 			// Given the user's silo config directory has "silo.in.toml" with:
 			internal.FirstRunWith(t, func(siloUser string) {
 				internal.WriteUserFile(t, siloUser, "silo.in.toml", `
-				[create]
+				[podman.create]
 				arguments = ["--memory=2g"]
 				`)
 			})
@@ -261,16 +255,16 @@ func TestFeatureInit(t *testing.T) {
 				t.Fatalf("parse error: %v", err)
 			}
 			// Then the workspace config should have 5 create arguments
-			if len(saved.Create.Arguments) != 5 {
-				t.Errorf("expected 5 create arguments, got %v", saved.Create.Arguments)
+			if len(saved.Podman.Create.Arguments) != 5 {
+				t.Errorf("expected 5 create arguments, got %v", saved.Podman.Create.Arguments)
 			}
 			// And the first create argument should be "--memory=2g"
-			if saved.Create.Arguments[0] != "--memory=2g" {
-				t.Errorf("expected first create argument --memory=2g, got %v", saved.Create.Arguments)
+			if saved.Podman.Create.Arguments[0] != "--memory=2g" {
+				t.Errorf("expected first create argument --memory=2g, got %v", saved.Podman.Create.Arguments)
 			}
 			// And the second create argument should be "--cap-drop=ALL"
-			if saved.Create.Arguments[1] != "--cap-drop=ALL" {
-				t.Errorf("expected second create argument --cap-drop=ALL, got %v", saved.Create.Arguments)
+			if saved.Podman.Create.Arguments[1] != "--cap-drop=ALL" {
+				t.Errorf("expected second create argument --cap-drop=ALL, got %v", saved.Podman.Create.Arguments)
 			}
 		})
 	})
@@ -840,7 +834,7 @@ func TestFeatureInit(t *testing.T) {
 
 			// And the user's silo config directory has silo.in.toml with custom create args
 			internal.WriteUserFile(t, xdgPath+"/silo", "silo.in.toml", `
-				[create]
+				[podman.create]
 				arguments = ["--memory=2g"]
 			`)
 
@@ -854,16 +848,16 @@ func TestFeatureInit(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			if len(saved.Create.Arguments) != 5 {
-				t.Errorf("expected 5 create arguments, got %v", saved.Create.Arguments)
+			if len(saved.Podman.Create.Arguments) != 5 {
+				t.Errorf("expected 5 create arguments, got %v", saved.Podman.Create.Arguments)
 			}
 			// And the first create argument should be "--memory=2g"
-			if saved.Create.Arguments[0] != "--memory=2g" {
-				t.Errorf("expected first argument --memory=2g, got %v", saved.Create.Arguments)
+			if saved.Podman.Create.Arguments[0] != "--memory=2g" {
+				t.Errorf("expected first argument --memory=2g, got %v", saved.Podman.Create.Arguments)
 			}
 			// And the second create argument should be "--cap-drop=ALL"
-			if saved.Create.Arguments[1] != "--cap-drop=ALL" {
-				t.Errorf("expected second argument --cap-drop=ALL, got %v", saved.Create.Arguments)
+			if saved.Podman.Create.Arguments[1] != "--cap-drop=ALL" {
+				t.Errorf("expected second argument --cap-drop=ALL, got %v", saved.Podman.Create.Arguments)
 			}
 		})
 	})

@@ -16,8 +16,7 @@ func UserBuild(args []string) error {
 	}
 	cfg := internal.Config{
 		General: internal.GeneralConfig{
-			User:          u.Username,
-			ContainerName: "silo-" + u.Username,
+			User: u.Username,
 		},
 	}
 	tc, err := internal.NewTemplateContext(cfg)

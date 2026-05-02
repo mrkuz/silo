@@ -13,15 +13,15 @@ func Build(args []string) error {
 	if err != nil {
 		return fmt.Errorf("initialize workspace: %w", err)
 	}
-	if !force && internal.ImageExists(cfg.General.ImageName) {
-		fmt.Printf("%s already exists\n", cfg.General.ImageName)
+	if !force && internal.ImageExists(internal.WorkspaceImageName(cfg.General.ID)) {
+		fmt.Printf("%s already exists\n", internal.WorkspaceImageName(cfg.General.ID))
 		return nil
 	}
-	if internal.ContainerRunning(cfg.General.ContainerName) {
-		return fmt.Errorf("container %s is running", cfg.General.ContainerName)
+	if internal.ContainerRunning(internal.WorkspaceContainerName(cfg.General.ID)) {
+		return fmt.Errorf("container %s is running", internal.WorkspaceContainerName(cfg.General.ID))
 	}
-	if internal.ContainerExists(cfg.General.ContainerName) {
-		return fmt.Errorf("container %s exists", cfg.General.ContainerName)
+	if internal.ContainerExists(internal.WorkspaceContainerName(cfg.General.ID)) {
+		return fmt.Errorf("container %s exists", internal.WorkspaceContainerName(cfg.General.ID))
 	}
 	if err := internal.EnsureImages(cfg, force); err != nil {
 		return err

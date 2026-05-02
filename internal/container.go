@@ -141,13 +141,13 @@ func WorkspaceMountPath(cfg Config) (string, error) {
 }
 
 // ContainerArgs returns podman flags for container name, hostname, and basic settings.
-// Security and capability args are stored in [create].arguments in silo.toml.
+// Security and capability args are stored in [podman.create].arguments in silo.toml.
 func ContainerArgs(cfg Config, containerNameSuffix ...string) []string {
 	suffix := ""
 	if len(containerNameSuffix) > 0 {
 		suffix = containerNameSuffix[0]
 	}
-	containerName := ContainerNameWithSuffix(cfg.General.ContainerName, suffix)
+	containerName := ContainerNameWithSuffix(WorkspaceContainerName(cfg.General.ID), suffix)
 
 	args := []string{"--name", containerName, "--hostname", containerName}
 	args = append(args, "--user", cfg.General.User)
@@ -199,9 +199,9 @@ func CreateContainer(cfg Config, extra []string) error {
 	}
 	createArgs := append([]string{"create"}, podmanArgs...)
 	createArgs = append(createArgs, extra...)
-	createArgs = append(createArgs, cfg.General.ImageName)
+	createArgs = append(createArgs, WorkspaceImageName(cfg.General.ID))
 
-	fmt.Printf("Creating %s...\n", cfg.General.ContainerName)
+	fmt.Printf("Creating %s...\n", WorkspaceContainerName(cfg.General.ID))
 	if err := RunVisible("podman", createArgs...); err != nil {
 		return fmt.Errorf("create container: %w", err)
 	}

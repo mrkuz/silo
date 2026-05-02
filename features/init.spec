@@ -53,7 +53,7 @@ Feature: silo init — Initialize workspace
         name = "my-shared"
         paths = ["$HOME/.cache/uv/"]
 
-        [create]
+        [podman.create]
         arguments = ["--memory=2g"]
         """
       When I run `silo init`
@@ -68,13 +68,10 @@ Feature: silo init — Initialize workspace
         [general]
         id = "ignored-id"
         user = "ignored-user"
-        container_name = "ignored-container"
-        image_name = "ignored-image"
         """
       When I run `silo init`
       Then the workspace config should have an 8-character random id
       And the workspace config should use the current username
-      And the workspace config should have container_name starting with "silo-"
 
     Scenario: silo.in.toml empty or absent uses built-in defaults
       Given the user's silo config directory has "silo.in.toml" with content:
@@ -94,7 +91,7 @@ Feature: silo init — Initialize workspace
     Scenario: silo.in.toml create arguments are prepended to default arguments
       Given the user's silo config directory has "silo.in.toml" with content:
         """
-        [create]
+        [podman.create]
         arguments = ["--memory=2g"]
         """
       When I run `silo init`
@@ -295,7 +292,7 @@ Feature: silo init — Initialize workspace
       And the config has podman=false
       And the user's silo config directory has "silo.in.toml" with content:
         """
-        [create]
+        [podman.create]
         arguments = ["--memory=2g"]
         """
       When I run `silo init --force`

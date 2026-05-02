@@ -13,7 +13,7 @@ const devcontainerFileMode = 0644
 
 // DevContainerName returns the devcontainer name for the given config.
 func DevContainerName(cfg Config) string {
-	return ContainerNameWithSuffix(cfg.General.ContainerName, devContainerSuffix)
+	return ContainerNameWithSuffix(WorkspaceContainerName(cfg.General.ID), devContainerSuffix)
 }
 
 // DevcontainerGenerate generates a .devcontainer.json for VS Code.

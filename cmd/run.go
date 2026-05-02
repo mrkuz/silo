@@ -17,12 +17,13 @@ func Run(args []string) error {
 	if err != nil {
 		return fmt.Errorf("setup container: %w", err)
 	}
-	fmt.Printf("Connecting to %s...\n", cfg.General.ContainerName)
-	err = internal.ConnectContainer(cfg.General.ContainerName, cfg.Connect.Command, flags.Extra)
+	containerName := internal.WorkspaceContainerName(cfg.General.ID)
+	fmt.Printf("Connecting to %s...\n", containerName)
+	err = internal.ConnectContainer(containerName, cfg.Connect.Command, flags.Extra)
 	// Best-effort cleanup; original session error (if any) takes precedence.
 	if flags.Stop {
-		internal.StopContainer(cfg.General.ContainerName)
-		internal.RemoveContainer(cfg.General.ContainerName)
+		internal.StopContainer(containerName)
+		internal.RemoveContainer(containerName)
 	}
 	if err != nil {
 		return fmt.Errorf("connect to container: %w", err)

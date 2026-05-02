@@ -15,14 +15,15 @@ func Connect(args []string) error {
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
-	if !internal.ContainerExists(cfg.General.ContainerName) {
-		return fmt.Errorf("container %s does not exist", cfg.General.ContainerName)
+	containerName := internal.WorkspaceContainerName(cfg.General.ID)
+	if !internal.ContainerExists(containerName) {
+		return fmt.Errorf("container %s does not exist", containerName)
 	}
-	if !internal.ContainerRunning(cfg.General.ContainerName) {
-		return fmt.Errorf("container %s is not running", cfg.General.ContainerName)
+	if !internal.ContainerRunning(containerName) {
+		return fmt.Errorf("container %s is not running", containerName)
 	}
-	fmt.Printf("Connecting to %s...\n", cfg.General.ContainerName)
-	if err := internal.ConnectContainer(cfg.General.ContainerName, cfg.Connect.Command, nil); err != nil {
+	fmt.Printf("Connecting to %s...\n", containerName)
+	if err := internal.ConnectContainer(containerName, cfg.Connect.Command, nil); err != nil {
 		return fmt.Errorf("connect to container: %w", err)
 	}
 	return nil
