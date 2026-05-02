@@ -59,43 +59,6 @@ func Init(args []string) error {
 	return nil
 }
 
-// UserInit implements `silo user init`. Prints per-file status
-// (for existing and new files) and delegates the actual
-// file creation to EnsureUserFiles.
-func UserInit(args []string) error {
-	force, _ := extractForceFlag(args)
-
-	files, err := internal.UserStarterFiles()
-	if err != nil {
-		return fmt.Errorf("list user starter files: %w", err)
-	}
-	for _, f := range files {
-		if err := internal.PrintInitFileStatus(f.Path); err != nil {
-			return err
-		}
-	}
-	if err := internal.EnsureUserFiles(force); err != nil {
-		return fmt.Errorf("ensure user files: %w", err)
-	}
-	return nil
-}
-
-// VolumeSetup creates directories on the shared volume so they can be mounted as subpath volumes.
-func VolumeSetup() error {
-	cfg, err := internal.RequireWorkspaceConfig()
-	if err != nil {
-		return fmt.Errorf("load workspace configuration: %w", err)
-	}
-	performed, err := internal.VolumeSetup(cfg)
-	if err != nil {
-		return fmt.Errorf("volume setup: %w", err)
-	}
-	if performed {
-		fmt.Println("volume setup complete")
-	}
-	return nil
-}
-
 // InitFlags holds parsed flags for the init command.
 type InitFlags struct {
 	Podman       *bool
@@ -105,7 +68,7 @@ type InitFlags struct {
 
 // ParseInitFlags parses the flags for `silo init`.
 func ParseInitFlags(args []string) (InitFlags, error) {
-	force, remaining := extractForceFlag(args)
+	force, remaining := ParseForceFlag(args)
 
 	fs := flag.NewFlagSet("silo init", flag.ContinueOnError)
 	podman := fs.Bool("podman", false, "Enable Podman inside the container")
@@ -136,21 +99,4 @@ func ParseInitFlags(args []string) (InitFlags, error) {
 		SharedVolume: svVal,
 		Force:        force,
 	}, nil
-}
-
-// WithoutArgs wraps a no-argument function to match the command signature.
-func WithoutArgs(f func() error) func([]string) error {
-	return func(_ []string) error { return f() }
-}
-
-// extractForceFlag extracts -f/--force from args before FlagSet parsing.
-func extractForceFlag(args []string) (force bool, remaining []string) {
-	for _, arg := range args {
-		if arg == "-f" || arg == "--force" {
-			force = true
-			continue
-		}
-		remaining = append(remaining, arg)
-	}
-	return force, remaining
 }

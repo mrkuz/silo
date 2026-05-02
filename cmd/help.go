@@ -12,7 +12,6 @@ Usage:
   silo start
   silo volume setup
   silo connect
-  silo exec <cmd> [args...]
   silo stop
   silo rm [-f|--force]
   silo status
@@ -31,7 +30,6 @@ Commands:
   start                Start the container
   volume setup         Create directories on the shared volume
   connect              Connect to the silo container
-  exec                 Run a command in the running container
   stop                 Stop and remove the running container
   rm                   Remove the workspace image
   status               Print container status
@@ -46,7 +44,6 @@ Commands:
 Default command flags:
   --stop  Stop and remove the container when the session exits
   --rm    Stop, remove container, and remove image when the session exits
-  -- ...  Pass remaining arguments to podman exec
 
 Init flags:
   --podman             Enable Podman inside the container

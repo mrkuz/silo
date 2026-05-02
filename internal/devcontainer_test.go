@@ -1,19 +1,17 @@
-package cmd_test
+package internal
 
 import (
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
-
-	"github.com/mrkuz/silo/internal"
 )
 
 func TestDeepMergeJSON(t *testing.T) {
 	t.Run("scalar override", func(t *testing.T) {
 		base := map[string]any{"a": 1.0}
 		overlay := map[string]any{"a": 2.0}
-		got := internal.DeepMergeJSON(base, overlay)
+		got := DeepMergeJSON(base, overlay)
 		if got["a"] != 2.0 {
 			t.Errorf("expected a=2, got %v", got["a"])
 		}
@@ -22,7 +20,7 @@ func TestDeepMergeJSON(t *testing.T) {
 	t.Run("new key from overlay", func(t *testing.T) {
 		base := map[string]any{"a": 1.0}
 		overlay := map[string]any{"b": 2.0}
-		got := internal.DeepMergeJSON(base, overlay)
+		got := DeepMergeJSON(base, overlay)
 		if got["a"] != 1.0 || got["b"] != 2.0 {
 			t.Errorf("unexpected result: %v", got)
 		}
@@ -31,7 +29,7 @@ func TestDeepMergeJSON(t *testing.T) {
 	t.Run("base-only key preserved", func(t *testing.T) {
 		base := map[string]any{"a": 1.0, "b": 2.0}
 		overlay := map[string]any{"b": 3.0}
-		got := internal.DeepMergeJSON(base, overlay)
+		got := DeepMergeJSON(base, overlay)
 		if got["a"] != 1.0 {
 			t.Errorf("expected base key a=1 to be preserved, got %v", got["a"])
 		}
@@ -40,7 +38,7 @@ func TestDeepMergeJSON(t *testing.T) {
 	t.Run("nested object merge", func(t *testing.T) {
 		base := map[string]any{"obj": map[string]any{"x": 1.0}}
 		overlay := map[string]any{"obj": map[string]any{"y": 2.0}}
-		got := internal.DeepMergeJSON(base, overlay)
+		got := DeepMergeJSON(base, overlay)
 		obj, ok := got["obj"].(map[string]any)
 		if !ok {
 			t.Fatal("expected obj to be a map")
@@ -53,7 +51,7 @@ func TestDeepMergeJSON(t *testing.T) {
 	t.Run("array concatenation", func(t *testing.T) {
 		base := map[string]any{"arr": []any{"a", "b"}}
 		overlay := map[string]any{"arr": []any{"c"}}
-		got := internal.DeepMergeJSON(base, overlay)
+		got := DeepMergeJSON(base, overlay)
 		arr, ok := got["arr"].([]any)
 		if !ok {
 			t.Fatal("expected arr to be a slice")
@@ -67,7 +65,7 @@ func TestDeepMergeJSON(t *testing.T) {
 	t.Run("overlay scalar replaces base object", func(t *testing.T) {
 		base := map[string]any{"k": map[string]any{"x": 1.0}}
 		overlay := map[string]any{"k": "string"}
-		got := internal.DeepMergeJSON(base, overlay)
+		got := DeepMergeJSON(base, overlay)
 		if got["k"] != "string" {
 			t.Errorf("expected overlay scalar to win, got %v", got["k"])
 		}
@@ -76,7 +74,7 @@ func TestDeepMergeJSON(t *testing.T) {
 	t.Run("does not mutate base or overlay", func(t *testing.T) {
 		base := map[string]any{"a": 1.0}
 		overlay := map[string]any{"a": 2.0}
-		internal.DeepMergeJSON(base, overlay)
+		DeepMergeJSON(base, overlay)
 		if base["a"] != 1.0 {
 			t.Errorf("base was mutated")
 		}
@@ -89,7 +87,7 @@ func TestDeepMergeJSONMalformedInput(t *testing.T) {
 	t.Run("scalar replaces object", func(t *testing.T) {
 		base := map[string]any{"k": map[string]any{"x": 1.0}}
 		overlay := map[string]any{"k": "string"}
-		got := internal.DeepMergeJSON(base, overlay)
+		got := DeepMergeJSON(base, overlay)
 		if got["k"] != "string" {
 			t.Errorf("expected overlay scalar to win, got %v", got["k"])
 		}
@@ -98,7 +96,7 @@ func TestDeepMergeJSONMalformedInput(t *testing.T) {
 	t.Run("object replaces scalar", func(t *testing.T) {
 		base := map[string]any{"k": "string"}
 		overlay := map[string]any{"k": map[string]any{"x": 1.0}}
-		got := internal.DeepMergeJSON(base, overlay)
+		got := DeepMergeJSON(base, overlay)
 		obj, ok := got["k"].(map[string]any)
 		if !ok {
 			t.Fatalf("expected merged object, got %v", got["k"])
@@ -123,7 +121,7 @@ func TestLoadDevcontainerInJSONMalformed(t *testing.T) {
 		if err := os.WriteFile(path, []byte("{invalid json"), 0644); err != nil {
 			t.Fatal(err)
 		}
-		_, err := internal.LoadDevcontainerInJSON()
+		_, err := LoadDevcontainerInJSON()
 		if err == nil {
 			t.Error("expected error for malformed JSON")
 		}

@@ -70,42 +70,6 @@ func DevcontainerGenerate(force bool) error {
 	return nil
 }
 
-// DevcontainerStop implements `silo devcontainer stop`.
-func DevcontainerStop() error {
-	cfg, err := RequireWorkspaceConfig()
-	if err != nil {
-		return fmt.Errorf("load workspace configuration: %w", err)
-	}
-	name := DevContainerName(cfg)
-	if !ContainerExists(name) {
-		PrintNotFound(name)
-		return nil
-	}
-	if ContainerRunning(name) {
-		if err := StopContainer(name); err != nil {
-			return fmt.Errorf("stop container: %w", err)
-		}
-	} else {
-		fmt.Printf("%s is not running\n", name)
-	}
-	fmt.Printf("Removing %s...\n", name)
-	if err := RemoveContainer(name); err != nil {
-		return fmt.Errorf("remove container: %w", err)
-	}
-	return nil
-}
-
-// DevcontainerStatus implements `silo devcontainer status`.
-func DevcontainerStatus() error {
-	cfg, err := RequireWorkspaceConfig()
-	if err != nil {
-		return fmt.Errorf("load workspace configuration: %w", err)
-	}
-	name := DevContainerName(cfg)
-	PrintRunningStatus(ContainerRunning(name))
-	return nil
-}
-
 // LoadDevcontainerInJSON reads the user devcontainer input file.
 // Returns an empty map if the file does not exist.
 func LoadDevcontainerInJSON() (map[string]any, error) {

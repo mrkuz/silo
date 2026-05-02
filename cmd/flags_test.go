@@ -208,6 +208,63 @@ func TestParseRemoveFlags(t *testing.T) {
 	}
 }
 
+func TestParseForceFlag(t *testing.T) {
+	tests := []struct {
+		name      string
+		args      []string
+		wantForce bool
+		wantRest  []string
+	}{
+		{
+			name:      "no flags",
+			args:      []string{},
+			wantForce: false,
+			wantRest:  nil,
+		},
+		{
+			name:      "-f",
+			args:      []string{"-f"},
+			wantForce: true,
+			wantRest:  nil,
+		},
+		{
+			name:      "--force",
+			args:      []string{"--force"},
+			wantForce: true,
+			wantRest:  nil,
+		},
+		{
+			name:      "-f with remaining args",
+			args:      []string{"-f", "--podman"},
+			wantForce: true,
+			wantRest:  []string{"--podman"},
+		},
+		{
+			name:      "unknown flag preserved",
+			args:      []string{"--podman", "--unknown"},
+			wantForce: false,
+			wantRest:  []string{"--podman", "--unknown"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			force, rest := cmd.ParseForceFlag(tt.args)
+			if force != tt.wantForce {
+				t.Errorf("ParseForceFlag(%v): force=%v, want %v", tt.args, force, tt.wantForce)
+			}
+			if len(rest) != len(tt.wantRest) {
+				t.Errorf("ParseForceFlag(%v): rest=%v, want %v", tt.args, rest, tt.wantRest)
+				return
+			}
+			for i := range rest {
+				if rest[i] != tt.wantRest[i] {
+					t.Errorf("ParseForceFlag(%v): rest[%d]=%v, want %v", tt.args, i, rest[i], tt.wantRest[i])
+				}
+			}
+		})
+	}
+}
+
 func ptr[T any](v T) *T {
 	return &v
 }

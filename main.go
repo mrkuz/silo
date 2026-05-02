@@ -11,19 +11,23 @@ import (
 var commands = map[string]func([]string) error{
 	"init":                 cmd.Init,
 	"build":                cmd.Build,
-	"start":                cmd.WithoutArgs(cmd.Start),
-	"volume setup":         cmd.WithoutArgs(cmd.VolumeSetup),
+	"start":                withoutArgs(cmd.Start),
+	"volume setup":         withoutArgs(cmd.VolumeSetup),
 	"connect":              cmd.Connect,
-	"stop":                 cmd.WithoutArgs(cmd.Stop),
+	"stop":                 withoutArgs(cmd.Stop),
 	"rm":                   cmd.Remove,
-	"status":               cmd.WithoutArgs(cmd.Status),
+	"status":               withoutArgs(cmd.Status),
 	"user init":            cmd.UserInit,
 	"user build":           cmd.UserBuild,
-	"user rm":              cmd.WithoutArgs(cmd.UserRm),
+	"user rm":              withoutArgs(cmd.UserRm),
 	"devcontainer":         cmd.DevcontainerGenerate,
-	"devcontainer connect": cmd.WithoutArgs(cmd.DevcontainerConnect),
-	"devcontainer stop":    cmd.WithoutArgs(cmd.DevcontainerStop),
-	"devcontainer status":  cmd.WithoutArgs(cmd.DevcontainerStatus),
+	"devcontainer connect": withoutArgs(cmd.DevcontainerConnect),
+	"devcontainer stop":    withoutArgs(cmd.DevcontainerStop),
+	"devcontainer status":  withoutArgs(cmd.DevcontainerStatus),
+}
+
+func withoutArgs(f func() error) func([]string) error {
+	return func(_ []string) error { return f() }
 }
 
 func main() {
