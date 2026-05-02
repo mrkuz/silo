@@ -10,13 +10,11 @@ func TestParseRunFlags(t *testing.T) {
 	tests := []struct {
 		args     []string
 		wantStop bool
-		wantRemove  bool
 		wantErr  bool
 	}{
-		{[]string{}, false, false, false},
-		{[]string{"--stop"}, true, false, false},
-		{[]string{"--rm"}, true, true, false},
-		{[]string{"--unknown"}, false, false, true},
+		{[]string{}, false, false},
+		{[]string{"--stop"}, true, false},
+		{[]string{"--unknown"}, false, true},
 	}
 	for _, tt := range tests {
 		f, err := cmd.ParseRunFlags(tt.args)
@@ -30,9 +28,8 @@ func TestParseRunFlags(t *testing.T) {
 			t.Errorf("ParseRunFlags(%v): unexpected error: %v", tt.args, err)
 			continue
 		}
-		if f.Stop != tt.wantStop || f.Remove != tt.wantRemove {
-			t.Errorf("ParseRunFlags(%v) = {Stop:%v Rmi:%v}, want {Stop:%v Rmi:%v}",
-				tt.args, f.Stop, f.Remove, tt.wantStop, tt.wantRemove)
+		if f.Stop != tt.wantStop {
+			t.Errorf("ParseRunFlags(%v).Stop = %v, want %v", tt.args, f.Stop, tt.wantStop)
 		}
 	}
 }

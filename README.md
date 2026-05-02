@@ -85,7 +85,7 @@ silo connect       # Connect to container (triggers missing steps automatically)
 ## Commands
 
 ```
-silo [--stop|--rm] [-- args...]
+silo [--stop] [-- args...]
 silo init [--podman|--no-podman] [--shared-volume|--no-shared-volume]
 silo build
 silo start
@@ -111,7 +111,6 @@ Run the full lifecycle chain if needed, then connect to the container for the cu
 | Flag | Description |
 |---|---|
 | `--stop` | Stop and remove the container when the session exits |
-| `--rm` | Stop, remove container, and remove workspace image when the session exits |
 | `-- ...` | Pass remaining arguments to `podman exec` |
 
 ### `silo init`

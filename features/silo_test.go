@@ -182,39 +182,6 @@ func TestFeatureSilo(t *testing.T) {
 		})
 	})
 
-	t.Run("Rule: --rm stops, removes container, and removes image after the session exits", func(t *testing.T) {
-		t.Run("Scenario: container and image are removed", func(t *testing.T) {
-			// Given a workspace with silo config "abc12345"
-			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
-
-			// And the container "silo-abc12345" is running
-			// And the user image "silo-alice" exists
-			// And the workspace image "silo-abc12345" exists
-			mock := internal.NewMock(t)
-			mock.MockExec(map[string]*exec.Cmd{
-				"podman container exists silo-abc12345":                              exec.Command("true"),
-				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-				"podman image exists silo-alice":                                     exec.Command("true"),
-				"podman image exists silo-abc12345":                                  exec.Command("true"),
-			})
-
-			// When I run `silo --rm`
-			err := cmd.Run([]string{"--rm"})
-
-			// And the interactive session ends
-			// Then podman should run "stop" with "-t" and "0" on "silo-abc12345"
-			mock.AssertExec("podman", "stop", "-t", "0", "silo-abc12345")
-			// And podman should run "rm" with "-f" on "silo-abc12345"
-			mock.AssertExec("podman", "rm", "-f", "silo-abc12345")
-			// And podman should run "rmi" on "silo-abc12345"
-			mock.AssertExec("podman", "rmi", "silo-abc12345")
-			if err != nil {
-				t.Errorf("expected exit code 0, got error: %v", err)
-			}
-		})
-	})
 
 	t.Run("Rule: Runs the full lifecycle chain if needed", func(t *testing.T) {
 		t.Run("Scenario: stopped container triggers start", func(t *testing.T) {

@@ -3,8 +3,8 @@ Feature: silo (default invocation) — Run lifecycle and connect to the containe
 
   The default `silo` invocation (no subcommand) runs the full lifecycle chain
   (init → build → start) if needed, then opens an interactive shell session
-  inside the running container. After the session exits, cleanup flags control what
-  is stopped or removed.
+  inside the running container. After the session exits, the --stop flag
+  controls container cleanup.
 
   Background:
     Given a workspace with silo config "abc12345"
@@ -28,7 +28,6 @@ Feature: silo (default invocation) — Run lifecycle and connect to the containe
       Then the container "silo-abc12345" should still be running
       And podman should not run "stop" on "silo-abc12345"
       And podman should not run "rm" on "silo-abc12345"
-      And podman should not run "rmi" on "silo-abc12345"
       And the command should be "/bin/sh"
       And the output should contain "Connecting to silo-abc12345..."
 
@@ -57,18 +56,6 @@ Feature: silo (default invocation) — Run lifecycle and connect to the containe
       When I run `silo --stop`
       And the interactive session ends
       Then podman should not run "rmi" on "silo-abc12345"
-
-  Rule: --rm stops, removes container, and removes image after the session exits
-
-    Scenario: container and image are removed
-      Given the container "silo-abc12345" is running
-      And the user image "silo-alice" exists
-      And the workspace image "silo-abc12345" exists
-      When I run `silo --rm`
-      And the interactive session ends
-      Then podman should run "stop" with "-t" and "0" on "silo-abc12345"
-      And podman should run "rm" with "-f" on "silo-abc12345"
-      And podman should run "rmi" on "silo-abc12345"
 
   Rule: Runs the full lifecycle chain if needed
 

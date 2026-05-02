@@ -6,7 +6,7 @@ import "fmt"
 const HelpText = `silo - developer container
 
 Usage:
-  silo [--stop|--rm] [-- args...]
+  silo [--stop] [-- args...]
   silo init [--podman|--no-podman] [--shared-volume|--no-shared-volume]
   silo build
   silo start
@@ -43,7 +43,7 @@ Commands:
 
 Default command flags:
   --stop  Stop and remove the container when the session exits
-  --rm    Stop, remove container, and remove image when the session exits
+  --stop  Stop and remove the container when the session exits
 
 Init flags:
   --podman             Enable Podman inside the container
