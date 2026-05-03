@@ -55,7 +55,7 @@ func FirstRunWith(t *testing.T, configFunc func(siloUser string)) string {
 }
 
 // FirstRunWithFiles sets up a first-run scenario with user config files written.
-// starterFiles maps filename to content (e.g., "home-user.nix" -> content).
+// starterFiles maps filename to content (e.g., "home.user.nix" -> content).
 // Returns the XDG_CONFIG_HOME base path.
 func FirstRunWithFiles(t *testing.T, starterFiles map[string]string) string {
 	return FirstRunWith(t, func(siloUser string) {
@@ -145,9 +145,9 @@ func SetupUserConfig(t *testing.T) {
 	if err := os.MkdirAll(siloDir, 0755); err != nil {
 		t.Fatalf("mkdir silo config dir: %v", err)
 	}
-	// home-user.nix is read by BuildUserImage; write the minimal empty module.
-	if err := os.WriteFile(filepath.Join(siloDir, "home-user.nix"), []byte("{\n  config,\n  pkgs,\n  ...\n}:\n{\n}\n"), 0644); err != nil {
-		t.Fatalf("write home-user.nix: %v", err)
+	// home.user.nix is read by BuildUserImage; write the minimal empty module.
+	if err := os.WriteFile(filepath.Join(siloDir, "home.user.nix"), []byte("{\n  config,\n  pkgs,\n  ...\n}:\n{\n}\n"), 0644); err != nil {
+		t.Fatalf("write home.user.nix: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(siloDir, "silo.in.toml"), []byte{}, 0644); err != nil {
 		t.Fatalf("write silo.in.toml: %v", err)
@@ -163,7 +163,6 @@ func MinimalConfig(id string) Config {
 		},
 		Features:     FeaturesConfig{SharedVolume: false, Podman: false},
 		SharedVolume: SharedVolumeConfig{Paths: []string{}},
-		Connect:      ConnectConfig{Command: "/bin/sh"},
 		Podman:       PodmanConfig{Create: CreateConfig{Arguments: []string{}}},
 	}
 }

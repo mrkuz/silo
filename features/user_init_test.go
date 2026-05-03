@@ -25,11 +25,11 @@ func TestFeatureUserInit(t *testing.T) {
 			// When I run `silo user init`
 			err := cmd.UserInit([]string{})
 
-			// Then a file "home-user.nix" should be created in the user's silo config directory
+			// Then a file "home.user.nix" should be created in the user's silo config directory
 			// And a file "devcontainer.in.json" should be created in the user's silo config directory
 			// And a file "silo.in.toml" should be created in the user's silo config directory
 			siloDir := filepath.Join(base, "silo")
-			for _, name := range []string{"home-user.nix", "devcontainer.in.json", "silo.in.toml"} {
+			for _, name := range []string{"home.user.nix", "devcontainer.in.json", "silo.in.toml"} {
 				if _, err := os.Stat(filepath.Join(siloDir, name)); os.IsNotExist(err) {
 					t.Errorf("expected %s to be created in user's silo config directory", name)
 				}
@@ -41,10 +41,32 @@ func TestFeatureUserInit(t *testing.T) {
 		})
 	})
 
+	t.Run("Scenario: home.user.nix contains default shell command module", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+
+		if err := cmd.UserInit([]string{}); err != nil {
+			t.Fatalf("expected exit code 0, got error: %v", err)
+		}
+
+		siloDir := filepath.Join(base, "silo")
+		data, err := os.ReadFile(filepath.Join(siloDir, "home.user.nix"))
+		if err != nil {
+			t.Fatalf("failed to read home.user.nix: %v", err)
+		}
+		content := string(data)
+		if !strings.Contains(content, "silo.shellCommand") {
+			t.Errorf("expected home.user.nix to contain silo.shellCommand, got: %s", content)
+		}
+		if !strings.Contains(content, "/bin/bash --login") {
+			t.Errorf("expected home.user.nix to contain /bin/bash --login, got: %s", content)
+		}
+	})
+
 	t.Run("Rule: Idempotency — existing files are not overwritten", func(t *testing.T) {
 		t.Run("Scenario: all existing user files are preserved", func(t *testing.T) {
 			internal.FirstRunWith(t, func(siloUser string) {
-				internal.WriteUserFile(t, siloUser, "home-user.nix", "# custom content")
+				internal.WriteUserFile(t, siloUser, "home.user.nix", "# custom content")
 				internal.WriteUserFile(t, siloUser, "devcontainer.in.json", `{ "custom": true }`)
 				internal.WriteUserFile(t, siloUser, "silo.in.toml", "[features]")
 			})
@@ -52,7 +74,7 @@ func TestFeatureUserInit(t *testing.T) {
 			// When I run `silo user init`
 			err := cmd.UserInit([]string{})
 
-			// Then the file "home-user.nix" in the user's silo config directory should contain "# custom content"
+			// Then the file "home.user.nix" in the user's silo config directory should contain "# custom content"
 			// And the file "devcontainer.in.json" in the user's silo config directory should contain "{ \"custom\": true }"
 			// And the file "silo.in.toml" in the user's silo config directory should contain "[features]"
 			xdgConfigHome := os.Getenv("XDG_CONFIG_HOME")
@@ -61,7 +83,7 @@ func TestFeatureUserInit(t *testing.T) {
 				name   string
 				expect string
 			}{
-				{"home-user.nix", "# custom content"},
+				{"home.user.nix", "# custom content"},
 				{"devcontainer.in.json", `{ "custom": true }`},
 				{"silo.in.toml", "[features]"},
 			} {
@@ -91,11 +113,11 @@ func TestFeatureUserInit(t *testing.T) {
 				cmd.UserInit([]string{})
 			})
 
-			// Then the output should contain "Creating <XDG_CONFIG_HOME>/silo/home-user.nix"
+			// Then the output should contain "Creating <XDG_CONFIG_HOME>/silo/home.user.nix"
 			// And the output should contain "Creating <XDG_CONFIG_HOME>/silo/devcontainer.in.json"
 			// And the output should contain "Creating <XDG_CONFIG_HOME>/silo/silo.in.toml"
 			expectedMsgs := []string{
-				"Creating " + filepath.Join(base, "silo", "home-user.nix"),
+				"Creating " + filepath.Join(base, "silo", "home.user.nix"),
 				"Creating " + filepath.Join(base, "silo", "devcontainer.in.json"),
 				"Creating " + filepath.Join(base, "silo", "silo.in.toml"),
 			}
@@ -108,7 +130,7 @@ func TestFeatureUserInit(t *testing.T) {
 
 		t.Run("Scenario: user init shows already exists message for existing files", func(t *testing.T) {
 			internal.FirstRunWith(t, func(siloUser string) {
-				internal.WriteUserFile(t, siloUser, "home-user.nix", "{ config, pkgs, ... }:\n{\n}\n")
+				internal.WriteUserFile(t, siloUser, "home.user.nix", "{ config, pkgs, ... }:\n{\n}\n")
 				internal.WriteUserFile(t, siloUser, "devcontainer.in.json", "{}\n")
 				internal.WriteUserFile(t, siloUser, "silo.in.toml", "")
 			})
@@ -118,13 +140,13 @@ func TestFeatureUserInit(t *testing.T) {
 				cmd.UserInit([]string{})
 			})
 
-			// Then the output should contain "'<XDG_CONFIG_HOME>/silo/home-user.nix' already exists"
+			// Then the output should contain "'<XDG_CONFIG_HOME>/silo/home.user.nix' already exists"
 			// And the output should contain "'<XDG_CONFIG_HOME>/silo/devcontainer.in.json' already exists"
 			// And the output should contain "'<XDG_CONFIG_HOME>/silo/silo.in.toml' already exists"
 			xdgConfigHome := os.Getenv("XDG_CONFIG_HOME")
 			siloDir := filepath.Join(xdgConfigHome, "silo")
 			expectedMsgs := []string{
-				"'" + filepath.Join(siloDir, "home-user.nix") + "' already exists",
+				"'" + filepath.Join(siloDir, "home.user.nix") + "' already exists",
 				"'" + filepath.Join(siloDir, "devcontainer.in.json") + "' already exists",
 				"'" + filepath.Join(siloDir, "silo.in.toml") + "' already exists",
 			}
@@ -139,7 +161,7 @@ func TestFeatureUserInit(t *testing.T) {
 	t.Run("Rule: --force overwrites existing user files", func(t *testing.T) {
 		t.Run("Scenario: user init --force overwrites existing user files", func(t *testing.T) {
 			internal.FirstRunWith(t, func(siloUser string) {
-				internal.WriteUserFile(t, siloUser, "home-user.nix", "# custom content")
+				internal.WriteUserFile(t, siloUser, "home.user.nix", "# custom content")
 				internal.WriteUserFile(t, siloUser, "devcontainer.in.json", `{ "custom": true }`)
 				internal.WriteUserFile(t, siloUser, "silo.in.toml", "[features]")
 			})
@@ -149,14 +171,14 @@ func TestFeatureUserInit(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			// Then the file "home-user.nix" in the user's silo config directory should contain the default content
+			// Then the file "home.user.nix" in the user's silo config directory should contain the default content
 			xdgConfigHome := os.Getenv("XDG_CONFIG_HOME")
 			siloDir := filepath.Join(xdgConfigHome, "silo")
 			for _, tc := range []struct {
 				name        string
 				expect      string
 			}{
-				{"home-user.nix", "config,\n  pkgs"},
+				{"home.user.nix", "{ config, pkgs, ..."},
 				{"devcontainer.in.json", "{}\n"},
 				{"silo.in.toml", ""},
 			} {

@@ -18,7 +18,7 @@ Feature: silo init — Initialize workspace
 
     Scenario: init creates user starter files
       When I run `silo init`
-      Then a file "home-user.nix" should be created in the user's silo config directory
+      Then a file "home.user.nix" should be created in the user's silo config directory
       And a file "devcontainer.in.json" should be created in the user's silo config directory
       And a file "silo.in.toml" should be created in the user's silo config directory
       And the exit code should be 0
@@ -266,7 +266,7 @@ Feature: silo init — Initialize workspace
       Then the workspace file ".silo/silo.toml" should be overwritten
       And the workspace file ".silo/home.nix" should be overwritten
       But the config "[general]" section should be preserved
-      And the user file "$XDG_CONFIG_HOME/silo/home-user.nix" should not be overwritten
+      And the user file "$XDG_CONFIG_HOME/silo/home.user.nix" should not be overwritten
 
     Scenario: init --force seeds non-[general] from silo.in.toml
       Given a workspace with silo config "abc12345"

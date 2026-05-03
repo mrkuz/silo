@@ -16,7 +16,6 @@ type Config struct {
 	General      GeneralConfig      `toml:"general"`
 	Features     FeaturesConfig     `toml:"features"`
 	SharedVolume SharedVolumeConfig `toml:"shared_volume"`
-	Connect      ConnectConfig      `toml:"connect"`
 	Podman       PodmanConfig       `toml:"podman"`
 }
 
@@ -37,10 +36,6 @@ type FeaturesConfig struct {
 type SharedVolumeConfig struct {
 	Name  string   `toml:"name"`
 	Paths []string `toml:"paths"`
-}
-
-type ConnectConfig struct {
-	Command string `toml:"command"`
 }
 
 type CreateConfig struct {
@@ -96,9 +91,6 @@ func DefaultConfig() (Config, error) {
 		SharedVolume: SharedVolumeConfig{
 			Name:  "silo-shared",
 			Paths: []string{},
-		},
-		Connect: ConnectConfig{
-			Command: "/bin/sh",
 		},
 		Podman: PodmanConfig{Create: CreateConfig{
 			Arguments: []string{},
@@ -203,13 +195,13 @@ func EnsureFile(path string, content []byte) error {
 	return nil
 }
 
-// EnsureUserHomeNix creates $XDG_CONFIG_HOME/silo/home-user.nix if it does not exist.
+// EnsureUserHomeNix creates $XDG_CONFIG_HOME/silo/home.user.nix if it does not exist.
 func EnsureUserHomeNix() error {
 	dir, err := UserConfigDir()
 	if err != nil {
-		return fmt.Errorf("create home-user.nix in config directory: %w", err)
+		return fmt.Errorf("create home.user.nix in config directory: %w", err)
 	}
-	return EnsureFile(filepath.Join(dir, "home-user.nix"), []byte(HomeUserNix))
+	return EnsureFile(filepath.Join(dir, "home.user.nix"), []byte(HomeUserNix))
 }
 
 // EnsureWorkspaceHomeNix creates .silo/home.nix if it does not exist.
@@ -280,7 +272,7 @@ func UserStarterFiles() ([]UserStarterFile, error) {
 		return nil, fmt.Errorf("get user config directory: %w", err)
 	}
 	return []UserStarterFile{
-		{filepath.Join(dir, "home-user.nix"), []byte(HomeUserNix)},
+		{filepath.Join(dir, "home.user.nix"), []byte(HomeUserNix)},
 		{filepath.Join(dir, "devcontainer.in.json"), []byte(emptyJSON)},
 		{filepath.Join(dir, "silo.in.toml"), []byte{}},
 	}, nil
@@ -298,9 +290,6 @@ func SeedWorkspaceConfig() (Config, error) {
 		return Config{}, fmt.Errorf("load user silo.in.toml: %w", err)
 	}
 	cfg.General = defaults.General
-	if cfg.Connect.Command == "" {
-		cfg.Connect.Command = defaults.Connect.Command
-	}
 	if cfg.Features == (FeaturesConfig{}) {
 		cfg.Features = defaults.Features
 	}

@@ -157,7 +157,7 @@ func TestFeatureBuild(t *testing.T) {
 			// And the user's XDG_CONFIG_HOME points to a fresh directory
 			// And the user's silo config directory has all starter files
 			internal.FirstRunWithFiles(t, map[string]string{
-				"home-user.nix": internal.HomeUserNix,
+				"home.user.nix": internal.HomeUserNix,
 				"silo.in.toml":  "",
 			})
 

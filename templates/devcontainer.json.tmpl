@@ -5,13 +5,25 @@
   "runArgs": {{json .DevcontainerArgs}},
   "overrideCommand": true,
   "workspaceFolder": "{{.WorkspaceMount}}",
-  "workspaceMount": "source=${localWorkspaceFolder},target={{.WorkspaceMount}},type=bind,z"
-  {{- if .SharedVolumeName }},
+  "workspaceMount": "source=${localWorkspaceFolder},target={{.WorkspaceMount}},type=bind,z",
+  {{- if .SharedVolumeName }}
   "mounts": [
     {{- range $i, $path := .SharedVolumePaths}}
     {{- if $i}},{{- end}}
     "type=volume,source={{$.SharedVolumeName}},target={{$path}},subpath={{trimPrefix $path "/"}},z"
     {{- end}}
-  ]
+  ],
   {{- end}}
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "silo",
+        "terminal.integrated.profiles.linux": {
+          "silo": {
+            "path": "${userHome}/.nix-profile/bin/default-shell"
+          }
+        }
+      }
+    }
+  }
 }

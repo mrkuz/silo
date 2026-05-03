@@ -10,8 +10,5 @@ podman = false
 name = "silo-shared"
 paths = ["$HOME/.local/share/fish/fish_history", "$HOME/.claude.json", "$HOME/.claude/"]
 
-[connect]
-command = "fish --login"
-
 [podman.create]
 arguments = ["--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"]

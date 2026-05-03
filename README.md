@@ -17,7 +17,7 @@ Per-directory developer containers, powered by Podman, Nix, and home-manager.
 ## Features
 
 - **Per-directory isolation** — each workspace gets its own container with a unique ID
-- **Nix + home-manager** — shared `home-user.nix` and per-workspace `.silo/home.nix`
+- **Nix + home-manager** — shared `home.user.nix` and per-workspace `.silo/home.nix`
 - **Workspace mount** — the host directory is mounted inside the container automatically
 - **Shared volume** — persist package caches and other data across containers and rebuilds
 - **VS Code integration** — `silo devcontainer` generates a `.devcontainer.json`
@@ -85,9 +85,9 @@ silo connect       # Connect to container (triggers missing steps automatically)
 ## Commands
 
 ```
-silo [--stop] [-- args...]
+silo [--stop]
 silo init [--podman|--no-podman] [--shared-volume|--no-shared-volume]
-silo build
+silo build [-f|--force]
 silo start
 silo volume setup
 silo connect
@@ -95,7 +95,7 @@ silo stop
 silo rm [-f|--force]
 silo status
 silo user init
-silo user build
+silo user build [-f|--force]
 silo user rm
 silo devcontainer
 silo devcontainer connect
@@ -111,7 +111,6 @@ Run the full lifecycle chain if needed, then connect to the container for the cu
 | Flag | Description |
 |---|---|
 | `--stop` | Stop and remove the container when the session exits |
-| `-- ...` | Pass remaining arguments to `podman exec` |
 
 ### `silo init`
 
@@ -161,7 +160,7 @@ Remove the workspace image. With `--force`, also stops and removes the container
 
 Create user starter files under `$XDG_CONFIG_HOME/silo/` if they do not exist:
 
-- `home-user.nix` — user home-manager config baked into the user image
+- `home.user.nix` — user home-manager config baked into the user image
 - `silo.in.toml` — default values for new workspaces
 - `devcontainer.in.json` — merged into every generated `.devcontainer.json`
 
@@ -235,9 +234,6 @@ Created automatically on first run. Seeded from `$XDG_CONFIG_HOME/silo/silo.in.t
 id             = "ab3f9c12"          # 8-char random ID; names container and image
 user           = "alice"
 
-[connect]
-command = "/bin/sh"                  # Command executed when connecting to container
-
 [features]
 shared_volume = false                # Mount shared volume at /silo/shared
 podman        = false                # Enable Podman inside the container
@@ -264,12 +260,6 @@ arguments = [
 |---|---|
 | `id` | 8-character random alphanumeric workspace ID |
 | `user` | Current username on the host |
-
-**`[connect]`**
-
-| Key | Default | Description |
-|---|---|---|
-| `command` | `/bin/sh` | Command executed when connecting to the container |
 
 **`[features]`**
 
@@ -310,7 +300,7 @@ Home-manager config applied only to this workspace's image. Created as an empty 
 | File | Description |
 |---|---|
 | `silo.in.toml` | Default values for new workspaces. `[general]` is ignored. |
-| `home-user.nix` | User home-manager config baked into the user image. |
+| `home.user.nix` | User home-manager config baked into the user image. |
 | `devcontainer.in.json` | Merged into every generated `.devcontainer.json`. |
 
 See `examples/` for reference configs.
@@ -323,7 +313,7 @@ See `examples/` for reference configs.
 
 silo builds two OCI images using Podman:
 
-1. **User image** (`silo-<user>`) — shared across all workspaces. Alpine Linux with Nix and home-manager installed. The user `home-user.nix` is baked in here.
+1. **User image** (`silo-<user>`) — shared across all workspaces. Alpine Linux with Nix and home-manager installed. The user `home.user.nix` is baked in here.
 2. **Workspace image** (`silo-<id>`) — per-workspace, layered on top of the user image. The workspace `home.nix` is applied here.
 
 Build context files are written to a temporary directory on the host and passed to `podman build`. No persistent build context is kept on disk.
@@ -348,7 +338,7 @@ The `silo.podman.enable = true` option is set in `.silo/home.nix` when `--podman
 
 ### Nix + home-manager
 
-Each image build generates a Nix flake in a temporary directory on the host and passes it to `podman build`. The flake wires together `nixos-unstable`, home-manager, `home-user.nix` (user image), and `.silo/home.nix` (workspace image).
+Each image build generates a Nix flake in a temporary directory on the host and passes it to `podman build`. The flake wires together `nixos-unstable`, home-manager, `home.user.nix` (user image), and `.silo/home.nix` (workspace image).
 
 ### VS Code devcontainer
 

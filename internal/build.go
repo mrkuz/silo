@@ -32,7 +32,7 @@ func DetectNixSystem() string {
 	}
 }
 
-// BuildUserImage builds the user image using home-user.nix.
+// BuildUserImage builds the user image using home.user.nix.
 func BuildUserImage(tag string, tc TemplateContext, noCache bool) error {
 	containerfile, err := RenderTemplate("Containerfile.user.tmpl", tc)
 	if err != nil {
@@ -47,9 +47,9 @@ func BuildUserImage(tag string, tc TemplateContext, noCache bool) error {
 	if err != nil {
 		return fmt.Errorf("get user config directory: %w", err)
 	}
-	homeUserNix, err := ReadFile(filepath.Join(configDir, "home-user.nix"))
+	homeUserNix, err := ReadFile(filepath.Join(configDir, "home.user.nix"))
 	if err != nil {
-		return fmt.Errorf("read home-user.nix: %w", err)
+		return fmt.Errorf("read home.user.nix: %w", err)
 	}
 
 	podmanModule, err := ReadTemplate("modules/podman.nix")
@@ -64,8 +64,8 @@ func BuildUserImage(tag string, tc TemplateContext, noCache bool) error {
 	files := map[string][]byte{
 		"Containerfile":            containerfile,
 		"flake.nix":                flakeNix,
-		"home-user.nix":            homeUserNix,
-		"home-workspace-empty.nix": []byte(HomeUserNix),
+		"home.user.nix":            homeUserNix,
+		"home-workspace-empty.nix": []byte(emptyHomeNix),
 		"modules/podman.nix":       podmanModule,
 		"modules/silo.nix":         siloModule,
 	}

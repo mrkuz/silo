@@ -76,8 +76,8 @@ func TestFeatureSilo(t *testing.T) {
 			mock.AssertNoExec("podman", "rm", "<any>")
 			// And podman should not run "rmi" on "silo-abc12345"
 			mock.AssertNoExec("podman", "rmi", "<any>")
-			// And the command should be "/bin/sh"
-			execRecord := mock.AssertExec("podman", "exec", "<any>", "silo-abc12345", "/bin/sh")
+			// And the command should be "sh -c $HOME/.nix-profile/bin/default-shell"
+			execRecord := mock.AssertExec("podman", "exec", "<any>", "silo-abc12345", "sh", "-c", "$HOME/.nix-profile/bin/default-shell")
 			if execRecord == nil {
 				t.Error("expected exec to be called")
 			}
@@ -86,38 +86,6 @@ func TestFeatureSilo(t *testing.T) {
 			}
 		})
 
-		t.Run("Scenario: extra args after -- are passed to podman exec", func(t *testing.T) {
-			// Given a workspace with silo config "abc12345"
-			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
-
-			// And the container "silo-abc12345" is running
-			// And the user image "silo-alice" exists
-			// And the workspace image "silo-abc12345" exists
-			mock := internal.NewMock(t)
-			mock.MockExec(map[string]*exec.Cmd{
-				"podman container exists silo-abc12345":                              exec.Command("true"),
-				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-				"podman image exists silo-alice":                                     exec.Command("true"),
-				"podman image exists silo-abc12345":                                  exec.Command("true"),
-			})
-
-			// When I run `silo -- -p 8080:8080`
-			err := cmd.Run([]string{"--", "-p", "8080:8080"})
-
-			// Then podman should run "exec" with "-ti" on "silo-abc12345" with extra args "--" "-p" "8080:8080"
-			execCall := mock.AssertExec("podman", "exec", "-ti", "<...>", "silo-abc12345", "<...>")
-			if execCall != nil {
-				argsStr := strings.Join(execCall.Args, " ")
-				if !strings.Contains(argsStr, "-p") || !strings.Contains(argsStr, "8080:8080") {
-					t.Errorf("expected exec to include port mapping, got: %s", argsStr)
-				}
-			}
-			if err != nil {
-				t.Errorf("expected exit code 0, got error: %v", err)
-			}
-		})
 	})
 
 	t.Run("Rule: --stop stops the container after the session exits", func(t *testing.T) {
@@ -248,7 +216,7 @@ func TestFeatureSilo(t *testing.T) {
 			// And the user's XDG_CONFIG_HOME points to a fresh directory
 			// And the user's silo config directory has all starter files
 			internal.FirstRunWithFiles(t, map[string]string{
-				"home-user.nix": internal.HomeUserNix,
+				"home.user.nix": internal.HomeUserNix,
 				"silo.in.toml":  "",
 			})
 

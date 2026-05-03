@@ -28,15 +28,8 @@ Feature: silo (default invocation) — Run lifecycle and connect to the containe
       Then the container "silo-abc12345" should still be running
       And podman should not run "stop" on "silo-abc12345"
       And podman should not run "rm" on "silo-abc12345"
-      And the command should be "/bin/sh"
+      And the command should be "$HOME/.nix-profile/bin/default-shell"
       And the output should contain "Connecting to silo-abc12345..."
-
-    Scenario: extra args after -- are passed to podman exec
-      Given the container "silo-abc12345" is running
-      And the user image "silo-alice" exists
-      And the workspace image "silo-abc12345" exists
-      When I run `silo -- -p 8080:8080`
-      Then podman should run "exec" with "-ti" on "silo-abc12345" with extra args "--" "-p" "8080:8080"
 
   Rule: --stop stops and removes the container after the session exits
 

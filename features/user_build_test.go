@@ -15,7 +15,7 @@ import (
 // Feature: silo user build — Build the shared user image
 // `silo user build` builds the shared user image (`silo-<username>`) if it does not
 // already exist. The user image is shared across all workspaces and includes the
-// user's `home-user.nix`. It is a prerequisite for workspace image builds.
+// user's `home.user.nix`. It is a prerequisite for workspace image builds.
 func TestFeatureUserBuild(t *testing.T) {
 	// Background: the user's XDG_CONFIG_HOME points to a fresh directory
 	// and the user's silo config directory has all starter files
@@ -130,13 +130,13 @@ func TestFeatureUserBuild(t *testing.T) {
 		})
 	})
 
-	t.Run("Rule: home-user.nix is baked into the user image", func(t *testing.T) {
-		t.Run("Scenario: user's home-user.nix content is included in the built image", func(t *testing.T) {
+	t.Run("Rule: home.user.nix is baked into the user image", func(t *testing.T) {
+		t.Run("Scenario: user's home.user.nix content is included in the built image", func(t *testing.T) {
 			internal.SetupUserConfig(t)
 			mock := internal.NewMock(t)
 
 			xdgConfigHome := os.Getenv("XDG_CONFIG_HOME")
-			homeUserNix := filepath.Join(xdgConfigHome, "silo", "home-user.nix")
+			homeUserNix := filepath.Join(xdgConfigHome, "silo", "home.user.nix")
 			expectedContent := "{ config, pkgs, ... }:\n{\n}\n"
 
 			mock.MockExec(map[string]*exec.Cmd{
@@ -154,7 +154,7 @@ func TestFeatureUserBuild(t *testing.T) {
 
 			// Then the podman build command should be called
 			mock.AssertExec("podman", "build", "-t", userImage, "<...>")
-			// And the build context should include home-user.nix
+			// And the build context should include home.user.nix
 			mock.AssertRead(homeUserNix)
 		})
 	})

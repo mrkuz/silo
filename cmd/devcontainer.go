@@ -62,7 +62,7 @@ func DevcontainerConnect() error {
 		return fmt.Errorf("container %s is not running", name)
 	}
 	fmt.Printf("Connecting to %s...\n", name)
-	if err := internal.ConnectContainer(name, cfg.Connect.Command, nil); err != nil {
+	if err := internal.ConnectContainer(name); err != nil {
 		return fmt.Errorf("connect to container: %w", err)
 	}
 	return nil

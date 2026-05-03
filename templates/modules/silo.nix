@@ -10,7 +10,7 @@
 
   config = {
     home.packages = [
-      (pkgs.writeShellScriptBin "shell" "exec ${config.silo.shellCommand}")
+      (pkgs.writeShellScriptBin "default-shell" "exec ${config.silo.shellCommand}")
     ];
   };
 }

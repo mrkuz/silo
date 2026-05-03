@@ -8,13 +8,10 @@
         "alexkrechik.cucumberautocomplete"
       ],
       "settings": {
-        "terminal.integrated.defaultProfile.linux": "fish",
+        "terminal.integrated.defaultProfile.linux": "silo",
         "terminal.integrated.profiles.linux": {
-          "fish": {
-            "args": [
-              "--login"
-            ],
-            "path": "/home/markus/.nix-profile/bin/fish"
+          "silo": {
+            "path": "${userHome}/.nix-profile/bin/default-shell"
           }
         }
       }

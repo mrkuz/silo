@@ -112,10 +112,9 @@ func PrintDryRun(args []string) {
 }
 
 // ConnectContainer opens an interactive session in the running container via podman exec.
-func ConnectContainer(name, command string, extra []string) error {
-	args := append([]string{"exec", "-ti"}, extra...)
-	args = append(args, name)
-	args = append(args, strings.Fields(command)...)
+func ConnectContainer(name string) error {
+	args := append([]string{"exec", "-ti"}, name)
+	args = append(args, "sh", "-c", "$HOME/.nix-profile/bin/default-shell")
 	if err := RunInteractive("podman", args...); err != nil {
 		return fmt.Errorf("connect to container: %w", err)
 	}

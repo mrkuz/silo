@@ -17,7 +17,7 @@ Feature: silo devcontainer connect — Open an interactive shell in the devconta
       And the workspace image "silo-abc12345" exists
       When I run `silo devcontainer connect`
       Then podman should run "exec" with "-ti" on "silo-abc12345-dev"
-      And the command should be "/bin/sh"
+      And the command should be "$HOME/.nix-profile/bin/default-shell"
       And the exit code should be 0
 
     Scenario: devcontainer connect prints a message before opening shell

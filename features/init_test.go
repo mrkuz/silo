@@ -48,11 +48,11 @@ func TestFeatureInit(t *testing.T) {
 			if err := cmd.Init([]string{}); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			// Then a file "home-user.nix" should be created in the user's silo config directory
+			// Then a file "home.user.nix" should be created in the user's silo config directory
 			// And a file "devcontainer.in.json" should be created in the user's silo config directory
 			// And a file "silo.in.toml" should be created in the user's silo config directory
 			userDir := filepath.Join(base, "silo")
-			for _, name := range []string{"home-user.nix", "devcontainer.in.json", "silo.in.toml"} {
+			for _, name := range []string{"home.user.nix", "devcontainer.in.json", "silo.in.toml"} {
 				if _, err := os.Stat(filepath.Join(userDir, name)); os.IsNotExist(err) {
 					t.Errorf("expected %s to be created in user's silo config directory", name)
 				}
@@ -712,7 +712,7 @@ func TestFeatureInit(t *testing.T) {
 
 			// And the user config directory has a file with custom content
 			xdgConfigHome := os.Getenv("XDG_CONFIG_HOME")
-			userFilePath := filepath.Join(xdgConfigHome, "silo", "home-user.nix")
+			userFilePath := filepath.Join(xdgConfigHome, "silo", "home.user.nix")
 			if err := os.MkdirAll(filepath.Dir(userFilePath), 0755); err != nil {
 				t.Fatalf("create user config dir: %v", err)
 			}

@@ -23,7 +23,7 @@ func Connect(args []string) error {
 		return fmt.Errorf("container %s is not running", containerName)
 	}
 	fmt.Printf("Connecting to %s...\n", containerName)
-	if err := internal.ConnectContainer(containerName, cfg.Connect.Command, nil); err != nil {
+	if err := internal.ConnectContainer(containerName); err != nil {
 		return fmt.Errorf("connect to container: %w", err)
 	}
 	return nil

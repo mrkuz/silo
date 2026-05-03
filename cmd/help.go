@@ -6,9 +6,9 @@ import "fmt"
 const HelpText = `silo - developer container
 
 Usage:
-  silo [--stop] [-- args...]
+  silo [--stop]
   silo init [--podman|--no-podman] [--shared-volume|--no-shared-volume]
-  silo build
+  silo build [-f|--force]
   silo start
   silo volume setup
   silo connect
@@ -16,7 +16,7 @@ Usage:
   silo rm [-f|--force]
   silo status
   silo user init
-  silo user build
+  silo user build [-f|--force]
   silo user rm
   silo devcontainer
   silo devcontainer stop
@@ -43,13 +43,19 @@ Commands:
 
 Default command flags:
   --stop  Stop and remove the container when the session exits
-  --stop  Stop and remove the container when the session exits
 
 Init flags:
   --podman             Enable Podman inside the container
   --no-podman          Disable Podman inside the container
   --shared-volume      Enable shared volume mount
   --no-shared-volume   Disable shared volume mount
+  -f, --force          Overwrite existing workspace files
+
+Build flags:
+  -f, --force          Force rebuild image; aborts if container exists or is running
+
+User build flags:
+  -f, --force          Force rebuild user image
 
 Remove image flags:
   -f, --force  Stop and remove the container before removing the image`

@@ -1,6 +1,3 @@
-[connect]
-command = "fish --login"
-
 [features]
 shared_volume = true
 podman = false

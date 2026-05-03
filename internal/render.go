@@ -58,22 +58,21 @@ func ReadTemplate(name string) ([]byte, error) {
 }
 
 // HomeUserNix is the home-manager module for user configuration.
-const HomeUserNix = `{
-  config,
-  pkgs,
-  ...
-}:
+const HomeUserNix = `{ config, pkgs, ... }:
+{
+  silo.shellCommand = "${pkgs.bash}/bin/bash --login";
+}
+`
+
+// emptyHomeNix is the empty home-manager module used in the build context.
+const emptyHomeNix = `{ config, pkgs, ... }:
 {
 }
 `
 
 // WorkspaceHomeNixTmpl is the home-manager module for workspaces.
 // It is rendered by RenderWorkspaceHomeNix with the podman parameter.
-const WorkspaceHomeNixTmpl = `{
-  config,
-  pkgs,
-  ...
-}:
+const WorkspaceHomeNixTmpl = `{ config, pkgs, ... }:
 {
   silo.podman.enable = {{.Podman}};
 }

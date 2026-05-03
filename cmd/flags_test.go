@@ -35,12 +35,9 @@ func TestParseRunFlags(t *testing.T) {
 }
 
 func TestParseRunFlagsExtra(t *testing.T) {
-	f, err := cmd.ParseRunFlags([]string{"--", "arg1", "arg2"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(f.Extra) != 2 || f.Extra[0] != "arg1" || f.Extra[1] != "arg2" {
-		t.Errorf("expected Extra=[arg1 arg2], got %v", f.Extra)
+	_, err := cmd.ParseRunFlags([]string{"arg1", "arg2"})
+	if err == nil {
+		t.Error("expected error for extra arguments")
 	}
 }
 

@@ -35,12 +35,12 @@ func TestFeatureDevcontainerConnect(t *testing.T) {
 			err := cmd.DevcontainerConnect()
 
 			// Then podman should run "exec" with "-ti" on "silo-abc12345-dev"
-			// And the command should be "/bin/sh"
+			// And the command should be "sh -c $HOME/.nix-profile/bin/default-shell"
 			// And the exit code should be 0
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			execRecord := mock.AssertExec("podman", "exec", "-ti", "silo-abc12345-dev", "/bin/sh")
+			execRecord := mock.AssertExec("podman", "exec", "-ti", "silo-abc12345-dev", "sh", "-c", "$HOME/.nix-profile/bin/default-shell")
 			if execRecord == nil {
 				t.Error("expected exec to be called")
 			}
@@ -214,7 +214,7 @@ func TestFeatureDevcontainerConnect(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			mock.AssertExec("podman", "exec", "-ti", "silo-abc12345-dev", "/bin/sh")
+			mock.AssertExec("podman", "exec", "-ti", "silo-abc12345-dev", "sh", "-c", "$HOME/.nix-profile/bin/default-shell")
 			// Workspace container (silo-abc12345) should not be checked
 			mock.AssertNoExec("podman", "container", "exists", "silo-abc12345")
 		})

@@ -36,13 +36,13 @@ func TestFeatureConnect(t *testing.T) {
 
 			// When I run `silo connect`
 			// Then podman should run "exec" with "-ti" on "silo-abc12345"
-			// And the command should be "/bin/sh"
+			// And the command should be "sh -c $HOME/.nix-profile/bin/default-shell"
 			// And the exit code should be 0
 			err := cmd.Connect(nil)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			execRecord := mock.AssertExec("podman", "exec", "-ti", "silo-abc12345", "/bin/sh")
+			execRecord := mock.AssertExec("podman", "exec", "-ti", "silo-abc12345", "sh", "-c", "$HOME/.nix-profile/bin/default-shell")
 			if execRecord == nil {
 				t.Error("expected exec to be called")
 			}

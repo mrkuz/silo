@@ -17,7 +17,7 @@ Feature: silo connect — Open an interactive shell in the workspace container
       And the workspace image "silo-abc12345" exists
       When I run `silo connect`
       Then podman should run "exec" with "-ti" on "silo-abc12345"
-      And the command should be "/bin/sh"
+      And the command should be "$HOME/.nix-profile/bin/default-shell"
       And the exit code should be 0
 
     Scenario: connect prints a message before opening shell

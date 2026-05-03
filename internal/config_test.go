@@ -45,9 +45,6 @@ func TestTOMLRoundtrip(t *testing.T) {
 		SharedVolume: SharedVolumeConfig{
 			Paths: []string{".cache/uv/", ".local/share/opencode/"},
 		},
-		Connect: ConnectConfig{
-			Command: "/bin/sh",
-		},
 		Podman: PodmanConfig{Create: CreateConfig{
 			Arguments: []string{"--memory", "512m"},
 		}},
@@ -75,9 +72,6 @@ func TestTOMLRoundtrip(t *testing.T) {
 	if parsed.Features != original.Features {
 		t.Errorf("Features mismatch: got %+v, want %+v", parsed.Features, original.Features)
 	}
-	if parsed.Connect.Command != original.Connect.Command {
-		t.Errorf("Command: got %q, want %q", parsed.Connect.Command, original.Connect.Command)
-	}
 	if len(parsed.SharedVolume.Paths) != len(original.SharedVolume.Paths) {
 		t.Fatalf("SharedVolume.Paths len: got %d, want %d", len(parsed.SharedVolume.Paths), len(original.SharedVolume.Paths))
 	}
@@ -101,7 +95,6 @@ func TestTOMLEmptyArguments(t *testing.T) {
 		General:      GeneralConfig{ID: "x", User: "u"},
 		Features:     FeaturesConfig{SharedVolume: true, Podman: false},
 		SharedVolume: SharedVolumeConfig{Name: "silo-shared", Paths: []string{}},
-		Connect:      ConnectConfig{Command: "/bin/sh"},
 	}
 
 	f, err := os.CreateTemp("", "silo-test-*.toml")
@@ -118,9 +111,6 @@ func TestTOMLEmptyArguments(t *testing.T) {
 	parsed, err := ParseTOML(f.Name())
 	if err != nil {
 		t.Fatal(err)
-	}
-	if parsed.Connect.Command != "/bin/sh" {
-		t.Errorf("expected command /bin/sh, got %q", parsed.Connect.Command)
 	}
 	if len(parsed.Podman.Create.Arguments) != 0 {
 		t.Errorf("expected empty Arguments, got %v", parsed.Podman.Create.Arguments)
@@ -144,9 +134,6 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.General.User == "" {
 		t.Error("expected non-empty User")
 	}
-	if cfg.Connect.Command != "/bin/sh" {
-		t.Errorf("expected command /bin/sh, got %q", cfg.Connect.Command)
-	}
 	if cfg.Features.SharedVolume || cfg.Features.Podman {
 		t.Errorf("unexpected feature defaults: %+v", cfg.Features)
 	}
@@ -165,28 +152,25 @@ func TestLoadSiloInTOML(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if cfg.Connect.Command != "" || cfg.General.ID != "" {
+		if cfg.General.ID != "" {
 			t.Errorf("expected zero config for absent file, got %+v", cfg)
 		}
 	})
 
-	t.Run("parses connect and features from existing file", func(t *testing.T) {
+	t.Run("parses features from existing file", func(t *testing.T) {
 		base := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", base)
 		siloConfigPath := filepath.Join(base, "silo", "silo.in.toml")
 		if err := os.MkdirAll(filepath.Dir(siloConfigPath), 0755); err != nil {
 			t.Fatal(err)
 		}
-		content := []byte("[connect]\ncommand = \"/bin/fish\"\n[features]\npodman = true\n")
+		content := []byte("[features]\npodman = true\n")
 		if err := os.WriteFile(siloConfigPath, content, 0644); err != nil {
 			t.Fatal(err)
 		}
 		cfg, err := LoadSiloInTOML()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
-		}
-		if cfg.Connect.Command != "/bin/fish" {
-			t.Errorf("expected command /bin/fish, got %q", cfg.Connect.Command)
 		}
 		if !cfg.Features.Podman {
 			t.Error("expected Features.Podman = true")
@@ -289,42 +273,8 @@ func TestInitWorkspaceConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("first run: seeds Connect.Command from user config", func(t *testing.T) {
-		base := t.TempDir()
-		t.Setenv("XDG_CONFIG_HOME", base)
-		siloUser := filepath.Join(base, "silo")
-		if err := os.MkdirAll(siloUser, 0755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(siloUser, "home-user.nix"), []byte("{\n  config,\n  pkgs,\n  ...\n}:\n{\n}\n"), 0644); err != nil {
-			t.Fatal(err)
-		}
-		userToml := filepath.Join(siloUser, "silo.in.toml")
-		if err := os.WriteFile(userToml, []byte("[connect]\ncommand = \"/bin/fish\"\n"), 0644); err != nil {
-			t.Fatal(err)
-		}
-
-		// Workspace directory with no silo.toml.
-		dir := t.TempDir()
-		orig, _ := os.Getwd()
-		t.Cleanup(func() { os.Chdir(orig) })
-		os.Chdir(dir)
-
-		cfg, firstRun, err := InitWorkspaceConfig()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !firstRun {
-			t.Error("expected firstRun=true on first run")
-		}
-		if cfg.Connect.Command != "/bin/fish" {
-			t.Errorf("expected seeded command /bin/fish, got %q", cfg.Connect.Command)
-		}
-	})
-
 	t.Run("second run: existing silo.toml is loaded unchanged", func(t *testing.T) {
 		existing := MinimalConfig("deadbeef")
-		existing.Connect.Command = "/usr/bin/zsh"
 		SetupWorkspace(t, existing)
 		SetupUserConfig(t)
 
@@ -338,9 +288,6 @@ func TestInitWorkspaceConfig(t *testing.T) {
 		if cfg.General.ID != "deadbeef" {
 			t.Errorf("expected ID deadbeef, got %q", cfg.General.ID)
 		}
-		if cfg.Connect.Command != "/usr/bin/zsh" {
-			t.Errorf("expected command /usr/bin/zsh, got %q", cfg.Connect.Command)
-		}
 	})
 }
 
@@ -352,7 +299,7 @@ func TestEnsureUserFiles(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		dir := filepath.Join(base, "silo")
-		for _, name := range []string{"home-user.nix", "devcontainer.in.json", "silo.in.toml"} {
+		for _, name := range []string{"home.user.nix", "devcontainer.in.json", "silo.in.toml"} {
 			if _, err := os.Stat(filepath.Join(dir, name)); os.IsNotExist(err) {
 				t.Errorf("expected %s to be created", name)
 			}
@@ -365,14 +312,14 @@ func TestEnsureUserFiles(t *testing.T) {
 		dir := filepath.Join(base, "silo")
 		os.MkdirAll(dir, 0755)
 		sentinel := []byte("# custom\n")
-		os.WriteFile(filepath.Join(dir, "home-user.nix"), sentinel, 0644)
+		os.WriteFile(filepath.Join(dir, "home.user.nix"), sentinel, 0644)
 
 		if err := EnsureUserFiles(false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		got, _ := os.ReadFile(filepath.Join(dir, "home-user.nix"))
+		got, _ := os.ReadFile(filepath.Join(dir, "home.user.nix"))
 		if string(got) != string(sentinel) {
-			t.Errorf("home-user.nix was overwritten")
+			t.Errorf("home.user.nix was overwritten")
 		}
 	})
 }
@@ -476,7 +423,6 @@ func TestSaveWorkspaceConfigTOMLFormat(t *testing.T) {
 	os.Chdir(dir)
 
 	cfg := MinimalConfig("abc12345")
-	cfg.Connect.Command = "fish --login"
 	cfg.Features.SharedVolume = true
 	cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/", "$HOME/.local/share/opencode/"}
 	if err := cfg.SaveWorkspaceConfig(); err != nil {

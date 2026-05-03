@@ -19,7 +19,7 @@ func Run(args []string) error {
 	}
 	containerName := internal.WorkspaceContainerName(cfg.General.ID)
 	fmt.Printf("Connecting to %s...\n", containerName)
-	err = internal.ConnectContainer(containerName, cfg.Connect.Command, flags.Extra)
+	err = internal.ConnectContainer(containerName)
 	// Best-effort cleanup; original session error (if any) takes precedence.
 	if flags.Stop {
 		internal.StopContainer(containerName)
@@ -33,8 +33,7 @@ func Run(args []string) error {
 
 // RunFlags holds parsed flags for the run command.
 type RunFlags struct {
-	Stop  bool
-	Extra []string
+	Stop bool
 }
 
 // ParseRunFlags parses the flags for the default run command.
@@ -45,5 +44,8 @@ func ParseRunFlags(args []string) (RunFlags, error) {
 	if err := fs.Parse(args); err != nil {
 		return RunFlags{}, fmt.Errorf("parse run flags: %w", err)
 	}
-	return RunFlags{Stop: *stop, Extra: fs.Args()}, nil
+	if len(fs.Args()) > 0 {
+		return RunFlags{}, fmt.Errorf("unexpected arguments: %v", fs.Args())
+	}
+	return RunFlags{Stop: *stop}, nil
 }

@@ -1,8 +1,4 @@
-{
-  config,
-  pkgs,
-  ...
-}:
+{ config, pkgs, ... }:
 let
   vars = {
     gitUserName = "mrkuz";
@@ -10,6 +6,8 @@ let
   };
 in
 {
+  silo.shellCommand = "${pkgs.fish}/bin/fish --login";
+
   home = {
     shell.enableFishIntegration = true;
 
