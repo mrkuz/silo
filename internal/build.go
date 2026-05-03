@@ -56,6 +56,10 @@ func BuildUserImage(tag string, tc TemplateContext) error {
 	if err != nil {
 		return fmt.Errorf("read podman module: %w", err)
 	}
+	siloModule, err := ReadTemplate("modules/silo.nix")
+	if err != nil {
+		return fmt.Errorf("read silo module: %w", err)
+	}
 
 	files := map[string][]byte{
 		"Containerfile":            containerfile,
@@ -63,6 +67,7 @@ func BuildUserImage(tag string, tc TemplateContext) error {
 		"home-user.nix":            homeUserNix,
 		"home-workspace-empty.nix": []byte(HomeUserNix),
 		"modules/podman.nix":       podmanModule,
+		"modules/silo.nix":         siloModule,
 	}
 	if err := RunBuild(tag, files); err != nil {
 		return fmt.Errorf("build user image: %w", err)
