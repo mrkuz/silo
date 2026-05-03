@@ -33,7 +33,7 @@ func DetectNixSystem() string {
 }
 
 // BuildUserImage builds the user image using home-user.nix.
-func BuildUserImage(tag string, tc TemplateContext) error {
+func BuildUserImage(tag string, tc TemplateContext, noCache bool) error {
 	containerfile, err := RenderTemplate("Containerfile.user.tmpl", tc)
 	if err != nil {
 		return fmt.Errorf("render Containerfile.user template: %w", err)
@@ -69,14 +69,14 @@ func BuildUserImage(tag string, tc TemplateContext) error {
 		"modules/podman.nix":       podmanModule,
 		"modules/silo.nix":         siloModule,
 	}
-	if err := RunBuild(tag, files); err != nil {
+	if err := RunBuild(tag, files, noCache); err != nil {
 		return fmt.Errorf("build user image: %w", err)
 	}
 	return nil
 }
 
 // BuildWorkspaceImage builds the workspace image layered on top of the user image.
-func BuildWorkspaceImage(tag string, tc TemplateContext) error {
+func BuildWorkspaceImage(tag string, tc TemplateContext, noCache bool) error {
 	containerfile, err := RenderTemplate("Containerfile.workspace.tmpl", tc)
 	if err != nil {
 		return fmt.Errorf("render Containerfile.workspace template: %w", err)
@@ -95,14 +95,14 @@ func BuildWorkspaceImage(tag string, tc TemplateContext) error {
 		"Containerfile":      containerfile,
 		"home-workspace.nix": homeWorkspaceNix,
 	}
-	if err := RunBuild(tag, files); err != nil {
+	if err := RunBuild(tag, files, noCache); err != nil {
 		return fmt.Errorf("build workspace image: %w", err)
 	}
 	return nil
 }
 
 // RunBuild writes files to a temporary directory and runs podman build.
-func RunBuild(tag string, files map[string][]byte) error {
+func RunBuild(tag string, files map[string][]byte, noCache bool) error {
 	dir, err := os.MkdirTemp("", "silo-build-*")
 	if err != nil {
 		return fmt.Errorf("create temporary build directory: %w", err)
@@ -119,9 +119,13 @@ func RunBuild(tag string, files map[string][]byte) error {
 		}
 	}
 
-	if err := RunVisible("podman", "build", "-t", tag, dir); err != nil {
+	args := []string{"build", "-t", tag}
+	if noCache {
+		args = append(args, "--no-cache")
+	}
+	args = append(args, dir)
+	if err := RunVisible("podman", args...); err != nil {
 		return fmt.Errorf("run podman build: %w", err)
 	}
 	return nil
 }
-

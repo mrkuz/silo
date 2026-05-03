@@ -356,7 +356,7 @@ func EnsureUserImage(tc TemplateContext, force bool) error {
 		return nil
 	}
 	fmt.Printf("Building user image %s...\n", userImage)
-	if err := BuildUserImage(userImage, tc); err != nil {
+	if err := BuildUserImage(userImage, tc, force); err != nil {
 		return fmt.Errorf("build user image: %w", err)
 	}
 	return nil
@@ -381,7 +381,7 @@ func EnsureImages(cfg Config, force bool) error {
 		return nil
 	}
 	fmt.Printf("Building workspace image %s...\n", WorkspaceImageName(cfg.General.ID))
-	if err := BuildWorkspaceImage(WorkspaceImageName(cfg.General.ID), tc); err != nil {
+	if err := BuildWorkspaceImage(WorkspaceImageName(cfg.General.ID), tc, force); err != nil {
 		return fmt.Errorf("build workspace image: %w", err)
 	}
 	return nil

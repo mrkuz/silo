@@ -79,6 +79,7 @@ Feature: silo build — Build workspace images
       And the container "silo-abc12345" does not exist
       When I run `silo build --force`
       Then the workspace image "silo-abc12345" should be built
+      And podman build should be called with "--no-cache" for the workspace image
 
     Scenario: build --force aborts if container is running
       Given the user image "silo-alice" exists

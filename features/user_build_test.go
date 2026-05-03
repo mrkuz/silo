@@ -173,8 +173,8 @@ func TestFeatureUserBuild(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			// Then the user image "silo-alice" should be built
-			mock.AssertExec("podman", "build", "-t", userImage, "<...>")
+			// Then the user image should be built with --no-cache
+			mock.AssertExec("podman", "build", "-t", userImage, "--no-cache", "<...>")
 		})
 	})
 }

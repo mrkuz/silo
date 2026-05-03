@@ -250,8 +250,8 @@ func TestFeatureBuild(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			// Then the workspace image "silo-abc12345" should be built
-			mock.AssertExec("podman", "build", "-t", "silo-abc12345", "<...>")
+			// Then the workspace image should be built with --no-cache
+			mock.AssertExec("podman", "build", "-t", "silo-abc12345", "--no-cache", "<...>")
 		})
 
 		t.Run("Scenario: build --force aborts if container is running", func(t *testing.T) {

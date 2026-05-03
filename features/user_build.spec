@@ -69,3 +69,4 @@ Feature: silo user build — Build the shared user image
       Given the user image "silo-alice" already exists
       When I run `silo user build --force`
       Then the user image "silo-alice" should be built
+      And podman build should be called with "--no-cache" for the user image
