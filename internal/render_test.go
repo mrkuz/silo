@@ -103,16 +103,16 @@ func TestRenderWorkspaceHomeNix(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RenderWorkspaceHomeNix(true) failed: %v", err)
 	}
-	if !strings.Contains(content, "module.podman.enable = true") {
-		t.Errorf("expected 'module.podman.enable = true' in output, got: %s", content)
+	if !strings.Contains(content, "silo.podman.enable = true") {
+		t.Errorf("expected 'silo.podman.enable = true' in output, got: %s", content)
 	}
 
 	content, err = RenderWorkspaceHomeNix(false)
 	if err != nil {
 		t.Fatalf("RenderWorkspaceHomeNix(false) failed: %v", err)
 	}
-	if !strings.Contains(content, "module.podman.enable = false") {
-		t.Errorf("expected 'module.podman.enable = false' in output, got: %s", content)
+	if !strings.Contains(content, "silo.podman.enable = false") {
+		t.Errorf("expected 'silo.podman.enable = false' in output, got: %s", content)
 	}
 }
 

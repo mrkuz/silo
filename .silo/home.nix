@@ -4,7 +4,7 @@
   ...
 }:
 {
-  module.podman.enable = false;
+  silo.podman.enable = false;
   programs.go.enable = true;
   home.packages = with pkgs; [
     delve

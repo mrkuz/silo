@@ -105,14 +105,14 @@ Feature: silo init — Initialize workspace
       Given a clean workspace with no existing silo files
       When I run `silo init --podman`
       Then the workspace config should have podman=true
-      And the file ".silo/home.nix" should contain "module.podman.enable = true"
+      And the file ".silo/home.nix" should contain "silo.podman.enable = true"
       And the exit code should be 0
 
     Scenario: --no-podman sets podman=false on first run
       Given a clean workspace with no existing silo files
       When I run `silo init --no-podman`
       Then the workspace config should have podman=false
-      And the file ".silo/home.nix" should not contain "module.podman.enable = true"
+      And the file ".silo/home.nix" should not contain "silo.podman.enable = true"
       And the exit code should be 0
 
     Scenario: --shared-volume sets shared_volume=true on first run
@@ -236,13 +236,13 @@ Feature: silo init — Initialize workspace
     Scenario: --podman adds podman module to home.nix only with --force
       Given a clean workspace with no existing silo files
       When I run `silo init --force --podman`
-      Then the file ".silo/home.nix" should contain "module.podman.enable = true"
+      Then the file ".silo/home.nix" should contain "silo.podman.enable = true"
       And the exit code should be 0
 
     Scenario: --no-podman does not add podman module to home.nix only with --force
       Given a clean workspace with no existing silo files
       When I run `silo init --force --no-podman`
-      Then the file ".silo/home.nix" should not contain "module.podman.enable = true"
+      Then the file ".silo/home.nix" should not contain "silo.podman.enable = true"
       And the exit code should be 0
 
   Rule: Conflicting flags use last value

@@ -398,7 +398,7 @@ func DefaultCreateArgs(podman bool) []string {
 // EnsureInit initializes workspace config, workspace starter files, and
 // user starter files. It delegates user-file creation to EnsureUserFiles so
 // `silo init` and `silo user init` share a single implementation.
-// If podman is non-nil, .silo/home.nix will include module.podman.enable based on the value.
+// If podman is non-nil, .silo/home.nix will include silo.podman.enable based on the value.
 // If podman is nil, the podman setting seeded from silo.in.toml is preserved.
 // If sharedVolume is non-nil on first run, it overrides the seeded shared_volume setting.
 func EnsureInit(podman *bool, sharedVolume *bool) (Config, bool, error) {

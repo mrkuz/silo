@@ -1,9 +1,9 @@
 { config, pkgs, lib, ... }:
 let
-  cfg = config.module.podman;
+  cfg = config.silo.podman;
 in
 {
-  options.module.podman = {
+  options.silo.podman = {
     enable = lib.mkOption {
       type = lib.types.bool;
       default = false;

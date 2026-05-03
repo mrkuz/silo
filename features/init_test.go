@@ -286,13 +286,13 @@ func TestFeatureInit(t *testing.T) {
 			if !saved.Features.Podman {
 				t.Error("expected Features.Podman=true after --podman on first run")
 			}
-			// And the file ".silo/home.nix" should contain "module.podman.enable = true"
+			// And the file ".silo/home.nix" should contain "silo.podman.enable = true"
 			content, err := os.ReadFile(internal.SiloDir() + "/home.nix")
 			if err != nil {
 				t.Fatalf("failed to read .silo/home.nix: %v", err)
 			}
-			if !strings.Contains(string(content), "module.podman.enable = true") {
-				t.Errorf("expected 'module.podman.enable = true' in home.nix, got: %s", content)
+			if !strings.Contains(string(content), "silo.podman.enable = true") {
+				t.Errorf("expected 'silo.podman.enable = true' in home.nix, got: %s", content)
 			}
 		})
 
@@ -312,13 +312,13 @@ func TestFeatureInit(t *testing.T) {
 			if saved.Features.Podman {
 				t.Error("expected Features.Podman=false after --no-podman on first run")
 			}
-			// And the file ".silo/home.nix" should not contain "module.podman.enable = true"
+			// And the file ".silo/home.nix" should not contain "silo.podman.enable = true"
 			content, err := os.ReadFile(internal.SiloDir() + "/home.nix")
 			if err != nil {
 				t.Fatalf("failed to read .silo/home.nix: %v", err)
 			}
-			if strings.Contains(string(content), "module.podman.enable = true") {
-				t.Errorf("expected no 'module.podman.enable = true' in home.nix with --no-podman, got: %s", content)
+			if strings.Contains(string(content), "silo.podman.enable = true") {
+				t.Errorf("expected no 'silo.podman.enable = true' in home.nix with --no-podman, got: %s", content)
 			}
 		})
 
@@ -636,8 +636,8 @@ func TestFeatureInit(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to read .silo/home.nix: %v", err)
 			}
-			if !strings.Contains(string(content), "module.podman.enable = true") {
-				t.Errorf("expected 'module.podman.enable = true' in home.nix, got: %s", content)
+			if !strings.Contains(string(content), "silo.podman.enable = true") {
+				t.Errorf("expected 'silo.podman.enable = true' in home.nix, got: %s", content)
 			}
 		})
 
@@ -651,8 +651,8 @@ func TestFeatureInit(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to read .silo/home.nix: %v", err)
 			}
-			if strings.Contains(string(content), "module.podman.enable = true") {
-				t.Errorf("expected no 'module.podman.enable = true' in home.nix with --no-podman, got: %s", content)
+			if strings.Contains(string(content), "silo.podman.enable = true") {
+				t.Errorf("expected no 'silo.podman.enable = true' in home.nix with --no-podman, got: %s", content)
 			}
 		})
 	})

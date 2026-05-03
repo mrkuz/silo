@@ -448,8 +448,8 @@ func TestEnsureWorkspaceFiles(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to read workspace home.nix: %v", err)
 		}
-		if !strings.Contains(string(content), "module.podman.enable = true") {
-			t.Errorf("workspace home.nix should contain 'module.podman.enable = true', got: %s", content)
+		if !strings.Contains(string(content), "silo.podman.enable = true") {
+			t.Errorf("workspace home.nix should contain 'silo.podman.enable = true', got: %s", content)
 		}
 	})
 
@@ -463,8 +463,8 @@ func TestEnsureWorkspaceFiles(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to read workspace home.nix: %v", err)
 		}
-		if !strings.Contains(string(content), "module.podman.enable = false") {
-			t.Errorf("workspace home.nix should contain 'module.podman.enable = false', got: %s", content)
+		if !strings.Contains(string(content), "silo.podman.enable = false") {
+			t.Errorf("workspace home.nix should contain 'silo.podman.enable = false', got: %s", content)
 		}
 	})
 }

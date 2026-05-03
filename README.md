@@ -344,7 +344,7 @@ Example: `$HOME/.cache/uv/` creates a volume mount with `target=/home/alice/.cac
 
 When `--podman` is passed to `silo init`, Podman is installed and configured inside the container, allowing you to run containers within the container. This is useful for testing containerized workflows or running Docker-in-Docker style setups.
 
-The `module.podman.enable = true` option is set in `.silo/home.nix` when `--podman` is used, which activates the Podman service via home-manager.
+The `silo.podman.enable = true` option is set in `.silo/home.nix` when `--podman` is used, which activates the Podman service via home-manager.
 
 ### Nix + home-manager
 

@@ -75,7 +75,7 @@ const WorkspaceHomeNixTmpl = `{
   ...
 }:
 {
-  module.podman.enable = {{.Podman}};
+  silo.podman.enable = {{.Podman}};
 }
 `
 
