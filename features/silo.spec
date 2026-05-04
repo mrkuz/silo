@@ -107,7 +107,7 @@ Feature: silo (default invocation) — Run lifecycle and connect to the containe
       And podman should run "exec" with "-ti" on "silo-abc12345"
 
     Scenario: volume setup runs before container start when shared volume is configured
-      Given the config has shared_volume=true with paths ["$HOME/.cache/uv/"]
+      Given the config has paths ["$HOME/.cache/uv/"]
       And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       And no container exists

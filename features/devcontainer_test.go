@@ -150,7 +150,6 @@ func TestFeatureDevcontainer(t *testing.T) {
 		t.Run("Scenario: devcontainer runs volume setup before generating when shared volume is configured", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
 			cfg.General.User = "alice"
-			cfg.Features.SharedVolume = true
 			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 			internal.SubsequentRun(t, cfg)
 			mock := internal.NewMock(t)

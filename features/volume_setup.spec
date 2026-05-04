@@ -13,7 +13,7 @@ Feature: silo volume setup — Create directories on the shared volume
   Rule: Creates directories on the shared volume
 
     Scenario: volume setup creates directories on the shared volume
-      Given the config has shared_volume=true with paths ["$HOME/.cache/uv/"]
+      Given the config has paths ["$HOME/.cache/uv/"]
       And the user image "silo-alice" exists
       When I run `silo volume setup`
       Then podman should run "run" with "--rm" and volume "silo-shared:/silo/shared:z"
@@ -22,7 +22,7 @@ Feature: silo volume setup — Create directories on the shared volume
       And the exit code should be 0
 
     Scenario: volume setup creates both files and directories
-      Given the config has shared_volume=true with paths ["$HOME/.cache/uv/", "$HOME/.local/share/fish/fish_history"]
+      Given the config has paths ["$HOME/.cache/uv/", "$HOME/.local/share/fish/fish_history"]
       And the user image "silo-alice" exists
       When I run `silo volume setup`
       Then podman should run "run" with "--rm" and volume "silo-shared:/silo/shared:z"
@@ -30,17 +30,10 @@ Feature: silo volume setup — Create directories on the shared volume
       And the run command should create "/silo/shared/home/alice/.local/share/fish/fish_history" as a file with mode 644
       And the exit code should be 0
 
-  Rule: No-op when shared volume is not configured
-
-    Scenario: disabled shared volume is a no-op
-      Given the config has shared_volume=false
-      When I run `silo volume setup`
-      Then no podman run should be called
-      And the output should not contain "volume setup complete"
-      And the exit code should be 0
+  Rule: No-op when shared volume paths is empty
 
     Scenario: empty paths list is a no-op
-      Given the config has shared_volume=true with paths []
+      Given the config has paths []
       When I run `silo volume setup`
       Then no podman run should be called
       And the output should not contain "volume setup complete"
@@ -49,7 +42,7 @@ Feature: silo volume setup — Create directories on the shared volume
   Rule: Uses a temporary container, not the workspace container
 
     Scenario: volume setup does not require workspace container to exist
-      Given the config has shared_volume=true with paths ["$HOME/.cache/uv/"]
+      Given the config has paths ["$HOME/.cache/uv/"]
       And no container exists
       And the user image "silo-alice" exists
       When I run `silo volume setup`
@@ -59,7 +52,7 @@ Feature: silo volume setup — Create directories on the shared volume
   Rule: Builds user image if missing before running temporary container
 
     Scenario: missing user image triggers build
-      Given the config has shared_volume=true with paths ["$HOME/.cache/uv/"]
+      Given the config has paths ["$HOME/.cache/uv/"]
       And no user image exists
       When I run `silo volume setup`
       Then the user image "silo-alice" should be built

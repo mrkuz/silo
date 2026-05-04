@@ -39,7 +39,6 @@ func TestTOMLRoundtrip(t *testing.T) {
 			User: "testuser",
 		},
 		Features: FeaturesConfig{
-			SharedVolume: false,
 			Podman:       true,
 		},
 		SharedVolume: SharedVolumeConfig{
@@ -93,7 +92,7 @@ func TestTOMLRoundtrip(t *testing.T) {
 func TestTOMLEmptyCreateArgs(t *testing.T) {
 	cfg := Config{
 		General:      GeneralConfig{ID: "x", User: "u"},
-		Features:     FeaturesConfig{SharedVolume: true, Podman: false},
+		Features:     FeaturesConfig{Podman: false},
 		SharedVolume: SharedVolumeConfig{Name: "silo-shared", Paths: []string{}},
 	}
 
@@ -134,7 +133,7 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.General.User == "" {
 		t.Error("expected non-empty User")
 	}
-	if cfg.Features.SharedVolume || cfg.Features.Podman {
+	if cfg.Features.Podman {
 		t.Errorf("unexpected feature defaults: %+v", cfg.Features)
 	}
 	if cfg.SharedVolume.Paths == nil {
@@ -353,7 +352,7 @@ func TestEnsureInitError(t *testing.T) {
 		}
 
 		SetupUserConfig(t)
-		_, _, err := EnsureInit(nil, nil)
+		_, _, err := EnsureInit(nil)
 		if err == nil {
 			t.Error("expected error when workspace files cannot be created")
 		}
@@ -423,7 +422,6 @@ func TestSaveWorkspaceConfigTOMLFormat(t *testing.T) {
 	os.Chdir(dir)
 
 	cfg := MinimalConfig("abc12345")
-	cfg.Features.SharedVolume = true
 	cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/", "$HOME/.local/share/opencode/"}
 	if err := cfg.SaveWorkspaceConfig(); err != nil {
 		t.Fatalf("unexpected error: %v", err)

@@ -63,7 +63,7 @@ Feature: silo start — Start the workspace container
 
     Scenario: shared volume directories are created before container starts
       Given a workspace with silo config "abc12345"
-      And the config has shared_volume=true with paths ["$HOME/.cache/uv/"]
+      And the config has paths ["$HOME/.cache/uv/"]
       And the container "silo-abc12345" exists but is stopped
       And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists

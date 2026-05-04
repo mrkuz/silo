@@ -41,7 +41,7 @@ func ResolveContainerPath(path string, user string) string {
 // by running a temporary container with the user image, ensuring directories exist
 // before they are mounted as subpath volumes. Returns true if directories were created.
 func VolumeSetup(cfg Config) (bool, error) {
-	if !cfg.Features.SharedVolume || len(cfg.SharedVolume.Paths) == 0 {
+	if len(cfg.SharedVolume.Paths) == 0 {
 		return false, nil
 	}
 

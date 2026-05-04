@@ -46,70 +46,30 @@ func TestParseInitFlags(t *testing.T) {
 		name    string
 		args    []string
 		wantP   *bool
-		wantSV  *bool
 		wantErr bool
 	}{
 		{
 			name:    "no flags",
 			args:    []string{},
 			wantP:   nil,
-			wantSV:  nil,
 			wantErr: false,
 		},
 		{
 			name:    "--podman",
 			args:    []string{"--podman"},
 			wantP:   ptr(true),
-			wantSV:  nil,
 			wantErr: false,
 		},
 		{
 			name:    "--no-podman",
 			args:    []string{"--no-podman"},
 			wantP:   ptr(false),
-			wantSV:  nil,
-			wantErr: false,
-		},
-		{
-			name:    "--shared-volume",
-			args:    []string{"--shared-volume"},
-			wantP:   nil,
-			wantSV:  ptr(true),
-			wantErr: false,
-		},
-		{
-			name:    "--no-shared-volume",
-			args:    []string{"--no-shared-volume"},
-			wantP:   nil,
-			wantSV:  ptr(false),
-			wantErr: false,
-		},
-		{
-			name:    "--podman --shared-volume",
-			args:    []string{"--podman", "--shared-volume"},
-			wantP:   ptr(true),
-			wantSV:  ptr(true),
-			wantErr: false,
-		},
-		{
-			name:    "--podman --no-shared-volume",
-			args:    []string{"--podman", "--no-shared-volume"},
-			wantP:   ptr(true),
-			wantSV:  ptr(false),
 			wantErr: false,
 		},
 		{
 			name:    "last flag wins: --podman --no-podman",
 			args:    []string{"--podman", "--no-podman"},
 			wantP:   ptr(false),
-			wantSV:  nil,
-			wantErr: false,
-		},
-		{
-			name:    "last flag wins: --shared-volume --no-shared-volume",
-			args:    []string{"--shared-volume", "--no-shared-volume"},
-			wantP:   nil,
-			wantSV:  ptr(false),
 			wantErr: false,
 		},
 		{
@@ -138,15 +98,6 @@ func TestParseInitFlags(t *testing.T) {
 			}
 			if tt.wantP != nil && f.Podman != nil && *f.Podman != *tt.wantP {
 				t.Errorf("expected Podman=%v, got %v", *tt.wantP, *f.Podman)
-			}
-			if tt.wantSV == nil && f.SharedVolume != nil {
-				t.Errorf("expected SharedVolume=nil, got %v", *f.SharedVolume)
-			}
-			if tt.wantSV != nil && f.SharedVolume == nil {
-				t.Errorf("expected SharedVolume=%v, got nil", *tt.wantSV)
-			}
-			if tt.wantSV != nil && f.SharedVolume != nil && *f.SharedVolume != *tt.wantSV {
-				t.Errorf("expected SharedVolume=%v, got %v", *tt.wantSV, *f.SharedVolume)
 			}
 		})
 	}

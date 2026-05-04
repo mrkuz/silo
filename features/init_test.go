@@ -84,9 +84,9 @@ func TestFeatureInit(t *testing.T) {
 
 		t.Run("Scenario: existing shared-volume and podman settings are preserved when flags not provided", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
-			// And the config has shared_volume=true and podman=true
+			// And the config has paths set and podman=true
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.Features.SharedVolume = true
+			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 			cfg.Features.Podman = true
 			internal.SubsequentRun(t, cfg)
 
@@ -94,14 +94,14 @@ func TestFeatureInit(t *testing.T) {
 			if err := cmd.Init([]string{}); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			// Then the config should still have shared_volume=true
+			// Then the config should still have paths set
 			// And the config should still have podman=true
 			saved, err := internal.ParseTOML(internal.SiloToml())
 			if err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			if !saved.Features.SharedVolume {
-				t.Error("expected SharedVolume to remain true")
+			if len(saved.SharedVolume.Paths) == 0 {
+				t.Error("expected SharedVolume.Paths to remain set")
 			}
 			if !saved.Features.Podman {
 				t.Error("expected Podman to remain true")
@@ -116,7 +116,6 @@ func TestFeatureInit(t *testing.T) {
 			internal.FirstRunWith(t, func(siloUser string) {
 				internal.WriteUserFile(t, siloUser, "silo.in.toml", `
 					[features]
-					shared_volume = true
 					podman = true
 
 					[shared_volume]
@@ -136,9 +135,9 @@ func TestFeatureInit(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			// Then the workspace config should have shared_volume=true
-			if !saved.Features.SharedVolume {
-				t.Error("expected SharedVolume=true from silo.in.toml")
+			// Then the workspace config should have paths set from silo.in.toml
+			if len(saved.SharedVolume.Paths) == 0 {
+				t.Error("expected SharedVolume.Paths to be set from silo.in.toml")
 			}
 			// And the workspace config should have podman=true
 			if !saved.Features.Podman {
@@ -200,11 +199,7 @@ func TestFeatureInit(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			// Then the workspace config should have shared_volume=false
-			if saved.Features.SharedVolume {
-				t.Error("expected SharedVolume=false by default")
-			}
-			// And the workspace config should have podman=false
+			// Then the workspace config should have podman=false
 			if saved.Features.Podman {
 				t.Error("expected Podman=false by default")
 			}
@@ -322,42 +317,6 @@ func TestFeatureInit(t *testing.T) {
 			}
 		})
 
-		t.Run("Scenario: --shared-volume sets shared_volume=true on first run", func(t *testing.T) {
-			// Given a clean workspace with no existing silo files
-			internal.FirstRun(t)
-
-			// When I run `silo init --shared-volume`
-			if err := cmd.Init([]string{"--shared-volume"}); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			// Then the workspace config should have shared_volume=true
-			saved, err := internal.ParseTOML(internal.SiloToml())
-			if err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if !saved.Features.SharedVolume {
-				t.Error("expected Features.SharedVolume=true after --shared-volume on first run")
-			}
-		})
-
-		t.Run("Scenario: --no-shared-volume sets shared_volume=false on first run", func(t *testing.T) {
-			// Given a clean workspace with no existing silo files
-			internal.FirstRun(t)
-
-			// When I run `silo init --no-shared-volume`
-			if err := cmd.Init([]string{"--no-shared-volume"}); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			// Then the workspace config should have shared_volume=false
-			saved, err := internal.ParseTOML(internal.SiloToml())
-			if err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if saved.Features.SharedVolume {
-				t.Error("expected Features.SharedVolume=false after --no-shared-volume on first run")
-			}
-		})
-
 		t.Run("Scenario: --podman flag overrides seeded config from silo.in.toml on first run", func(t *testing.T) {
 			// Given the user's silo config directory has "silo.in.toml" with:
 			internal.FirstRunWith(t, func(siloUser string) {
@@ -378,29 +337,6 @@ func TestFeatureInit(t *testing.T) {
 			}
 			if saved.Features.Podman {
 				t.Error("expected Features.Podman=false after --no-podman overriding seeded true")
-			}
-		})
-
-		t.Run("Scenario: --shared-volume flag overrides seeded config from silo.in.toml on first run", func(t *testing.T) {
-			// Given the user's silo config directory has "silo.in.toml" with:
-			internal.FirstRunWith(t, func(siloUser string) {
-				internal.WriteUserFile(t, siloUser, "silo.in.toml", `
-				[features]
-				shared_volume = true
-				`)
-			})
-
-			// When I run `silo init --no-shared-volume`
-			if err := cmd.Init([]string{"--no-shared-volume"}); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			// Then the workspace config should have shared_volume=false
-			saved, err := internal.ParseTOML(internal.SiloToml())
-			if err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if saved.Features.SharedVolume {
-				t.Error("expected Features.SharedVolume=false after --no-shared-volume overriding seeded true")
 			}
 		})
 	})
@@ -439,40 +375,6 @@ func TestFeatureInit(t *testing.T) {
 				t.Error("expected Features.Podman=true after --no-podman on subsequent run without --force")
 			}
 		})
-
-		t.Run("Scenario: --shared-volume does not modify config on subsequent run", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			cfg.Features.SharedVolume = false
-			internal.SubsequentRun(t, cfg)
-
-			if err := cmd.Init([]string{"--shared-volume"}); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			saved, err := internal.ParseTOML(internal.SiloToml())
-			if err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if saved.Features.SharedVolume {
-				t.Error("expected Features.SharedVolume=false after --shared-volume on subsequent run without --force")
-			}
-		})
-
-		t.Run("Scenario: --no-shared-volume does not modify config on subsequent run", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			cfg.Features.SharedVolume = true
-			internal.SubsequentRun(t, cfg)
-
-			if err := cmd.Init([]string{"--no-shared-volume"}); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			saved, err := internal.ParseTOML(internal.SiloToml())
-			if err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if !saved.Features.SharedVolume {
-				t.Error("expected Features.SharedVolume=true after --no-shared-volume on subsequent run without --force")
-			}
-		})
 	})
 
 	t.Run("Rule: Conflicting flags use last value", func(t *testing.T) {
@@ -491,25 +393,6 @@ func TestFeatureInit(t *testing.T) {
 			}
 			if saved.Features.Podman {
 				t.Error("expected Features.Podman=false when both --podman and --no-podman passed")
-			}
-			// And the exit code should be 0 (implicit)
-		})
-
-		t.Run("Scenario: both --shared-volume and --no-shared-volume uses last flag", func(t *testing.T) {
-			// Given a clean workspace with no existing silo files
-			internal.FirstRun(t)
-
-			// When I run `silo init --shared-volume --no-shared-volume`
-			if err := cmd.Init([]string{"--shared-volume", "--no-shared-volume"}); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			// Then the config should have shared_volume=false
-			saved, err := internal.ParseTOML(internal.SiloToml())
-			if err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if saved.Features.SharedVolume {
-				t.Error("expected Features.SharedVolume=false when both --shared-volume and --no-shared-volume passed")
 			}
 			// And the exit code should be 0 (implicit)
 		})
@@ -550,40 +433,6 @@ func TestFeatureInit(t *testing.T) {
 			}
 		})
 
-		t.Run("Scenario: --shared-volume enables shared volume only with --force", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			cfg.Features.SharedVolume = false
-			internal.SubsequentRun(t, cfg)
-
-			if err := cmd.Init([]string{"--force", "--shared-volume"}); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			saved, err := internal.ParseTOML(internal.SiloToml())
-			if err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if !saved.Features.SharedVolume {
-				t.Error("expected Features.SharedVolume=true after --force --shared-volume")
-			}
-		})
-
-		t.Run("Scenario: --no-shared-volume disables shared volume only with --force", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			cfg.Features.SharedVolume = true
-			internal.SubsequentRun(t, cfg)
-
-			if err := cmd.Init([]string{"--force", "--no-shared-volume"}); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			saved, err := internal.ParseTOML(internal.SiloToml())
-			if err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if saved.Features.SharedVolume {
-				t.Error("expected Features.SharedVolume=false after --force --no-shared-volume")
-			}
-		})
-
 		t.Run("Scenario: --podman flag overrides seeded config from silo.in.toml only with --force", func(t *testing.T) {
 			internal.FirstRunWith(t, func(siloUser string) {
 				internal.WriteUserFile(t, siloUser, "silo.in.toml", `
@@ -601,26 +450,6 @@ func TestFeatureInit(t *testing.T) {
 			}
 			if saved.Features.Podman {
 				t.Error("expected Features.Podman=false after --force --no-podman overriding seeded true")
-			}
-		})
-
-		t.Run("Scenario: --shared-volume flag overrides seeded config from silo.in.toml only with --force", func(t *testing.T) {
-			internal.FirstRunWith(t, func(siloUser string) {
-				internal.WriteUserFile(t, siloUser, "silo.in.toml", `
-				[features]
-				shared_volume = true
-				`)
-			})
-
-			if err := cmd.Init([]string{"--force", "--no-shared-volume"}); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			saved, err := internal.ParseTOML(internal.SiloToml())
-			if err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if saved.Features.SharedVolume {
-				t.Error("expected Features.SharedVolume=false after --force --no-shared-volume overriding seeded true")
 			}
 		})
 	})
@@ -703,7 +532,6 @@ func TestFeatureInit(t *testing.T) {
 			}
 
 			// And the config has modified non-[general] settings
-			cfg.Features.SharedVolume = true
 			cfg.SharedVolume.Name = "my-custom-volume"
 			cfg.SharedVolume.Paths = []string{"/custom/path"}
 			if err := cfg.SaveWorkspaceConfig(); err != nil {
@@ -750,9 +578,6 @@ func TestFeatureInit(t *testing.T) {
 			}
 
 			// And the non-[general] settings should be reset to defaults
-			if saved.Features.SharedVolume {
-				t.Errorf("expected SharedVolume to be reset to false, got %v", saved.Features.SharedVolume)
-			}
 			if saved.SharedVolume.Name == "my-custom-volume" {
 				t.Errorf("expected SharedVolume.Name to be reset to default, got %q", saved.SharedVolume.Name)
 			}
@@ -773,8 +598,7 @@ func TestFeatureInit(t *testing.T) {
 			cfg.General.User = "alice"
 			xdgPath := internal.SubsequentRun(t, cfg)
 
-			// And the config has shared_volume=false and podman=false
-			cfg.Features.SharedVolume = false
+			// And the config has podman=false
 			cfg.Features.Podman = false
 			if err := cfg.SaveWorkspaceConfig(); err != nil {
 				t.Fatalf("save initial config: %v", err)
@@ -783,7 +607,6 @@ func TestFeatureInit(t *testing.T) {
 			// And the user's silo config directory has silo.in.toml with custom values
 			internal.WriteUserFile(t, xdgPath+"/silo", "silo.in.toml", `
 				[features]
-				shared_volume = true
 				podman = true
 
 				[shared_volume]
@@ -804,8 +627,8 @@ func TestFeatureInit(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			if !saved.Features.SharedVolume {
-				t.Errorf("expected SharedVolume=true from silo.in.toml, got %v", saved.Features.SharedVolume)
+			if len(saved.SharedVolume.Paths) == 0 {
+				t.Errorf("expected SharedVolume.Paths to be set from silo.in.toml")
 			}
 			if !saved.Features.Podman {
 				t.Errorf("expected Podman=true from silo.in.toml, got %v", saved.Features.Podman)

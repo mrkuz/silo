@@ -86,7 +86,7 @@ silo connect       # Connect to container (triggers missing steps automatically)
 
 ```
 silo [--stop]
-silo init [--podman|--no-podman] [--shared-volume|--no-shared-volume]
+silo init [--podman|--no-podman]
 silo build [-f|--force]
 silo start
 silo volume setup
@@ -120,8 +120,6 @@ Initialize workspace files. Creates `.silo/silo.toml` and `.silo/home.nix`, then
 |---|---|
 | `--podman` | Enable Podman inside the container |
 | `--no-podman` | Disable Podman inside the container |
-| `--shared-volume` | Enable shared volume |
-| `--no-shared-volume` | Disable shared volume |
 | `-f`, `--force` | Overwrite existing workspace files |
 
 ### `silo build`
@@ -235,7 +233,6 @@ id             = "ab3f9c12"          # 8-char random ID; names container and ima
 user           = "alice"
 
 [features]
-shared_volume = false                # Mount shared volume at /silo/shared
 podman        = false                # Enable Podman inside the container
 
 [shared_volume]
@@ -265,7 +262,6 @@ create_args = [
 
 | Key | Default | Description |
 |---|---|---|
-| `shared_volume` | `false` | Enable the shared volume |
 | `podman` | `false` | Enable Podman inside the container |
 
 **`[shared_volume]`**
@@ -273,7 +269,7 @@ create_args = [
 | Key | Default | Description |
 |---|---|---|
 | `name` | `silo-shared` | Shared volume name. |
-| `paths` | `[]` | Paths inside the container backed by the shared volume. A trailing slash means directory; no trailing slash means file. `$HOME` is the only supported placeholder prefix. |
+| `paths` | `[]` | Paths inside the container backed by the shared volume. A trailing slash means directory; no trailing slash means file. `$HOME` is the only supported placeholder prefix. Shared volume support is active when this list is non-empty. |
 
 **`[podman]`**
 

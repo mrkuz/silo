@@ -158,7 +158,7 @@ func SetupUserConfig(t *testing.T) {
 func MinimalConfig(id string) Config {
 	return Config{
 		General:      GeneralConfig{ID: id, User: "testuser"},
-		Features:     FeaturesConfig{SharedVolume: false, Podman: false},
+		Features:     FeaturesConfig{Podman: false},
 		SharedVolume: SharedVolumeConfig{Paths: []string{}},
 		Podman:       PodmanConfig{CreateArgs: []string{}},
 	}

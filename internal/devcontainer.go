@@ -25,7 +25,7 @@ func DevcontainerGenerate(force bool) error {
 	}
 
 	// Ensure volume directories exist before generating devcontainer.json
-	if cfg.Features.SharedVolume && len(cfg.SharedVolume.Paths) > 0 {
+	if len(cfg.SharedVolume.Paths) > 0 {
 		if _, err := VolumeSetup(cfg); err != nil {
 			return fmt.Errorf("volume setup: %w", err)
 		}

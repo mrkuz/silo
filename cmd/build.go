@@ -9,7 +9,7 @@ import (
 // Build implements `silo build`. Builds the workspace image if missing.
 func Build(args []string) error {
 	force, _ := ParseForceFlag(args)
-	cfg, _, err := internal.EnsureInit(nil, nil)
+	cfg, _, err := internal.EnsureInit(nil)
 	if err != nil {
 		return fmt.Errorf("initialize workspace: %w", err)
 	}

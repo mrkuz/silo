@@ -7,7 +7,7 @@ const HelpText = `silo - developer container
 
 Usage:
   silo [--stop]
-  silo init [--podman|--no-podman] [--shared-volume|--no-shared-volume]
+  silo init [--podman|--no-podman]
   silo build [-f|--force]
   silo start
   silo volume setup
@@ -47,8 +47,6 @@ Default command flags:
 Init flags:
   --podman             Enable Podman inside the container
   --no-podman          Disable Podman inside the container
-  --shared-volume      Enable shared volume mount
-  --no-shared-volume   Disable shared volume mount
   -f, --force          Overwrite existing workspace files
 
 Build flags:

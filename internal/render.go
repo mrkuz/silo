@@ -126,7 +126,7 @@ func NewTemplateContext(cfg Config, containerNameSuffix ...string) (TemplateCont
 	}
 	containerName := ContainerNameWithSuffix(WorkspaceContainerName(cfg.General.ID), suffix)
 	sharedVolumeNameValue := ""
-	if cfg.Features.SharedVolume {
+	if len(cfg.SharedVolume.Paths) > 0 {
 		sharedVolumeNameValue = cfg.GetSharedVolumeName()
 	}
 
@@ -137,7 +137,7 @@ func NewTemplateContext(cfg Config, containerNameSuffix ...string) (TemplateCont
 	}
 	// Build resolved container paths for each shared volume path
 	var sharedPaths []string
-	if cfg.Features.SharedVolume && len(cfg.SharedVolume.Paths) > 0 {
+	if len(cfg.SharedVolume.Paths) > 0 {
 		sharedPaths = make([]string, len(cfg.SharedVolume.Paths))
 		for i, path := range cfg.SharedVolume.Paths {
 			sharedPaths[i] = ResolveContainerPath(path, cfg.General.User)

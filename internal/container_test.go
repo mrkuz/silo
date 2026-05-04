@@ -78,7 +78,6 @@ func TestBuildContainerArgsMinimal(t *testing.T) {
 			User: "alice",
 		},
 		Features: FeaturesConfig{
-			SharedVolume: false,
 			Podman:       false,
 		},
 	}
@@ -108,7 +107,6 @@ func TestBuildContainerArgsNoDuplicateFlags(t *testing.T) {
 			User: "alice",
 		},
 		Features: FeaturesConfig{
-			SharedVolume: true,
 			Podman:       false,
 		},
 	}
@@ -136,7 +134,6 @@ func TestBuildContainerArgsSharedVolume(t *testing.T) {
 			User: "alice",
 		},
 		Features: FeaturesConfig{
-			SharedVolume: true,
 			Podman:       false,
 		},
 		SharedVolume: SharedVolumeConfig{
@@ -210,20 +207,8 @@ func TestCreateContainerCreateArgsNonNested(t *testing.T) {
 }
 
 func TestVolumeSetup(t *testing.T) {
-	t.Run("skipped when shared volume disabled", func(t *testing.T) {
-		cfg := MinimalConfig("abc12345")
-		cfg.Features.SharedVolume = false
-		mock := NewMock(t)
-		mock.MockExec(map[string]*exec.Cmd{})
-		if _, err := VolumeSetup(cfg); err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		mock.AssertNoExec("podman", "run", "<...>")
-	})
-
 	t.Run("skipped when paths empty", func(t *testing.T) {
 		cfg := MinimalConfig("abc12345")
-		cfg.Features.SharedVolume = true
 		cfg.SharedVolume.Paths = []string{}
 		mock := NewMock(t)
 		mock.MockExec(map[string]*exec.Cmd{})
@@ -235,7 +220,6 @@ func TestVolumeSetup(t *testing.T) {
 
 	t.Run("runs user image to create directories", func(t *testing.T) {
 		cfg := MinimalConfig("abc12345")
-		cfg.Features.SharedVolume = true
 		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 		mock := NewMock(t)
 		mock.MockExec(map[string]*exec.Cmd{})
@@ -301,7 +285,6 @@ func TestContainerRunning(t *testing.T) {
 func TestEnsureChain(t *testing.T) {
 	t.Run("container absent — creates and starts", func(t *testing.T) {
 		cfg := MinimalConfig("abc12345")
-		cfg.Features.SharedVolume = true
 		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 		SetupWorkspace(t, cfg)
 		SetupUserConfig(t)
@@ -321,7 +304,6 @@ func TestEnsureChain(t *testing.T) {
 
 	t.Run("container stopped — starts", func(t *testing.T) {
 		cfg := MinimalConfig("abc12345")
-		cfg.Features.SharedVolume = true
 		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 		SetupWorkspace(t, cfg)
 		SetupUserConfig(t)
@@ -451,7 +433,6 @@ func TestEnsureStartedError(t *testing.T) {
 func TestEnsureStartedWithSharedVolume(t *testing.T) {
 	t.Run("ensureStarted succeeds even when container not running initially", func(t *testing.T) {
 		cfg := MinimalConfig("abc12345")
-		cfg.Features.SharedVolume = true
 		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 		SetupWorkspace(t, cfg)
 		SetupUserConfig(t)

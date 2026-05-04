@@ -47,7 +47,7 @@ Feature: silo devcontainer — Generate a .devcontainer.json for VS Code
       Then the .devcontainer.json should specify container name "silo-abc12345-dev"
 
     Scenario: devcontainer runs volume setup before generating when shared volume is configured
-      Given the config has shared_volume=true with paths ["$HOME/.cache/uv/"]
+      Given the config has paths ["$HOME/.cache/uv/"]
       And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo devcontainer`

@@ -341,7 +341,6 @@ func TestFeatureSilo(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			cfg := internal.MinimalConfig("abc12345")
 			cfg.General.User = "alice"
-			cfg.Features.SharedVolume = true
 			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 			internal.SubsequentRun(t, cfg)
 

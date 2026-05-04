@@ -1,5 +1,4 @@
 [features]
-shared_volume = true
 podman = false
 
 [shared_volume]

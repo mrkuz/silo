@@ -29,8 +29,7 @@ type GeneralConfig struct {
 }
 
 type FeaturesConfig struct {
-	SharedVolume bool `toml:"shared_volume"`
-	Podman       bool `toml:"podman"`
+	Podman bool `toml:"podman"`
 }
 
 type SharedVolumeConfig struct {
@@ -81,8 +80,7 @@ func DefaultConfig() (Config, error) {
 			User: u.Username,
 		},
 		Features: FeaturesConfig{
-			SharedVolume: false,
-			Podman:       false,
+			Podman: false,
 		},
 		SharedVolume: SharedVolumeConfig{
 			Name:  "silo-shared",
@@ -383,8 +381,7 @@ func DefaultCreateArgs(podman bool) []string {
 // `silo init` and `silo user init` share a single implementation.
 // If podman is non-nil, .silo/home.nix will include silo.podman.enable based on the value.
 // If podman is nil, the podman setting seeded from silo.in.toml is preserved.
-// If sharedVolume is non-nil on first run, it overrides the seeded shared_volume setting.
-func EnsureInit(podman *bool, sharedVolume *bool) (Config, bool, error) {
+func EnsureInit(podman *bool) (Config, bool, error) {
 	cfg, firstRun, err := InitWorkspaceConfig()
 	if err != nil {
 		return cfg, firstRun, fmt.Errorf("initialize workspace configuration: %w", err)
@@ -399,9 +396,6 @@ func EnsureInit(podman *bool, sharedVolume *bool) (Config, bool, error) {
 		if podman != nil {
 			cfg.Features.Podman = *podman
 		}
-		if sharedVolume != nil {
-			cfg.Features.SharedVolume = *sharedVolume
-		}
 		cfg.Podman.CreateArgs = append(cfg.Podman.CreateArgs, DefaultCreateArgs(cfg.Features.Podman)...)
 		if err := cfg.SaveWorkspaceConfig(); err != nil {
 			return cfg, firstRun, fmt.Errorf("save workspace config: %w", err)
@@ -412,7 +406,7 @@ func EnsureInit(podman *bool, sharedVolume *bool) (Config, bool, error) {
 
 // EnsureBuilt ensures images exist, building them if needed.
 func EnsureBuilt() (Config, error) {
-	cfg, _, err := EnsureInit(nil, nil)
+	cfg, _, err := EnsureInit(nil)
 	if err != nil {
 		return cfg, fmt.Errorf("initialize workspace: %w", err)
 	}

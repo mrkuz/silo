@@ -190,7 +190,7 @@ func TestNewTemplateContextDefaultSuffix(t *testing.T) {
 			ID:   "abc12345",
 			User: "alice",
 		},
-		Features: FeaturesConfig{Podman: false, SharedVolume: true},
+		Features: FeaturesConfig{Podman: false},
 		SharedVolume: SharedVolumeConfig{
 			Name:  "silo-shared",
 			Paths: []string{"$HOME/.cache/uv/", "$HOME/.config/nvim/"},
@@ -242,7 +242,10 @@ func TestNewTemplateContextWithoutSharedVolume(t *testing.T) {
 			ID:   "abc12345",
 			User: "alice",
 		},
-		Features: FeaturesConfig{Podman: false, SharedVolume: false},
+		Features: FeaturesConfig{Podman: false},
+		SharedVolume: SharedVolumeConfig{
+			Paths: []string{},
+		},
 	}
 	tc, err := NewTemplateContext(cfg)
 	if err != nil {

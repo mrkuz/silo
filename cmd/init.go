@@ -34,9 +34,6 @@ func Init(args []string) error {
 		if flags.Podman != nil {
 			seededCfg.Features.Podman = *flags.Podman
 		}
-		if flags.SharedVolume != nil {
-			seededCfg.Features.SharedVolume = *flags.SharedVolume
-		}
 		seededCfg.Podman.CreateArgs = append(seededCfg.Podman.CreateArgs, internal.DefaultCreateArgs(seededCfg.Features.Podman)...)
 		if err := internal.EnsureWorkspaceHomeNix(seededCfg.Features.Podman, true); err != nil {
 			return fmt.Errorf("overwrite workspace home.nix: %w", err)
@@ -51,7 +48,7 @@ func Init(args []string) error {
 		if err != nil {
 			return fmt.Errorf("initialize workspace: %w", err)
 		}
-		if _, _, err = internal.EnsureInit(flags.Podman, flags.SharedVolume); err != nil {
+		if _, _, err = internal.EnsureInit(flags.Podman); err != nil {
 			return fmt.Errorf("initialize workspace: %w", err)
 		}
 	}
@@ -61,9 +58,8 @@ func Init(args []string) error {
 
 // InitFlags holds parsed flags for the init command.
 type InitFlags struct {
-	Podman       *bool
-	SharedVolume *bool
-	Force        bool
+	Podman *bool
+	Force  bool
 }
 
 // ParseInitFlags parses the flags for `silo init`.
@@ -73,13 +69,11 @@ func ParseInitFlags(args []string) (InitFlags, error) {
 	fs := flag.NewFlagSet("silo init", flag.ContinueOnError)
 	podman := fs.Bool("podman", false, "Enable Podman inside the container")
 	noPodman := fs.Bool("no-podman", false, "Disable Podman inside the container")
-	sharedVolume := fs.Bool("shared-volume", false, "Enable shared volume")
-	noSharedVolume := fs.Bool("no-shared-volume", false, "Disable shared volume")
 	fs.Usage = func() {}
 	if err := fs.Parse(remaining); err != nil {
 		return InitFlags{}, fmt.Errorf("parse init flags: %w", err)
 	}
-	var podmanVal, svVal *bool
+	var podmanVal *bool
 	if *noPodman {
 		v := false
 		podmanVal = &v
@@ -87,16 +81,8 @@ func ParseInitFlags(args []string) (InitFlags, error) {
 		v := true
 		podmanVal = &v
 	}
-	if *noSharedVolume {
-		v := false
-		svVal = &v
-	} else if *sharedVolume {
-		v := true
-		svVal = &v
-	}
 	return InitFlags{
-		Podman:       podmanVal,
-		SharedVolume: svVal,
-		Force:        force,
+		Podman: podmanVal,
+		Force:  force,
 	}, nil
 }

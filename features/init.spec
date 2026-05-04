@@ -32,12 +32,11 @@ Feature: silo init — Initialize workspace
       Then the config should still have id "abc12345"
       And the exit code should be 0
 
-    Scenario: existing shared-volume and podman settings are preserved when flags not provided
+    Scenario: existing podman setting is preserved when flag not provided
       Given a workspace with silo config "abc12345"
-      And the config has shared_volume=true and podman=true
+      And the config has podman=true
       When I run `silo init`
-      Then the config should still have shared_volume=true
-      And the config should still have podman=true
+      Then the config should still have podman=true
       And the exit code should be 0
 
   Rule: silo.in.toml seeds new workspace config on first run
@@ -46,7 +45,6 @@ Feature: silo init — Initialize workspace
       Given the user's silo config directory has "silo.in.toml" with content:
         """
         [features]
-        shared_volume = true
         podman = true
 
         [shared_volume]
@@ -57,8 +55,7 @@ Feature: silo init — Initialize workspace
         create_args = ["--memory=2g"]
         """
       When I run `silo init`
-      Then the workspace config should have shared_volume=true
-      And the workspace config should have podman=true
+      Then the workspace config should have podman=true
       And the workspace config should have shared_volume name "my-shared"
       And the workspace config should have create arguments ["--memory=2g"]
 
@@ -78,8 +75,7 @@ Feature: silo init — Initialize workspace
         """
         """
       When I run `silo init`
-      Then the workspace config should have shared_volume=false
-      And the workspace config should have podman=false
+      Then the workspace config should have podman=false
       And the workspace config should have shared_volume name "silo-shared"
 
     Scenario: silo.in.toml is created if it does not exist
@@ -115,18 +111,6 @@ Feature: silo init — Initialize workspace
       And the file ".silo/home.nix" should not contain "silo.podman.enable = true"
       And the exit code should be 0
 
-    Scenario: --shared-volume sets shared_volume=true on first run
-      Given a clean workspace with no existing silo files
-      When I run `silo init --shared-volume`
-      Then the workspace config should have shared_volume=true
-      And the exit code should be 0
-
-    Scenario: --no-shared-volume sets shared_volume=false on first run
-      Given a clean workspace with no existing silo files
-      When I run `silo init --no-shared-volume`
-      Then the workspace config should have shared_volume=false
-      And the exit code should be 0
-
     Scenario: --podman flag overrides seeded config from silo.in.toml on first run
       Given the user's silo config directory has "silo.in.toml" with content:
         """
@@ -136,17 +120,6 @@ Feature: silo init — Initialize workspace
       And a clean workspace with no existing silo files
       When I run `silo init --no-podman`
       Then the workspace config should have podman=false
-      And the exit code should be 0
-
-    Scenario: --shared-volume flag overrides seeded config from silo.in.toml on first run
-      Given the user's silo config directory has "silo.in.toml" with content:
-        """
-        [features]
-        shared_volume = true
-        """
-      And a clean workspace with no existing silo files
-      When I run `silo init --no-shared-volume`
-      Then the workspace config should have shared_volume=false
       And the exit code should be 0
 
   Rule: Feature flags are ignored on subsequent runs without --force
@@ -165,20 +138,6 @@ Feature: silo init — Initialize workspace
       Then the config should have podman=true
       And the exit code should be 0
 
-    Scenario: --shared-volume does not modify config on subsequent run
-      Given a workspace with silo config "abc12345"
-      And the config has shared_volume=false
-      When I run `silo init --shared-volume`
-      Then the config should have shared_volume=false
-      And the exit code should be 0
-
-    Scenario: --no-shared-volume does not modify config on subsequent run
-      Given a workspace with silo config "abc12345"
-      And the config has shared_volume=true
-      When I run `silo init --no-shared-volume`
-      Then the config should have shared_volume=true
-      And the exit code should be 0
-
   Rule: Explicit flags only affect config with --force
 
     Scenario: --podman enables podman feature only with --force
@@ -195,20 +154,6 @@ Feature: silo init — Initialize workspace
       Then the config should have podman=false
       And the exit code should be 0
 
-    Scenario: --shared-volume enables shared volume only with --force
-      Given a workspace with silo config "abc12345"
-      And the config has shared_volume=false
-      When I run `silo init --force --shared-volume`
-      Then the config should have shared_volume=true
-      And the exit code should be 0
-
-    Scenario: --no-shared-volume disables shared volume only with --force
-      Given a workspace with silo config "abc12345"
-      And the config has shared_volume=true
-      When I run `silo init --force --no-shared-volume`
-      Then the config should have shared_volume=false
-      And the exit code should be 0
-
     Scenario: --podman flag overrides seeded config from silo.in.toml only with --force
       Given the user's silo config directory has "silo.in.toml" with content:
         """
@@ -218,17 +163,6 @@ Feature: silo init — Initialize workspace
       And a clean workspace with no existing silo files
       When I run `silo init --force --no-podman`
       Then the workspace config should have podman=false
-      And the exit code should be 0
-
-    Scenario: --shared-volume flag overrides seeded config from silo.in.toml only with --force
-      Given the user's silo config directory has "silo.in.toml" with content:
-        """
-        [features]
-        shared_volume = true
-        """
-      And a clean workspace with no existing silo files
-      When I run `silo init --force --no-shared-volume`
-      Then the workspace config should have shared_volume=false
       And the exit code should be 0
 
   Rule: Podman flag affects workspace home.nix only with --force
@@ -252,11 +186,6 @@ Feature: silo init — Initialize workspace
       Then the config should have podman=false
       And the exit code should be 0
 
-    Scenario: both --shared-volume and --no-shared-volume uses last flag
-      When I run `silo init --shared-volume --no-shared-volume`
-      Then the config should have shared_volume=false
-      And the exit code should be 0
-
   Rule: --force overwrites existing workspace files
 
     Scenario: init --force rewrites existing silo.toml and home.nix
@@ -270,11 +199,10 @@ Feature: silo init — Initialize workspace
 
     Scenario: init --force seeds non-[general] from silo.in.toml
       Given a workspace with silo config "abc12345"
-      And the config has shared_volume=false and podman=false
+      And the config has podman=false
       And the user's silo config directory has "silo.in.toml" with content:
         """
         [features]
-        shared_volume = true
         podman = true
 
         [shared_volume]
@@ -282,8 +210,7 @@ Feature: silo init — Initialize workspace
         paths = ["$HOME/.cache/uv/"]
         """
       When I run `silo init --force`
-      Then the config should have shared_volume=true
-      And the config should have podman=true
+      Then the config should have podman=true
       And the config should have shared_volume name "my-shared"
       And the config should still have id "abc12345"
 
