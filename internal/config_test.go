@@ -45,9 +45,9 @@ func TestTOMLRoundtrip(t *testing.T) {
 		SharedVolume: SharedVolumeConfig{
 			Paths: []string{".cache/uv/", ".local/share/opencode/"},
 		},
-		Podman: PodmanConfig{Create: CreateConfig{
-			Arguments: []string{"--memory", "512m"},
-		}},
+		Podman: PodmanConfig{
+			CreateArgs: []string{"--memory", "512m"},
+		},
 	}
 
 	tmpDir := t.TempDir()
@@ -80,17 +80,17 @@ func TestTOMLRoundtrip(t *testing.T) {
 			t.Errorf("SharedVolume.Paths[%d]: got %q, want %q", i, parsed.SharedVolume.Paths[i], want)
 		}
 	}
-	if len(parsed.Podman.Create.Arguments) != len(original.Podman.Create.Arguments) {
-		t.Fatalf("Create.Arguments len: got %d, want %d", len(parsed.Podman.Create.Arguments), len(original.Podman.Create.Arguments))
+	if len(parsed.Podman.CreateArgs) != len(original.Podman.CreateArgs) {
+		t.Fatalf("CreateArgs len: got %d, want %d", len(parsed.Podman.CreateArgs), len(original.Podman.CreateArgs))
 	}
-	for i, want := range original.Podman.Create.Arguments {
-		if parsed.Podman.Create.Arguments[i] != want {
-			t.Errorf("Create.Arguments[%d]: got %q, want %q", i, parsed.Podman.Create.Arguments[i], want)
+	for i, want := range original.Podman.CreateArgs {
+		if parsed.Podman.CreateArgs[i] != want {
+			t.Errorf("CreateArgs[%d]: got %q, want %q", i, parsed.Podman.CreateArgs[i], want)
 		}
 	}
 }
 
-func TestTOMLEmptyArguments(t *testing.T) {
+func TestTOMLEmptyCreateArgs(t *testing.T) {
 	cfg := Config{
 		General:      GeneralConfig{ID: "x", User: "u"},
 		Features:     FeaturesConfig{SharedVolume: true, Podman: false},
@@ -112,8 +112,8 @@ func TestTOMLEmptyArguments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(parsed.Podman.Create.Arguments) != 0 {
-		t.Errorf("expected empty Arguments, got %v", parsed.Podman.Create.Arguments)
+	if len(parsed.Podman.CreateArgs) != 0 {
+		t.Errorf("expected empty CreateArgs, got %v", parsed.Podman.CreateArgs)
 	}
 }
 
@@ -140,8 +140,8 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.SharedVolume.Paths == nil {
 		t.Error("expected non-nil SharedVolume.Paths")
 	}
-	if cfg.Podman.Create.Arguments == nil {
-		t.Error("expected non-nil Create.Arguments")
+	if cfg.Podman.CreateArgs == nil {
+		t.Error("expected non-nil CreateArgs")
 	}
 }
 
@@ -446,7 +446,7 @@ func TestSaveWorkspaceConfigNilGuards(t *testing.T) {
 
 	cfg := MinimalConfig("abc12345")
 	cfg.SharedVolume.Paths = nil
-	cfg.Podman.Create.Arguments = nil
+	cfg.Podman.CreateArgs = nil
 	if err := cfg.SaveWorkspaceConfig(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -457,8 +457,8 @@ func TestSaveWorkspaceConfigNilGuards(t *testing.T) {
 	if parsed.SharedVolume.Paths == nil {
 		t.Error("SharedVolume.Paths should not be nil after save")
 	}
-	if parsed.Podman.Create.Arguments == nil {
-		t.Error("Create.Arguments should not be nil after save")
+	if parsed.Podman.CreateArgs == nil {
+		t.Error("CreateArgs should not be nil after save")
 	}
 }
 
@@ -478,8 +478,8 @@ func assertTOMLFormat(t *testing.T, s string) {
 			// blank lines and closing brackets are fine
 		case strings.HasPrefix(line, "["):
 			// section header: must be preceded by a blank line (except first)
-			// exception: nested tables ([podman.create]) follow their parent ([podman]) without blank line
-			if i > 0 && lines[i-1] != "" && lines[i-1] != "]" && !strings.HasPrefix(line, "[podman.") {
+			// exception: direct tables like [podman] don't need a blank line after [podman]
+			if i > 0 && lines[i-1] != "" && lines[i-1] != "]" && !strings.HasPrefix(line, "[podman]") {
 				t.Errorf("line %d: expected blank line before section header, got %q", i+1, lines[i-1])
 			}
 		case strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t"):

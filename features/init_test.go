@@ -123,8 +123,8 @@ func TestFeatureInit(t *testing.T) {
 					name = "my-shared"
 					paths = ["$HOME/.cache/uv/"]
 
-					[podman.create]
-					arguments = ["--memory=2g"]
+					[podman]
+					create_args = ["--memory=2g"]
 				`)
 			})
 
@@ -149,11 +149,11 @@ func TestFeatureInit(t *testing.T) {
 				t.Errorf("expected SharedVolume.Name=\"my-shared\", got %q", saved.SharedVolume.Name)
 			}
 			// And the workspace config should have create arguments ["--memory=2g"]
-			if len(saved.Podman.Create.Arguments) < 2 {
-				t.Errorf("expected at least 2 create arguments, got %v", saved.Podman.Create.Arguments)
+			if len(saved.Podman.CreateArgs) < 2 {
+				t.Errorf("expected at least 2 create arguments, got %v", saved.Podman.CreateArgs)
 			}
-			if saved.Podman.Create.Arguments[0] != "--memory=2g" {
-				t.Errorf("expected first argument --memory=2g, got %v", saved.Podman.Create.Arguments)
+			if saved.Podman.CreateArgs[0] != "--memory=2g" {
+				t.Errorf("expected first argument --memory=2g, got %v", saved.Podman.CreateArgs)
 			}
 		})
 
@@ -241,8 +241,8 @@ func TestFeatureInit(t *testing.T) {
 			// Given the user's silo config directory has "silo.in.toml" with:
 			internal.FirstRunWith(t, func(siloUser string) {
 				internal.WriteUserFile(t, siloUser, "silo.in.toml", `
-				[podman.create]
-				arguments = ["--memory=2g"]
+				[podman]
+				create_args = ["--memory=2g"]
 				`)
 			})
 
@@ -255,16 +255,16 @@ func TestFeatureInit(t *testing.T) {
 				t.Fatalf("parse error: %v", err)
 			}
 			// Then the workspace config should have 5 create arguments
-			if len(saved.Podman.Create.Arguments) != 5 {
-				t.Errorf("expected 5 create arguments, got %v", saved.Podman.Create.Arguments)
+			if len(saved.Podman.CreateArgs) != 5 {
+				t.Errorf("expected 5 create arguments, got %v", saved.Podman.CreateArgs)
 			}
 			// And the first create argument should be "--memory=2g"
-			if saved.Podman.Create.Arguments[0] != "--memory=2g" {
-				t.Errorf("expected first create argument --memory=2g, got %v", saved.Podman.Create.Arguments)
+			if saved.Podman.CreateArgs[0] != "--memory=2g" {
+				t.Errorf("expected first create argument --memory=2g, got %v", saved.Podman.CreateArgs)
 			}
 			// And the second create argument should be "--cap-drop=ALL"
-			if saved.Podman.Create.Arguments[1] != "--cap-drop=ALL" {
-				t.Errorf("expected second create argument --cap-drop=ALL, got %v", saved.Podman.Create.Arguments)
+			if saved.Podman.CreateArgs[1] != "--cap-drop=ALL" {
+				t.Errorf("expected second create argument --cap-drop=ALL, got %v", saved.Podman.CreateArgs)
 			}
 		})
 	})
@@ -834,8 +834,8 @@ func TestFeatureInit(t *testing.T) {
 
 			// And the user's silo config directory has silo.in.toml with custom create args
 			internal.WriteUserFile(t, xdgPath+"/silo", "silo.in.toml", `
-				[podman.create]
-				arguments = ["--memory=2g"]
+				[podman]
+				create_args = ["--memory=2g"]
 			`)
 
 			// When I run `silo init --force`
@@ -848,16 +848,16 @@ func TestFeatureInit(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			if len(saved.Podman.Create.Arguments) != 5 {
-				t.Errorf("expected 5 create arguments, got %v", saved.Podman.Create.Arguments)
+			if len(saved.Podman.CreateArgs) != 5 {
+				t.Errorf("expected 5 create arguments, got %v", saved.Podman.CreateArgs)
 			}
 			// And the first create argument should be "--memory=2g"
-			if saved.Podman.Create.Arguments[0] != "--memory=2g" {
-				t.Errorf("expected first argument --memory=2g, got %v", saved.Podman.Create.Arguments)
+			if saved.Podman.CreateArgs[0] != "--memory=2g" {
+				t.Errorf("expected first argument --memory=2g, got %v", saved.Podman.CreateArgs)
 			}
 			// And the second create argument should be "--cap-drop=ALL"
-			if saved.Podman.Create.Arguments[1] != "--cap-drop=ALL" {
-				t.Errorf("expected second argument --cap-drop=ALL, got %v", saved.Podman.Create.Arguments)
+			if saved.Podman.CreateArgs[1] != "--cap-drop=ALL" {
+				t.Errorf("expected second argument --cap-drop=ALL, got %v", saved.Podman.CreateArgs)
 			}
 		})
 	})

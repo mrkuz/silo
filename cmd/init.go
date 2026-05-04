@@ -37,7 +37,7 @@ func Init(args []string) error {
 		if flags.SharedVolume != nil {
 			seededCfg.Features.SharedVolume = *flags.SharedVolume
 		}
-		seededCfg.Podman.Create.Arguments = append(seededCfg.Podman.Create.Arguments, internal.DefaultCreateArgs(seededCfg.Features.Podman)...)
+		seededCfg.Podman.CreateArgs = append(seededCfg.Podman.CreateArgs, internal.DefaultCreateArgs(seededCfg.Features.Podman)...)
 		if err := internal.EnsureWorkspaceHomeNix(seededCfg.Features.Podman, true); err != nil {
 			return fmt.Errorf("overwrite workspace home.nix: %w", err)
 		}

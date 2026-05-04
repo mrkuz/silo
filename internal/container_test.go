@@ -154,12 +154,12 @@ func TestBuildContainerArgsSharedVolume(t *testing.T) {
 	}
 }
 
-func TestCreateContainerArguments(t *testing.T) {
+func TestCreateContainerCreateArgs(t *testing.T) {
 	cfg := MinimalConfig("abc12345")
-	cfg.Podman.Create.Arguments = []string{"--memory", "512m"}
+	cfg.Podman.CreateArgs = []string{"--memory", "512m"}
 	mock := NewMock(t)
 	mock.MockExec(map[string]*exec.Cmd{})
-	_ = CreateContainer(cfg, cfg.Podman.Create.Arguments)
+	_ = CreateContainer(cfg, cfg.Podman.CreateArgs)
 	rec := mock.AssertExec("podman", "create", "<...>")
 	if rec != nil {
 		if !strings.Contains(rec.String(), "--memory") {
@@ -168,12 +168,12 @@ func TestCreateContainerArguments(t *testing.T) {
 	}
 }
 
-func TestCreateContainerArgumentsNested(t *testing.T) {
+func TestCreateContainerCreateArgsNested(t *testing.T) {
 	cfg := MinimalConfig("abc12345")
-	cfg.Podman.Create.Arguments = []string{"--security-opt", "label=disable", "--device", "/dev/fuse"}
+	cfg.Podman.CreateArgs = []string{"--security-opt", "label=disable", "--device", "/dev/fuse"}
 	mock := NewMock(t)
 	mock.MockExec(map[string]*exec.Cmd{})
-	_ = CreateContainer(cfg, cfg.Podman.Create.Arguments)
+	_ = CreateContainer(cfg, cfg.Podman.CreateArgs)
 	// Verify the specific arguments - check each appears somewhere in the command
 	rec := mock.AssertExec("podman", "create", "<...>")
 	if rec != nil {
@@ -187,12 +187,12 @@ func TestCreateContainerArgumentsNested(t *testing.T) {
 	}
 }
 
-func TestCreateContainerArgumentsNonNested(t *testing.T) {
+func TestCreateContainerCreateArgsNonNested(t *testing.T) {
 	cfg := MinimalConfig("abc12345")
-	cfg.Podman.Create.Arguments = []string{"--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"}
+	cfg.Podman.CreateArgs = []string{"--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"}
 	mock := NewMock(t)
 	mock.MockExec(map[string]*exec.Cmd{})
-	_ = CreateContainer(cfg, cfg.Podman.Create.Arguments)
+	_ = CreateContainer(cfg, cfg.Podman.CreateArgs)
 	// Verify the specific arguments - check each appears in the command
 	rec := mock.AssertExec("podman", "create", "<...>")
 	if rec != nil {

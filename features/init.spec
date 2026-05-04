@@ -53,8 +53,8 @@ Feature: silo init — Initialize workspace
         name = "my-shared"
         paths = ["$HOME/.cache/uv/"]
 
-        [podman.create]
-        arguments = ["--memory=2g"]
+        [podman]
+        create_args = ["--memory=2g"]
         """
       When I run `silo init`
       Then the workspace config should have shared_volume=true
@@ -91,8 +91,8 @@ Feature: silo init — Initialize workspace
     Scenario: silo.in.toml create arguments are prepended to default arguments
       Given the user's silo config directory has "silo.in.toml" with content:
         """
-        [podman.create]
-        arguments = ["--memory=2g"]
+        [podman]
+        create_args = ["--memory=2g"]
         """
       When I run `silo init`
       Then the workspace config should have 5 create arguments
@@ -292,8 +292,8 @@ Feature: silo init — Initialize workspace
       And the config has podman=false
       And the user's silo config directory has "silo.in.toml" with content:
         """
-        [podman.create]
-        arguments = ["--memory=2g"]
+        [podman]
+        create_args = ["--memory=2g"]
         """
       When I run `silo init --force`
       Then the workspace config should have 5 create arguments

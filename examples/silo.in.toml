@@ -10,5 +10,5 @@ paths = [
   "$HOME/.claude/"
 ]
 
-[podman.create]
-arguments = []
+[podman]
+create_args = []

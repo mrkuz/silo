@@ -140,7 +140,7 @@ func WorkspaceMountPath(cfg Config) (string, error) {
 }
 
 // ContainerArgs returns podman flags for container name, hostname, and basic settings.
-// Security and capability args are stored in [podman.create].arguments in silo.toml.
+// Security and capability args are stored in [podman].create_args in silo.toml.
 func ContainerArgs(cfg Config, containerNameSuffix ...string) []string {
 	suffix := ""
 	if len(containerNameSuffix) > 0 {

@@ -245,8 +245,8 @@ paths = [
     "$HOME/.cache/uv/",                      # persist and share directory (trailing /)
 ]
 
-[silo.create]
-arguments = [
+[podman]
+create_args = [
   "--cap-drop=ALL",
   "--cap-add=NET_BIND_SERVICE",
   "--security-opt",
@@ -275,11 +275,11 @@ arguments = [
 | `name` | `silo-shared` | Shared volume name. |
 | `paths` | `[]` | Paths inside the container backed by the shared volume. A trailing slash means directory; no trailing slash means file. `$HOME` is the only supported placeholder prefix. |
 
-**`[silo.create]`**
+**`[podman]`**
 
 | Key | Default | Description |
 |---|---|---|
-| `arguments` | computed | Arguments appended to `podman create`. Set by `silo init` based on enabled features. User-provided arguments in `silo.in.toml` are prepended. |
+| `create_args` | computed | Arguments appended to `podman create`. Set by `silo init` based on enabled features. User-provided arguments in `silo.in.toml` are prepended. |
 
 ### Workspace config: `.silo/home.nix`
 

@@ -157,12 +157,9 @@ func SetupUserConfig(t *testing.T) {
 // MinimalConfig returns a Config suitable for use in unit tests.
 func MinimalConfig(id string) Config {
 	return Config{
-		General: GeneralConfig{
-			ID:   id,
-			User: "testuser",
-		},
+		General:      GeneralConfig{ID: id, User: "testuser"},
 		Features:     FeaturesConfig{SharedVolume: false, Podman: false},
 		SharedVolume: SharedVolumeConfig{Paths: []string{}},
-		Podman:       PodmanConfig{Create: CreateConfig{Arguments: []string{}}},
+		Podman:       PodmanConfig{CreateArgs: []string{}},
 	}
 }

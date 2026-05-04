@@ -20,7 +20,7 @@ type Config struct {
 }
 
 type PodmanConfig struct {
-	Create CreateConfig `toml:"create"`
+	CreateArgs []string `toml:"create_args"`
 }
 
 type GeneralConfig struct {
@@ -36,10 +36,6 @@ type FeaturesConfig struct {
 type SharedVolumeConfig struct {
 	Name  string   `toml:"name"`
 	Paths []string `toml:"paths"`
-}
-
-type CreateConfig struct {
-	Arguments []string `toml:"arguments"`
 }
 
 // WorkspaceContainerName returns container name derived from id.
@@ -92,9 +88,7 @@ func DefaultConfig() (Config, error) {
 			Name:  "silo-shared",
 			Paths: []string{},
 		},
-		Podman: PodmanConfig{Create: CreateConfig{
-			Arguments: []string{},
-		}},
+		Podman: PodmanConfig{CreateArgs: []string{}},
 	}, nil
 }
 
@@ -161,8 +155,8 @@ func (c Config) SaveWorkspaceConfig() error {
 	if c.SharedVolume.Paths == nil {
 		c.SharedVolume.Paths = []string{}
 	}
-	if c.Podman.Create.Arguments == nil {
-		c.Podman.Create.Arguments = []string{}
+	if c.Podman.CreateArgs == nil {
+		c.Podman.CreateArgs = []string{}
 	}
 	enc := toml.NewEncoder(f)
 	enc.Indent = ""
@@ -408,7 +402,7 @@ func EnsureInit(podman *bool, sharedVolume *bool) (Config, bool, error) {
 		if sharedVolume != nil {
 			cfg.Features.SharedVolume = *sharedVolume
 		}
-		cfg.Podman.Create.Arguments = append(cfg.Podman.Create.Arguments, DefaultCreateArgs(cfg.Features.Podman)...)
+		cfg.Podman.CreateArgs = append(cfg.Podman.CreateArgs, DefaultCreateArgs(cfg.Features.Podman)...)
 		if err := cfg.SaveWorkspaceConfig(); err != nil {
 			return cfg, firstRun, fmt.Errorf("save workspace config: %w", err)
 		}
@@ -435,7 +429,7 @@ func EnsureCreated() (Config, error) {
 		return cfg, fmt.Errorf("build images: %w", err)
 	}
 	if !ContainerExists(WorkspaceContainerName(cfg.General.ID)) {
-		if err := CreateContainer(cfg, cfg.Podman.Create.Arguments); err != nil {
+		if err := CreateContainer(cfg, cfg.Podman.CreateArgs); err != nil {
 			return cfg, fmt.Errorf("create container: %w", err)
 		}
 	}
