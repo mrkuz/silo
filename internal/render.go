@@ -124,7 +124,7 @@ func NewTemplateContext(cfg Config, containerNameSuffix ...string) (TemplateCont
 	if len(containerNameSuffix) > 0 {
 		suffix = containerNameSuffix[0]
 	}
-	containerName := ContainerNameWithSuffix(WorkspaceContainerName(cfg.General.ID), suffix)
+	containerName := containerNameWithSuffix(WorkspaceContainerName(cfg.General.ID), suffix)
 	sharedVolumeNameValue := ""
 	if len(cfg.SharedVolume.Paths) > 0 {
 		sharedVolumeNameValue = cfg.GetSharedVolumeName()

@@ -116,3 +116,17 @@ Feature: silo (default invocation) — Run lifecycle and connect to the containe
       And the container "silo-abc12345" should be created
       And the container "silo-abc12345" should be running
       And volume setup should complete before the container starts
+
+  Rule: unknown command and flags show error and help
+
+    Scenario: unknown command shows error and help
+      When I run `silo nonsense`
+      Then the stderr should contain "silo: unknown command \"nonsense\""
+      And the stderr should contain "Usage:"
+      And the exit code should be 1
+
+    Scenario: unknown flag shows error and help
+      When I run `silo --unknown`
+      Then the stderr should contain "silo: unknown flag \"--unknown\""
+      And the stderr should contain "Usage:"
+      And the exit code should be 1

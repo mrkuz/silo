@@ -11,23 +11,19 @@ import (
 var commands = map[string]func([]string) error{
 	"init":                 cmd.Init,
 	"build":                cmd.Build,
-	"start":                withoutArgs(cmd.Start),
-	"volume setup":         withoutArgs(cmd.VolumeSetup),
-	"connect":              cmd.Connect,
-	"stop":                 withoutArgs(cmd.Stop),
+	"start":                cmd.NoArgs(cmd.Start),
+	"volume setup":         cmd.NoArgs(cmd.VolumeSetup),
+	"connect":              cmd.NoArgs(cmd.Connect),
+	"stop":                 cmd.NoArgs(cmd.Stop),
 	"rm":                   cmd.Remove,
-	"status":               withoutArgs(cmd.Status),
+	"status":               cmd.NoArgs(cmd.Status),
 	"user init":            cmd.UserInit,
 	"user build":           cmd.UserBuild,
-	"user rm":              withoutArgs(cmd.UserRm),
+	"user rm":              cmd.NoArgs(cmd.UserRm),
 	"devcontainer":         cmd.DevcontainerGenerate,
-	"devcontainer connect": withoutArgs(cmd.DevcontainerConnect),
-	"devcontainer stop":    withoutArgs(cmd.DevcontainerStop),
-	"devcontainer status":  withoutArgs(cmd.DevcontainerStatus),
-}
-
-func withoutArgs(f func() error) func([]string) error {
-	return func(_ []string) error { return f() }
+	"devcontainer connect": cmd.NoArgs(cmd.DevcontainerConnect),
+	"devcontainer stop":    cmd.NoArgs(cmd.DevcontainerStop),
+	"devcontainer status":  cmd.NoArgs(cmd.DevcontainerStatus),
 }
 
 func main() {
@@ -53,11 +49,14 @@ func main() {
 		case "help", "--help", "-h":
 			cmd.Help()
 			return
-		default:
-			if arg[0] != '-' {
-				fmt.Fprintf(os.Stderr, "silo: unknown command %q\n\n%s\n", arg, cmd.HelpText)
-				os.Exit(1)
+		case "--stop":
+			if err := cmd.Run(os.Args[1:]); err != nil {
+				fatal(err)
 			}
+			return
+		default:
+			fatal(cmd.ErroneousCommand())
+			return
 		}
 	}
 	if err := cmd.Run(os.Args[1:]); err != nil {

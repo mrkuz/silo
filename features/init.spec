@@ -32,10 +32,23 @@ Feature: silo init — Initialize workspace
       Then the config should still have id "abc12345"
       And the exit code should be 0
 
+    Scenario: unknown flag shows error and help
+      When I run `silo init --unknown`
+      Then the stderr should contain "silo: unknown flag \"--unknown\""
+      And the stderr should contain "Usage:"
+      And the exit code should be 1
+
     Scenario: existing podman setting is preserved when flag not provided
       Given a workspace with silo config "abc12345"
       And the config has podman=true
       When I run `silo init`
+      Then the config should still have podman=true
+      And the exit code should be 0
+
+    Scenario: existing podman setting is preserved when flag provided
+      Given a workspace with silo config "abc12345"
+      And the config has podman=true
+      When I run `silo init --no-podman`
       Then the config should still have podman=true
       And the exit code should be 0
 
@@ -122,110 +135,12 @@ Feature: silo init — Initialize workspace
       Then the workspace config should have podman=false
       And the exit code should be 0
 
-  Rule: Feature flags are ignored on subsequent runs without --force
-
-    Scenario: --podman does not modify config on subsequent run
-      Given a workspace with silo config "abc12345"
-      And the config has podman=false
-      When I run `silo init --podman`
-      Then the config should have podman=false
-      And the exit code should be 0
-
-    Scenario: --no-podman does not modify config on subsequent run
-      Given a workspace with silo config "abc12345"
-      And the config has podman=true
-      When I run `silo init --no-podman`
-      Then the config should have podman=true
-      And the exit code should be 0
-
-  Rule: Explicit flags only affect config with --force
-
-    Scenario: --podman enables podman feature only with --force
-      Given a workspace with silo config "abc12345"
-      And the config has podman=false
-      When I run `silo init --force --podman`
-      Then the config should have podman=true
-      And the exit code should be 0
-
-    Scenario: --no-podman disables podman feature only with --force
-      Given a workspace with silo config "abc12345"
-      And the config has podman=true
-      When I run `silo init --force --no-podman`
-      Then the config should have podman=false
-      And the exit code should be 0
-
-    Scenario: --podman flag overrides seeded config from silo.in.toml only with --force
-      Given the user's silo config directory has "silo.in.toml" with content:
-        """
-        [features]
-        podman = true
-        """
-      And a clean workspace with no existing silo files
-      When I run `silo init --force --no-podman`
-      Then the workspace config should have podman=false
-      And the exit code should be 0
-
-  Rule: Podman flag affects workspace home.nix only with --force
-
-    Scenario: --podman adds podman module to home.nix only with --force
-      Given a clean workspace with no existing silo files
-      When I run `silo init --force --podman`
-      Then the file ".silo/home.nix" should contain "silo.podman.enable = true"
-      And the exit code should be 0
-
-    Scenario: --no-podman does not add podman module to home.nix only with --force
-      Given a clean workspace with no existing silo files
-      When I run `silo init --force --no-podman`
-      Then the file ".silo/home.nix" should not contain "silo.podman.enable = true"
-      And the exit code should be 0
-
   Rule: Conflicting flags use last value
 
     Scenario: both --podman and --no-podman uses last flag
       When I run `silo init --podman --no-podman`
       Then the config should have podman=false
       And the exit code should be 0
-
-  Rule: --force overwrites existing workspace files
-
-    Scenario: init --force rewrites existing silo.toml and home.nix
-      Given a workspace with silo config "abc12345"
-      And the user image "silo-alice" exists
-      When I run `silo init --force`
-      Then the workspace file ".silo/silo.toml" should be overwritten
-      And the workspace file ".silo/home.nix" should be overwritten
-      But the config "[general]" section should be preserved
-      And the user file "$XDG_CONFIG_HOME/silo/home.user.nix" should not be overwritten
-
-    Scenario: init --force seeds non-[general] from silo.in.toml
-      Given a workspace with silo config "abc12345"
-      And the config has podman=false
-      And the user's silo config directory has "silo.in.toml" with content:
-        """
-        [features]
-        podman = true
-
-        [shared_volume]
-        name = "my-shared"
-        paths = ["$HOME/.cache/uv/"]
-        """
-      When I run `silo init --force`
-      Then the config should have podman=true
-      And the config should have shared_volume name "my-shared"
-      And the config should still have id "abc12345"
-
-    Scenario: init --force adds default create arguments
-      Given a workspace with silo config "abc12345"
-      And the config has podman=false
-      And the user's silo config directory has "silo.in.toml" with content:
-        """
-        [podman]
-        create_args = ["--memory=2g"]
-        """
-      When I run `silo init --force`
-      Then the workspace config should have 5 create arguments
-      And the first create argument should be "--memory=2g"
-      And the second create argument should be "--cap-drop=ALL"
 
   Rule: Display of file status during init
 

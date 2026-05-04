@@ -23,6 +23,7 @@ in
       ncdu
       pstree
       pwgen
+      python3
       rsync
       socat
       tree

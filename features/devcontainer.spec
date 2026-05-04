@@ -36,6 +36,12 @@ Feature: silo devcontainer — Generate a .devcontainer.json for VS Code
       And the output should contain "Generated .devcontainer.json"
       And the exit code should be 0
 
+    Scenario: unknown flag shows error and help
+      When I run `silo devcontainer --unknown`
+      Then the stderr should contain "silo: unknown flag \"--unknown\""
+      And the stderr should contain "Usage:"
+      And the exit code should be 1
+
     Scenario: devcontainer uses the workspace image
       Given the workspace image "silo-abc12345" exists
       When I run `silo devcontainer`

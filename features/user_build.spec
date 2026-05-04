@@ -70,3 +70,9 @@ Feature: silo user build — Build the shared user image
       When I run `silo user build --force`
       Then the user image "silo-alice" should be built
       And podman build should be called with "--no-cache" for the user image
+
+    Scenario: unknown flag shows error and help
+      When I run `silo user build --unknown`
+      Then the stderr should contain "silo: unknown flag \"--unknown\""
+      And the stderr should contain "Usage:"
+      And the exit code should be 1

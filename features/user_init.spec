@@ -49,14 +49,3 @@ Feature: silo user init — Create user starter files
       Then the output should contain "'<XDG_CONFIG_HOME>/silo/home.user.nix' already exists"
       And the output should contain "'<XDG_CONFIG_HOME>/silo/devcontainer.in.json' already exists"
       And the output should contain "'<XDG_CONFIG_HOME>/silo/silo.in.toml' already exists"
-
-  Rule: --force overwrites existing user files
-
-    Scenario: user init --force overwrites existing user files
-      Given the user's silo config directory already has all starter files
-      And the user's silo config directory has "home.user.nix" with content "# custom content"
-      When I run `silo user init --force`
-      Then the file "home.user.nix" in the user's silo config directory should contain the default content
-      And the file "devcontainer.in.json" in the user's silo config directory should contain the default content
-      And the file "silo.in.toml" in the user's silo config directory should contain the default content
-      And the exit code should be 0

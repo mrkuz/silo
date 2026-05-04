@@ -78,3 +78,9 @@ Feature: silo rm — Remove the workspace image
       When I run `silo rm`
       Then podman should run "rmi" on "silo-abc12345"
       But podman should not run "rmi" on "silo-alice"
+
+    Scenario: unknown flag shows error and help
+      When I run `silo rm --unknown`
+      Then the stderr should contain "silo: unknown flag \"--unknown\""
+      And the stderr should contain "Usage:"
+      And the exit code should be 1

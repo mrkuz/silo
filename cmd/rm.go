@@ -8,9 +8,9 @@ import (
 
 // Remove implements `silo rm [--force]`.
 func Remove(args []string) error {
-	force, err := ParseRemoveFlags(args)
+	force, err := ParseRemoveFlags("rm", args)
 	if err != nil {
-		return fmt.Errorf("parse rm flags: %w", err)
+		return err
 	}
 	cfg, err := internal.RequireWorkspaceConfig()
 	if err != nil {
@@ -41,4 +41,18 @@ func Remove(args []string) error {
 		internal.PrintNotFound(imageName)
 	}
 	return nil
+}
+
+// ParseRemoveFlags parses the flags for `silo rm`.
+func ParseRemoveFlags(cmdName string, args []string) (bool, error) {
+	fs := NewFlagSet("silo rm")
+	force := fs.Bool("force", false, "Stop and remove the container before removing the image")
+	forceShort := fs.Bool("f", false, "")
+	if err := parseWithInterceptor(fs, args); err != nil {
+		return false, err
+	}
+	if len(fs.Args()) > 0 {
+		return false, ErroneousCommand()
+	}
+	return *force || *forceShort, nil
 }

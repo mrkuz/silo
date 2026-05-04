@@ -157,41 +157,4 @@ func TestFeatureUserInit(t *testing.T) {
 			}
 		})
 	})
-
-	t.Run("Rule: --force overwrites existing user files", func(t *testing.T) {
-		t.Run("Scenario: user init --force overwrites existing user files", func(t *testing.T) {
-			internal.FirstRunWith(t, func(siloUser string) {
-				internal.WriteUserFile(t, siloUser, "home.user.nix", "# custom content")
-				internal.WriteUserFile(t, siloUser, "devcontainer.in.json", `{ "custom": true }`)
-				internal.WriteUserFile(t, siloUser, "silo.in.toml", "[features]")
-			})
-
-			// When I run `silo user init --force`
-			if err := cmd.UserInit([]string{"--force"}); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			// Then the file "home.user.nix" in the user's silo config directory should contain the default content
-			xdgConfigHome := os.Getenv("XDG_CONFIG_HOME")
-			siloDir := filepath.Join(xdgConfigHome, "silo")
-			for _, tc := range []struct {
-				name        string
-				expect      string
-			}{
-				{"home.user.nix", "{ config, pkgs, ..."},
-				{"devcontainer.in.json", "{}\n"},
-				{"silo.in.toml", ""},
-			} {
-				data, err := os.ReadFile(filepath.Join(siloDir, tc.name))
-				if err != nil {
-					t.Errorf("failed to read %s: %v", tc.name, err)
-					continue
-				}
-				if tc.expect != "" && !strings.Contains(string(data), tc.expect) {
-					t.Errorf("expected %s to contain %q after --force, got %q", tc.name, tc.expect, string(data))
-				}
-			}
-			// And the exit code should be 0
-		})
-	})
 }

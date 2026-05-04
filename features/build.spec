@@ -96,3 +96,9 @@ Feature: silo build — Build workspace images
       When I run `silo build --force`
       Then the exit code should not be 0
       And the error should contain "exists"
+
+    Scenario: unknown flag shows error and help
+      When I run `silo build --unknown`
+      Then the stderr should contain "silo: unknown flag \"--unknown\""
+      And the stderr should contain "Usage:"
+      And the exit code should be 1

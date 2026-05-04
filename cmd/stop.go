@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"flag"
 	"fmt"
 
 	"github.com/mrkuz/silo/internal"
@@ -30,16 +29,4 @@ func Stop() error {
 		return fmt.Errorf("remove container: %w", err)
 	}
 	return nil
-}
-
-// ParseRemoveFlags parses the flags for `silo rm`.
-func ParseRemoveFlags(args []string) (bool, error) {
-	fs := flag.NewFlagSet("silo rm", flag.ContinueOnError)
-	force := fs.Bool("force", false, "Stop and remove the container before removing the image")
-	forceShort := fs.Bool("f", false, "")
-	fs.Usage = func() {}
-	if err := fs.Parse(args); err != nil {
-		return false, fmt.Errorf("parse rm flags: %w", err)
-	}
-	return *force || *forceShort, nil
 }

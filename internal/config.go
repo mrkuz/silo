@@ -306,8 +306,7 @@ func InitWorkspaceConfig() (Config, bool, error) {
 }
 
 // EnsureUserFiles creates user starter files if they do not exist.
-// If force is true, existing files are overwritten.
-func EnsureUserFiles(force bool) error {
+func EnsureUserFiles() error {
 	files, err := UserStarterFiles()
 	if err != nil {
 		return err
@@ -316,14 +315,8 @@ func EnsureUserFiles(force bool) error {
 		if err := os.MkdirAll(filepath.Dir(f.Path), 0755); err != nil {
 			return fmt.Errorf("create directory for file: %w", err)
 		}
-		if force {
-			if err := os.WriteFile(f.Path, f.Content, 0644); err != nil {
-				return fmt.Errorf("write file: %w", err)
-			}
-		} else {
-			if err := EnsureFile(f.Path, f.Content); err != nil {
-				return err
-			}
+		if err := EnsureFile(f.Path, f.Content); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -389,7 +382,7 @@ func EnsureInit(podman *bool) (Config, bool, error) {
 	if err := EnsureWorkspaceFiles(podman != nil && *podman); err != nil {
 		return cfg, firstRun, fmt.Errorf("ensure workspace files: %w", err)
 	}
-	if err := EnsureUserFiles(false); err != nil {
+	if err := EnsureUserFiles(); err != nil {
 		return cfg, firstRun, fmt.Errorf("ensure user files: %w", err)
 	}
 	if firstRun {

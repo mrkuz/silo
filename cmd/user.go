@@ -9,7 +9,10 @@ import (
 
 // UserBuild implements `silo user build`. Builds the user image if missing.
 func UserBuild(args []string) error {
-	force, _ := ParseForceFlag(args)
+	force, _, err := ParseForceFlag("user build", args)
+	if err != nil {
+		return err
+	}
 	u, err := user.Current()
 	if err != nil {
 		return fmt.Errorf("get current user: %w", err)
@@ -23,7 +26,7 @@ func UserBuild(args []string) error {
 	if err != nil {
 		return fmt.Errorf("build template context: %w", err)
 	}
-	if err := internal.EnsureUserFiles(false); err != nil {
+	if err := internal.EnsureUserFiles(); err != nil {
 		return fmt.Errorf("ensure user files: %w", err)
 	}
 	if !force && internal.ImageExists(tc.BaseImage) {
@@ -40,8 +43,6 @@ func UserBuild(args []string) error {
 // (for existing and new files) and delegates the actual
 // file creation to EnsureUserFiles.
 func UserInit(args []string) error {
-	force, _ := ParseForceFlag(args)
-
 	files, err := internal.UserStarterFiles()
 	if err != nil {
 		return fmt.Errorf("list user starter files: %w", err)
@@ -51,7 +52,7 @@ func UserInit(args []string) error {
 			return err
 		}
 	}
-	if err := internal.EnsureUserFiles(force); err != nil {
+	if err := internal.EnsureUserFiles(); err != nil {
 		return fmt.Errorf("ensure user files: %w", err)
 	}
 	return nil

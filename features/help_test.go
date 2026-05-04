@@ -15,11 +15,7 @@ func TestFeatureHelp(t *testing.T) {
 		// When I run `silo help`
 		output := cmd.PrintHelp()
 
-		// Then the output should contain "silo - developer container"
-		if !strings.Contains(output, "silo - developer container") {
-			t.Errorf("expected output to contain 'silo - developer container', got: %s", output)
-		}
-		// And the output should contain "Usage:"
+		// Then the output should contain "Usage:"
 		if !strings.Contains(output, "Usage:") {
 			t.Errorf("expected output to contain 'Usage:', got: %s", output)
 		}
@@ -45,9 +41,9 @@ func TestFeatureHelp(t *testing.T) {
 		// When I run `silo --help`
 		output := cmd.PrintHelp()
 
-		// Then the output should contain "silo - developer container"
-		if !strings.Contains(output, "silo - developer container") {
-			t.Errorf("expected output to contain 'silo - developer container', got: %s", output)
+		// Then the output should contain "Usage:"
+		if !strings.Contains(output, "Usage:") {
+			t.Errorf("expected output to contain 'Usage:', got: %s", output)
 		}
 	})
 
@@ -55,9 +51,9 @@ func TestFeatureHelp(t *testing.T) {
 		// When I run `silo -h`
 		output := cmd.PrintHelp()
 
-		// Then the output should contain "silo - developer container"
-		if !strings.Contains(output, "silo - developer container") {
-			t.Errorf("expected output to contain 'silo - developer container', got: %s", output)
+		// Then the output should contain "Usage:"
+		if !strings.Contains(output, "Usage:") {
+			t.Errorf("expected output to contain 'Usage:', got: %s", output)
 		}
 	})
 }

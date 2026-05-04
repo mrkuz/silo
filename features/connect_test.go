@@ -38,7 +38,7 @@ func TestFeatureConnect(t *testing.T) {
 			// Then podman should run "exec" with "-ti" on "silo-abc12345"
 			// And the command should be "sh -c $HOME/.nix-profile/bin/default-shell"
 			// And the exit code should be 0
-			err := cmd.Connect(nil)
+			err := cmd.Connect()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -64,7 +64,7 @@ func TestFeatureConnect(t *testing.T) {
 			})
 
 			// When I run `silo connect`
-			output := internal.CaptureStdout(func() { cmd.Connect(nil) })
+			output := internal.CaptureStdout(func() { cmd.Connect() })
 
 			// Then the output should contain "Connecting to silo-abc12345..."
 			if !strings.Contains(output, "Connecting to silo-abc12345...") {
@@ -90,7 +90,7 @@ func TestFeatureConnect(t *testing.T) {
 			})
 
 			// When I run `silo connect`
-			err := cmd.Connect(nil)
+			err := cmd.Connect()
 			if err == nil {
 				t.Fatal("expected error when container is not running")
 			}
@@ -116,7 +116,7 @@ func TestFeatureConnect(t *testing.T) {
 			})
 
 			// When I run `silo connect`
-			err := cmd.Connect(nil)
+			err := cmd.Connect()
 			if err == nil {
 				t.Fatal("expected error when container does not exist")
 			}
@@ -144,7 +144,7 @@ func TestFeatureConnect(t *testing.T) {
 
 			// When I run `silo connect`
 			// And the interactive session ends
-			err := cmd.Connect(nil)
+			err := cmd.Connect()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -173,7 +173,7 @@ func TestFeatureConnect(t *testing.T) {
 			})
 
 			// When I run `silo connect` and `silo connect` in parallel
-			err := cmd.Connect(nil)
+			err := cmd.Connect()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -191,7 +191,7 @@ func TestFeatureConnect(t *testing.T) {
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
 			})
 
-			err = cmd.Connect(nil)
+			err = cmd.Connect()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}

@@ -7,10 +7,7 @@ import (
 )
 
 // Connect opens an interactive shell in the running container.
-func Connect(args []string) error {
-	if len(args) > 0 {
-		return fmt.Errorf("connect does not take arguments")
-	}
+func Connect() error {
 	cfg, err := internal.RequireWorkspaceConfig()
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)

@@ -120,7 +120,6 @@ Initialize workspace files. Creates `.silo/silo.toml` and `.silo/home.nix`, then
 |---|---|
 | `--podman` | Enable Podman inside the container |
 | `--no-podman` | Disable Podman inside the container |
-| `-f`, `--force` | Overwrite existing workspace files |
 
 ### `silo build`
 
@@ -162,10 +161,6 @@ Create user starter files under `$XDG_CONFIG_HOME/silo/` if they do not exist:
 - `silo.in.toml` — default values for new workspaces
 - `devcontainer.in.json` — merged into every generated `.devcontainer.json`
 
-| Flag | Description |
-|---|---|
-| `-f`, `--force` | Overwrite existing user files |
-
 ### `silo user build`
 
 Build the user image if it does not exist yet. The user image is shared across all workspaces.
@@ -193,10 +188,6 @@ Generate a `.devcontainer.json` for VS Code in the current host directory. Does 
 ### `silo devcontainer stop`
 
 Stop and remove the devcontainer (immediate, no grace period).
-
-| Flag | Description |
-|---|---|
-| `--force`, `-f` | Stop the container if it is running before removing |
 
 ### `silo devcontainer status`
 

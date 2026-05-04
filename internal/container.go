@@ -121,14 +121,6 @@ func ConnectContainer(name string) error {
 	return nil
 }
 
-// ContainerNameWithSuffix returns baseName with suffix appended if non-empty.
-func ContainerNameWithSuffix(baseName, suffix string) string {
-	if suffix == "" {
-		return baseName
-	}
-	return baseName + suffix
-}
-
 // WorkspaceMountPath returns the container-side mount path for the current working directory.
 func WorkspaceMountPath(cfg Config) (string, error) {
 	cwd, err := os.Getwd()
@@ -139,6 +131,14 @@ func WorkspaceMountPath(cfg Config) (string, error) {
 	return fmt.Sprintf("/workspace/%s/%s", cfg.General.ID, dirName), nil
 }
 
+// containerNameWithSuffix returns baseName with suffix appended if non-empty.
+func containerNameWithSuffix(baseName, suffix string) string {
+	if suffix == "" {
+		return baseName
+	}
+	return baseName + suffix
+}
+
 // ContainerArgs returns podman flags for container name, hostname, and basic settings.
 // Security and capability args are stored in [podman].create_args in silo.toml.
 func ContainerArgs(cfg Config, containerNameSuffix ...string) []string {
@@ -146,7 +146,7 @@ func ContainerArgs(cfg Config, containerNameSuffix ...string) []string {
 	if len(containerNameSuffix) > 0 {
 		suffix = containerNameSuffix[0]
 	}
-	containerName := ContainerNameWithSuffix(WorkspaceContainerName(cfg.General.ID), suffix)
+	containerName := containerNameWithSuffix(WorkspaceContainerName(cfg.General.ID), suffix)
 
 	args := []string{"--name", containerName, "--hostname", containerName}
 	args = append(args, "--user", cfg.General.User)

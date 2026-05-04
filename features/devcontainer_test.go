@@ -147,6 +147,28 @@ func TestFeatureDevcontainer(t *testing.T) {
 			}
 		})
 
+		t.Run("Scenario: unknown flag shows error and help", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			internal.SetupWorkspace(t, cfg)
+			internal.SetupUserConfig(t)
+
+			// When I run `silo devcontainer --unknown`
+			err := cmd.DevcontainerGenerate([]string{"--unknown"})
+
+			// Then the exit code should not be 0
+			if err == nil {
+				t.Fatal("expected error for unknown flag")
+			}
+			// And the error should contain "erroneous command"
+			if !strings.Contains(err.Error(), `erroneous command`) {
+				t.Errorf("expected erroneous command error, got: %v", err)
+			}
+			// And the error should contain the help text
+			if !strings.Contains(err.Error(), "Usage:") {
+				t.Errorf("expected help text in error, got: %v", err)
+			}
+		})
+
 		t.Run("Scenario: devcontainer runs volume setup before generating when shared volume is configured", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
 			cfg.General.User = "alice"

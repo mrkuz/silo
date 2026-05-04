@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"flag"
 	"fmt"
 
 	"github.com/mrkuz/silo/internal"
@@ -11,7 +10,7 @@ import (
 func Run(args []string) error {
 	flags, err := ParseRunFlags(args)
 	if err != nil {
-		return fmt.Errorf("parse run flags: %w", err)
+		return err
 	}
 	cfg, err := internal.EnsureStarted()
 	if err != nil {
@@ -38,14 +37,13 @@ type RunFlags struct {
 
 // ParseRunFlags parses the flags for the default run command.
 func ParseRunFlags(args []string) (RunFlags, error) {
-	fs := flag.NewFlagSet("silo", flag.ContinueOnError)
+	fs := NewFlagSet("silo")
 	stop := fs.Bool("stop", false, "Stop and remove the container when the session exits")
-	fs.Usage = func() {} // suppress; handled by main helpText
-	if err := fs.Parse(args); err != nil {
-		return RunFlags{}, fmt.Errorf("parse run flags: %w", err)
+	if err := parseWithInterceptor(fs, args); err != nil {
+		return RunFlags{}, err
 	}
 	if len(fs.Args()) > 0 {
-		return RunFlags{}, fmt.Errorf("unexpected arguments: %v", fs.Args())
+		return RunFlags{}, ErroneousCommand()
 	}
 	return RunFlags{Stop: *stop}, nil
 }
