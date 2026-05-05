@@ -92,7 +92,7 @@ silo start
 silo volume setup
 silo connect
 silo stop
-silo rm [-f|--force]
+silo rm
 silo status
 silo user init
 silo user build [-f|--force]
@@ -147,11 +147,7 @@ Stop and remove the running container (immediate, no grace period).
 
 ### `silo rm`
 
-Remove the workspace image. With `--force`, also stops and removes the container first.
-
-| Flag | Description |
-|---|---|
-| `-f`, `--force` | Stop and remove the container before removing the image |
+Remove the workspace image. If the container exists and is stopped, it is removed first. Returns an error if the container is running; in that case neither the container nor the image is modified.
 
 ### `silo user init`
 

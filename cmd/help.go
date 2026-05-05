@@ -11,12 +11,12 @@ const HelpText = `Usage:
   silo volume setup
   silo connect
   silo stop
-  silo rm [-f|--force]
+  silo rm
   silo status
   silo user init
   silo user build [-f|--force]
   silo user rm
-  silo devcontainer
+  silo devcontainer [-f|--force]
   silo devcontainer connect
   silo devcontainer stop
   silo devcontainer status
@@ -35,7 +35,6 @@ Commands:
   connect               Connect to the silo container
   stop                  Stop and remove the running container
   rm                    Remove the workspace image
-    -f, --force           Stop and remove the container before removing the image
   status                Print container status
   user init             Create user files
   user build            Build the user image

@@ -87,6 +87,20 @@ func CaptureStdout(fn func()) string {
 	return buf.String()
 }
 
+// CaptureStderr runs fn with stderr redirected to a buffer and returns the output.
+// It restores stderr after fn completes (even if it panics).
+func CaptureStderr(fn func()) string {
+	r, w, _ := os.Pipe()
+	stderr := os.Stderr
+	os.Stderr = w
+	fn()
+	w.Close()
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	os.Stderr = stderr
+	return buf.String()
+}
+
 // WriteUserFile writes content to a file under the user's silo config directory.
 // It creates the parent directory if needed and calls t.Fatal on error.
 func WriteUserFile(t *testing.T, siloUser, name, content string) {

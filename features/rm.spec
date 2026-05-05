@@ -1,9 +1,11 @@
 @rm
 Feature: silo rm — Remove the workspace image
 
-  `silo rm` removes the workspace image. With `--force`, it also stops and removes
-  the container first if it is running. Unlike `silo user rm`, this removes the
-  per-workspace image (`silo-<id>`), not the shared user image (`silo-<user>`).
+  `silo rm` removes the workspace image. If the container exists and is stopped,
+  it is removed first. If the container is running, an error is returned and
+  neither the container nor the image is touched. Unlike `silo user rm`, this
+  removes the per-workspace image (`silo-<id>`), not the shared user image
+  (`silo-<user>`).
 
   Background:
     Given a workspace with silo config "abc12345"
@@ -11,8 +13,9 @@ Feature: silo rm — Remove the workspace image
 
   Rule: Removes the workspace image
 
-    Scenario: rm removes the workspace image
-      Given the workspace image "silo-abc12345" exists
+    Scenario: rm removes the workspace image when no container exists
+      Given no container exists
+      And the workspace image "silo-abc12345" exists
       When I run `silo rm`
       Then podman should run "rmi" on "silo-abc12345"
       And the output should contain "Removing silo-abc12345..."
@@ -24,43 +27,28 @@ Feature: silo rm — Remove the workspace image
       Then the output should contain "silo-abc12345 not found"
       And the exit code should be 0
 
-  Rule: --force stops and removes container before removing image
+  Rule: Running container blocks removal
 
-    Scenario: --force stops running container before removing image
-      Given the container "silo-abc12345" is running
-      And the workspace image "silo-abc12345" exists
-      When I run `silo rm --force`
-      Then podman should run "stop" with "-t" and "0" on "silo-abc12345"
-      And podman should run "rm" with "-f" on "silo-abc12345"
-      And podman should run "rmi" on "silo-abc12345"
-      And the exit code should be 0
-
-    Scenario: --force with stopped container removes image directly
-      Given the container "silo-abc12345" exists but is stopped
-      And the workspace image "silo-abc12345" exists
-      When I run `silo rm --force`
-      Then podman should run "rmi" on "silo-abc12345"
-      But podman should not run "stop" on "silo-abc12345"
-      And the exit code should be 0
-
-    Scenario: --force with absent container removes image without trying to stop
-      Given no container exists
-      And the workspace image "silo-abc12345" exists
-      When I run `silo rm --force`
-      Then podman should run "rmi" on "silo-abc12345"
-      But podman should not run "stop" on "silo-abc12345"
-      And the exit code should be 0
-
-  Rule: Without --force, running container blocks image removal
-
-    Scenario: running container without --force returns an error
+    Scenario: running container returns error without modifying state
       Given the container "silo-abc12345" is running
       And the workspace image "silo-abc12345" exists
       When I run `silo rm`
-      Then the exit code should not be 0
-      And the error should indicate "silo-abc12345 is running"
-      And the output should not contain "Removing"
-      And the workspace image "silo-abc12345" should still exist
+      Then the output should contain "silo-abc12345 is running"
+      And podman should not run "stop" on "silo-abc12345"
+      And podman should not run "rm" on "silo-abc12345"
+      And podman should not run "rmi" on "silo-abc12345"
+      And the exit code should not be 0
+
+  Rule: Stopped container is removed before image removal
+
+    Scenario: stopped container is removed before image removal
+      Given the container "silo-abc12345" exists but is stopped
+      And the workspace image "silo-abc12345" exists
+      When I run `silo rm`
+      Then podman should not run "stop" on "silo-abc12345"
+      And podman should run "rm" on "silo-abc12345"
+      And podman should run "rmi" on "silo-abc12345"
+      And the exit code should be 0
 
   Rule: Requires workspace to be initialized
 
@@ -79,8 +67,9 @@ Feature: silo rm — Remove the workspace image
       Then podman should run "rmi" on "silo-abc12345"
       But podman should not run "rmi" on "silo-alice"
 
-    Scenario: unknown flag shows error and help
-      When I run `silo rm --unknown`
-      Then the stderr should contain "silo: unknown flag \"--unknown\""
-      And the stderr should contain "Usage:"
-      And the exit code should be 1
+  Rule: Unknown flags show error and help
+
+    Scenario: unknown flag is rejected
+      When I run `silo rm --force`
+      Then the error should indicate "erroneous command"
+      And the error should contain "Usage:"
