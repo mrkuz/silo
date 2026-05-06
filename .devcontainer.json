@@ -21,7 +21,10 @@
   "mounts": [
     "type=volume,source=silo-shared,target=/home/markus/.local/share/fish/fish_history,subpath=home/markus/.local/share/fish/fish_history,z",
     "type=volume,source=silo-shared,target=/home/markus/.claude.json,subpath=home/markus/.claude.json,z",
-    "type=volume,source=silo-shared,target=/home/markus/.claude,subpath=home/markus/.claude,z"
+    "type=volume,source=silo-shared,target=/home/markus/.claude,subpath=home/markus/.claude,z",
+    "type=volume,source=silo-shared,target=/home/markus/.cache/opencode,subpath=home/markus/.cache/opencode,z",
+    "type=volume,source=silo-shared,target=/home/markus/.local/share/opencode,subpath=home/markus/.local/share/opencode,z",
+    "type=volume,source=silo-shared,target=/home/markus/.local/state/opencode,subpath=home/markus/.local/state/opencode,z"
   ],
   "name": "silo-xqmrs9xj-dev",
   "overrideCommand": true,

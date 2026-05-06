@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 let
   vars = {
     gitUserName = "mrkuz";
@@ -48,6 +48,7 @@ in
     fzf.enable = true;
     htop.enable = true;
     jq.enable = true;
+    less.enable = true;
     ripgrep.enable = true;
   };
 
@@ -108,8 +109,20 @@ in
     };
   };
 
-  programs.claude-code = {
+  programs.mise = {
     enable = true;
-    package = pkgs.claude-code;
+    globalConfig = {
+      tools = {
+        claude-code = "latest";
+        copilot-cli = "latest";
+        opencode = "latest";
+      };
+    };
+  };
+
+  home.activation = {
+    mise = lib.hm.dag.entryAfter ["writeBoundary"] ''
+      ${pkgs.mise}/bin/mise install
+    '';
   };
 }

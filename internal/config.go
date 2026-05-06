@@ -430,8 +430,12 @@ func EnsureStarted() (Config, error) {
 		return cfg, fmt.Errorf("create container: %w", err)
 	}
 	if !ContainerRunning(WorkspaceContainerName(cfg.General.ID)) {
-		if _, err := VolumeSetup(cfg); err != nil {
+		performed, err := VolumeSetup(cfg)
+		if err != nil {
 			return cfg, err
+		}
+		if performed {
+			fmt.Println("Volume setup complete")
 		}
 		if err := StartContainer(WorkspaceContainerName(cfg.General.ID)); err != nil {
 			return cfg, fmt.Errorf("start container: %w", err)

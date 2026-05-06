@@ -17,7 +17,7 @@ func VolumeSetup() error {
 		return fmt.Errorf("volume setup: %w", err)
 	}
 	if performed {
-		fmt.Println("volume setup complete")
+		fmt.Println("Volume setup complete")
 	}
 	return nil
 }

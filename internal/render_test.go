@@ -72,8 +72,8 @@ func TestRenderContainerfileUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(out)
-	if !strings.Contains(s, "FROM alpine") {
-		t.Error("expected FROM alpine in Containerfile.user output")
+	if !strings.Contains(s, "FROM fedora") {
+		t.Error("expected FROM fedora in Containerfile.user output")
 	}
 	if !strings.Contains(s, "alice") {
 		t.Error("expected user alice in Containerfile.user output")

@@ -6,7 +6,10 @@ name  = "silo-shared"
 paths = [
   "$HOME/.local/share/fish/fish_history",
   "$HOME/.claude.json",
-  "$HOME/.claude/"
+  "$HOME/.claude/",
+  "$HOME/.cache/opencode/",
+  "$HOME/.local/share/opencode/",
+  "$HOME/.local/state/opencode/"
 ]
 
 [podman]

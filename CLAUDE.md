@@ -67,7 +67,7 @@ Note: `start` internally calls `EnsureCreated` (which creates the container if n
 **Templates** in `templates/` are rendered using `text/template`. Path resolution uses `runtime.Caller(0)` to find the module root for both development and test execution.
 
 **Two-stage image build:**
-1. User image (`silo-<user>`): Alpine + Nix + home-manager, shared across workspaces
+1. User image (`silo-<user>`): Fedora + Nix + home-manager, shared across workspaces
 2. Workspace image (`silo-<id>`): Layered on user image with workspace-specific `home.nix`
 
 **Shared volume:** The `silo-shared` named volume is mounted as subpath volumes at container paths (e.g., `/home/<user>/.cache/uv`). Paths in `[shared_volume]` are created on the volume before container start via `VolumeSetup`.

@@ -146,7 +146,7 @@ func TestBuildContainerArgsSharedVolume(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	joined := strings.Join(args, " ")
-	if !strings.Contains(joined, "--mount type=volume,source=silo-shared,target=/home/alice/.cache/uv,subpath=home/alice/.cache/uv,Z") {
+	if !strings.Contains(joined, "--mount type=volume,source=silo-shared,target=/home/alice/.cache/uv,subpath=home/alice/.cache/uv,z") {
 		t.Errorf("expected subpath volume mount in args: %v", args)
 	}
 }

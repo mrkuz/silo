@@ -183,7 +183,7 @@ func BuildContainerArgs(cfg Config) ([]string, error) {
 		}
 		// subpath is the path within the volume (without leading /)
 		subpath := strings.TrimPrefix(containerPath, "/")
-		args = append(args, "--mount", fmt.Sprintf("type=volume,source=%s,target=%s,subpath=%s,Z", cfg.GetSharedVolumeName(), containerPath, subpath))
+		args = append(args, "--mount", fmt.Sprintf("type=volume,source=%s,target=%s,subpath=%s,z", cfg.GetSharedVolumeName(), containerPath, subpath))
 	}
 
 	return args, nil
