@@ -93,7 +93,7 @@ func TestTOMLEmptyCreateArgs(t *testing.T) {
 	cfg := Config{
 		General:      GeneralConfig{ID: "x", User: "u"},
 		Features:     FeaturesConfig{Podman: false},
-		SharedVolume: SharedVolumeConfig{Name: "silo-shared", Paths: []string{}},
+		SharedVolume: SharedVolumeConfig{Paths: []string{}},
 	}
 
 	f, err := os.CreateTemp("", "silo-test-*.toml")

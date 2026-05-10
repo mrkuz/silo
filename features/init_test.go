@@ -157,7 +157,6 @@ func TestFeatureInit(t *testing.T) {
 					podman = true
 
 					[shared_volume]
-					name = "my-shared"
 					paths = ["$HOME/.cache/uv/"]
 
 					[podman]
@@ -180,10 +179,6 @@ func TestFeatureInit(t *testing.T) {
 			// And the workspace config should have podman=true
 			if !saved.Features.Podman {
 				t.Error("expected Podman=true from silo.user.toml")
-			}
-			// And the workspace config should have shared_volume name "my-shared"
-			if saved.SharedVolume.Name != "my-shared" {
-				t.Errorf("expected SharedVolume.Name=\"my-shared\", got %q", saved.SharedVolume.Name)
 			}
 			// And the workspace config should have create arguments ["--memory=2g"]
 			if len(saved.Podman.CreateArgs) < 2 {
@@ -240,10 +235,6 @@ func TestFeatureInit(t *testing.T) {
 			// Then the workspace config should have podman=false
 			if saved.Features.Podman {
 				t.Error("expected Podman=false by default")
-			}
-			// And the workspace config should have shared_volume name "silo-shared"
-			if saved.SharedVolume.Name != "silo-shared" {
-				t.Errorf("expected default SharedVolume.Name=\"silo-shared\", got %q", saved.SharedVolume.Name)
 			}
 		})
 

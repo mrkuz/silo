@@ -192,7 +192,6 @@ func TestNewTemplateContextDefaultSuffix(t *testing.T) {
 		},
 		Features: FeaturesConfig{Podman: false},
 		SharedVolume: SharedVolumeConfig{
-			Name:  "silo-shared",
 			Paths: []string{"$HOME/.cache/uv/", "$HOME/.config/nvim/"},
 		},
 	}

@@ -127,7 +127,7 @@ func NewTemplateContext(cfg Config, containerNameSuffix ...string) (TemplateCont
 	containerName := containerNameWithSuffix(WorkspaceContainerName(cfg.General.ID), suffix)
 	sharedVolumeNameValue := ""
 	if len(cfg.SharedVolume.Paths) > 0 {
-		sharedVolumeNameValue = cfg.GetSharedVolumeName()
+		sharedVolumeNameValue = "silo-shared"
 	}
 
 	home := "/home/" + cfg.General.User

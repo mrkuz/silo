@@ -137,7 +137,6 @@ func TestBuildContainerArgsSharedVolume(t *testing.T) {
 			Podman:       false,
 		},
 		SharedVolume: SharedVolumeConfig{
-			Name:  "silo-shared",
 			Paths: []string{"$HOME/.cache/uv/"},
 		},
 	}

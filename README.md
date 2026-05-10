@@ -255,8 +255,7 @@ create_args = [
 
 | Key | Default | Description |
 |---|---|---|
-| `name` | `silo-shared` | Shared volume name. |
-| `paths` | `[]` | Paths inside the container backed by the shared volume. A trailing slash means directory; no trailing slash means file. `$HOME` is the only supported placeholder prefix. Shared volume support is active when this list is non-empty. |
+| `paths` | `[]` | Paths inside the container backed by the shared volume. A trailing slash means directory; no trailing slash means file. `$HOME` is the only supported placeholder prefix. Shared volume support is active when this list is non-empty. The volume is always named `silo-shared`. |
 
 **`[podman]`**
 

@@ -33,7 +33,6 @@ type FeaturesConfig struct {
 }
 
 type SharedVolumeConfig struct {
-	Name  string   `toml:"name"`
 	Paths []string `toml:"paths"`
 }
 
@@ -48,14 +47,6 @@ func WorkspaceImageName(id string) string {
 }
 
 const emptyJSON = "{}\n"
-
-// GetSharedVolumeName returns the shared volume name, defaulting to "silo-shared".
-func (c *Config) GetSharedVolumeName() string {
-	if c.SharedVolume.Name != "" {
-		return c.SharedVolume.Name
-	}
-	return "silo-shared"
-}
 
 // SiloDir returns the workspace silo directory name.
 func SiloDir() string {
@@ -83,7 +74,6 @@ func DefaultConfig() (Config, error) {
 			Podman: false,
 		},
 		SharedVolume: SharedVolumeConfig{
-			Name:  "silo-shared",
 			Paths: []string{},
 		},
 		Podman: PodmanConfig{CreateArgs: []string{}},
@@ -147,9 +137,6 @@ func (c Config) SaveWorkspaceConfig() error {
 		return fmt.Errorf("create .silo/silo.toml: %w", err)
 	}
 	defer f.Close()
-	if c.SharedVolume.Name == "" {
-		c.SharedVolume.Name = "silo-shared"
-	}
 	if c.SharedVolume.Paths == nil {
 		c.SharedVolume.Paths = []string{}
 	}

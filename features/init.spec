@@ -61,7 +61,6 @@ Feature: silo init — Initialize workspace
         podman = true
 
         [shared_volume]
-        name = "my-shared"
         paths = ["$HOME/.cache/uv/"]
 
         [podman]
@@ -69,7 +68,6 @@ Feature: silo init — Initialize workspace
         """
       When I run `silo init`
       Then the workspace config should have podman=true
-      And the workspace config should have shared_volume name "my-shared"
       And the workspace config should have create arguments ["--memory=2g"]
 
     Scenario: silo.user.toml [general] section is ignored
@@ -89,7 +87,6 @@ Feature: silo init — Initialize workspace
         """
       When I run `silo init`
       Then the workspace config should have podman=false
-      And the workspace config should have shared_volume name "silo-shared"
 
     Scenario: silo.user.toml is created if it does not exist
       Given the user's silo config directory exists but "silo.user.toml" is absent

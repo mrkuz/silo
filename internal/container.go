@@ -74,7 +74,7 @@ func VolumeSetup(cfg Config) (bool, error) {
 			mkdirCmd.WriteString("mkdir -p $(dirname " + volPath + ") && touch " + volPath + " && chmod 644 " + volPath)
 		}
 	}
-	cmd := ExecCommand("podman", "run", "--rm", "-v", cfg.GetSharedVolumeName()+":"+volumeMountPath+":z", userImage, "sh", "-c", mkdirCmd.String())
+	cmd := ExecCommand("podman", "run", "--rm", "-v", "silo-shared:"+volumeMountPath+":z", userImage, "sh", "-c", mkdirCmd.String())
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -183,7 +183,7 @@ func BuildContainerArgs(cfg Config) ([]string, error) {
 		}
 		// subpath is the path within the volume (without leading /)
 		subpath := strings.TrimPrefix(containerPath, "/")
-		args = append(args, "--mount", fmt.Sprintf("type=volume,source=%s,target=%s,subpath=%s,z", cfg.GetSharedVolumeName(), containerPath, subpath))
+		args = append(args, "--mount", fmt.Sprintf("type=volume,source=%s,target=%s,subpath=%s,z", "silo-shared", containerPath, subpath))
 	}
 
 	return args, nil
