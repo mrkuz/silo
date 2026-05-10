@@ -8,9 +8,9 @@ import (
 
 // VolumeSetup creates directories on the shared volume so they can be mounted as subpath volumes.
 func VolumeSetup() error {
-	cfg, err := internal.RequireWorkspaceConfig()
+	cfg, err := internal.RequireMergedConfig()
 	if err != nil {
-		return fmt.Errorf("load workspace configuration: %w", err)
+		return fmt.Errorf("load merged configuration: %w", err)
 	}
 	performed, err := internal.VolumeSetup(cfg)
 	if err != nil {

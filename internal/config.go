@@ -11,21 +11,42 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// Config holds all persisted silo workspace configuration.
-type Config struct {
-	General      GeneralConfig      `toml:"general"`
-	Features     FeaturesConfig     `toml:"features"`
+// UserConfig holds user-level configuration from silo.user.toml
+type UserConfig struct {
+	General      UserGeneralConfig  `toml:"general"`
 	SharedVolume SharedVolumeConfig `toml:"shared_volume"`
-	Podman       PodmanConfig       `toml:"podman"`
+	Podman       UserPodmanConfig   `toml:"podman"`
 }
 
-type PodmanConfig struct {
+type UserGeneralConfig struct {
+	User string `toml:"user"`
+}
+
+type UserPodmanConfig struct {
 	CreateArgs []string `toml:"create_args"`
 }
 
-type GeneralConfig struct {
-	ID   string `toml:"id"`
-	User string `toml:"user"`
+// WorkspaceConfig holds workspace-level configuration from .silo/silo.toml
+type WorkspaceConfig struct {
+	General      WorkspaceGeneralConfig `toml:"general"`
+	Features     FeaturesConfig         `toml:"features"`
+	SharedVolume SharedVolumeConfig     `toml:"shared_volume"`
+	Podman       PodmanConfig           `toml:"podman"`
+}
+
+type WorkspaceGeneralConfig struct {
+	ID string `toml:"id"`
+}
+
+// MergedConfig holds the combined configuration for runtime use.
+// It merges workspace config with user config, with user values taking
+// precedence where applicable.
+type MergedConfig struct {
+	User         string
+	ID           string
+	Features     FeaturesConfig
+	SharedVolume SharedVolumeConfig
+	Podman       PodmanConfig
 }
 
 type FeaturesConfig struct {
@@ -34,6 +55,10 @@ type FeaturesConfig struct {
 
 type SharedVolumeConfig struct {
 	Paths []string `toml:"paths"`
+}
+
+type PodmanConfig struct {
+	CreateArgs []string `toml:"create_args"`
 }
 
 // WorkspaceContainerName returns container name derived from id.
@@ -58,17 +83,12 @@ func SiloToml() string {
 	return ".silo/silo.toml"
 }
 
-// defaultConfig returns a Config with a new random ID and current user.
-func DefaultConfig() (Config, error) {
-	u, err := user.Current()
-	if err != nil {
-		return Config{}, fmt.Errorf("get current user: %w", err)
-	}
+// defaultWorkspaceConfig returns a WorkspaceConfig with a new random ID.
+func DefaultWorkspaceConfig() (WorkspaceConfig, error) {
 	id := generatedIDFunc()
-	return Config{
-		General: GeneralConfig{
-			ID:   id,
-			User: u.Username,
+	return WorkspaceConfig{
+		General: WorkspaceGeneralConfig{
+			ID: id,
 		},
 		Features: FeaturesConfig{
 			Podman: false,
@@ -93,17 +113,21 @@ func generateID() string {
 	return string(b)
 }
 
-// ParseTOML decodes a TOML config file.
-func ParseTOML(path string) (Config, error) {
-	var c Config
-	if _, err := toml.DecodeFile(path, &c); err != nil {
-		return Config{}, fmt.Errorf("parse %s: %w", filepath.Base(path), err)
+// ParseTOML decodes a TOML config file into the given struct.
+// Strict mode rejects unknown keys that don't match any struct field.
+func ParseTOML(path string, cfg interface{}) error {
+	meta, err := toml.DecodeFile(path, cfg)
+	if err != nil {
+		return fmt.Errorf("%s: %w", filepath.Base(path), err)
 	}
-	return c, nil
+	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
+		return fmt.Errorf("%s: unsupported keys: %v", filepath.Base(path), undecoded)
+	}
+	return nil
 }
 
 // WriteTOML encodes and writes cfg to path.
-func WriteTOML(path string, cfg Config) error {
+func WriteTOML(path string, cfg interface{}) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("create %s: %w", filepath.Base(path), err)
@@ -115,20 +139,38 @@ func WriteTOML(path string, cfg Config) error {
 	return nil
 }
 
-// RequireWorkspaceConfig returns the workspace config or an error if .silo/silo.toml is missing.
-func RequireWorkspaceConfig() (Config, error) {
+// RequireWorkspaceConfig returns the workspace config or an error if .silo/silo.toml is missing
+// or if [general].id is empty.
+func RequireWorkspaceConfig() (WorkspaceConfig, error) {
 	if _, err := os.Stat(SiloToml()); os.IsNotExist(err) {
-		return Config{}, fmt.Errorf("no .silo/silo.toml found — run 'silo init' to create it")
+		return WorkspaceConfig{}, fmt.Errorf("no .silo/silo.toml found — run 'silo init' to create it")
 	}
-	cfg, err := ParseTOML(SiloToml())
-	if err != nil {
-		return Config{}, fmt.Errorf("parse workspace configuration: %w", err)
+	var cfg WorkspaceConfig
+	if err := ParseTOML(SiloToml(), &cfg); err != nil {
+		return WorkspaceConfig{}, err
+	}
+	if cfg.General.ID == "" {
+		return WorkspaceConfig{}, fmt.Errorf("[general].id is required in .silo/silo.toml")
 	}
 	return cfg, nil
 }
 
+// RequireMergedConfig returns the workspace config merged with user config.
+// This is used by commands that need both workspace and user settings.
+func RequireMergedConfig() (MergedConfig, error) {
+	workspaceCfg, err := RequireWorkspaceConfig()
+	if err != nil {
+		return MergedConfig{}, err
+	}
+	userCfg, err := LoadSiloUserTOML()
+	if err != nil {
+		return MergedConfig{}, fmt.Errorf("load user configuration: %w", err)
+	}
+	return MergeUserInto(workspaceCfg, userCfg), nil
+}
+
 // SaveWorkspaceConfig persists the config to .silo/silo.toml.
-func (c Config) SaveWorkspaceConfig() error {
+func (c WorkspaceConfig) SaveWorkspaceConfig() error {
 	if err := os.MkdirAll(SiloDir(), 0755); err != nil {
 		return fmt.Errorf("create .silo directory: %w", err)
 	}
@@ -209,28 +251,25 @@ func EnsureDevcontainerInJSON() error {
 	return EnsureFile(filepath.Join(dir, "devcontainer.in.json"), []byte(emptyJSON))
 }
 
-// EnsureSiloUserTOML creates $XDG_CONFIG_HOME/silo/silo.user.toml if it does not exist.
-func EnsureSiloUserTOML() error {
-	dir, err := UserConfigDir()
-	if err != nil {
-		return fmt.Errorf("create silo.user.toml in config directory: %w", err)
-	}
-	return EnsureFile(filepath.Join(dir, "silo.user.toml"), []byte{})
-}
-
 // LoadSiloUserTOML parses $XDG_CONFIG_HOME/silo/silo.user.toml.
-// The [general] section is not meaningful and is ignored.
-// Returns an empty Config if the file does not exist.
-func LoadSiloUserTOML() (Config, error) {
+// Returns an error if [general].user is missing.
+func LoadSiloUserTOML() (UserConfig, error) {
 	dir, err := UserConfigDir()
 	if err != nil {
-		return Config{}, fmt.Errorf("get config directory to load silo.user.toml: %w", err)
+		return UserConfig{}, fmt.Errorf("get config directory to load silo.user.toml: %w", err)
 	}
 	path := filepath.Join(dir, "silo.user.toml")
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return Config{}, nil
+		return UserConfig{}, fmt.Errorf("silo.user.toml not found at %s", path)
 	}
-	return ParseTOML(path)
+	var cfg UserConfig
+	if err := ParseTOML(path, &cfg); err != nil {
+		return UserConfig{}, err
+	}
+	if cfg.General.User == "" {
+		return UserConfig{}, fmt.Errorf("[general].user is required in silo.user.toml")
+	}
+	return cfg, nil
 }
 
 // BaseImageName returns the user image tag for the given user.
@@ -250,44 +289,59 @@ func UserStarterFiles() ([]UserStarterFile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get user config directory: %w", err)
 	}
+	u, err := user.Current()
+	if err != nil {
+		return nil, fmt.Errorf("get current user: %w", err)
+	}
+	userTomlContent := fmt.Sprintf(`[general]
+user = %q
+`, u.Username)
 	return []UserStarterFile{
 		{filepath.Join(dir, "home.user.nix"), []byte(HomeUserNix)},
 		{filepath.Join(dir, "devcontainer.in.json"), []byte(emptyJSON)},
-		{filepath.Join(dir, "silo.user.toml"), []byte{}},
+		{filepath.Join(dir, "silo.user.toml"), []byte(userTomlContent)},
 	}, nil
 }
 
-// SeedWorkspaceConfig returns a new config seeded from silo.user.toml and built-in defaults.
-// Unlike InitWorkspaceConfig, this always seeds fresh and ignores any existing silo.toml.
-func SeedWorkspaceConfig() (Config, error) {
-	defaults, err := DefaultConfig()
-	if err != nil {
-		return Config{}, err
+// MergeUserInto merges user config into workspace config.
+// Returns a MergedConfig without modifying either source.
+// Merge rules:
+//   - features.podman:         workspace overrides user config
+//   - podman.create_args:      user values prepended to workspace defaults
+//   - shared_volume.paths:     user values prepended to workspace defaults
+//   - id:                       workspace only
+//   - user:                     user only
+func MergeUserInto(workspace WorkspaceConfig, user UserConfig) MergedConfig {
+	result := MergedConfig{
+		User:         user.General.User,
+		ID:           workspace.General.ID,
+		Features:     workspace.Features,
+		SharedVolume: workspace.SharedVolume,
+		Podman:       workspace.Podman,
 	}
-	cfg, err := LoadSiloUserTOML()
-	if err != nil {
-		return Config{}, fmt.Errorf("load user silo.user.toml: %w", err)
+	if len(user.Podman.CreateArgs) > 0 {
+		result.Podman.CreateArgs = append(user.Podman.CreateArgs, workspace.Podman.CreateArgs...)
 	}
-	cfg.General = defaults.General
-	if cfg.Features == (FeaturesConfig{}) {
-		cfg.Features = defaults.Features
+	if len(user.SharedVolume.Paths) > 0 {
+		result.SharedVolume.Paths = append(user.SharedVolume.Paths, workspace.SharedVolume.Paths...)
 	}
-	return cfg, nil
+	return result
 }
 
-// InitWorkspaceConfig initializes workspace config from defaults or user settings.
-// Returns (cfg, firstRun, error). On first run, cfg is built from defaults and silo.user.toml.
+// InitWorkspaceConfig initializes workspace config from defaults.
+// Returns (cfg, firstRun, error). On first run, cfg is built from defaults.
 // On subsequent runs, cfg is loaded from silo.toml. Does NOT save — caller must save on first run.
-func InitWorkspaceConfig() (Config, bool, error) {
+func InitWorkspaceConfig() (WorkspaceConfig, bool, error) {
 	if _, err := os.Stat(SiloToml()); os.IsNotExist(err) {
-		// First run: seed from user config, fall back to built-in defaults.
-		cfg, err := SeedWorkspaceConfig()
+		cfg, err := DefaultWorkspaceConfig()
 		return cfg, true, err
 	}
-	// Subsequent runs: use workspace config as-is.
-	cfg, err := ParseTOML(SiloToml())
-	if err != nil {
+	var cfg WorkspaceConfig
+	if err := ParseTOML(SiloToml(), &cfg); err != nil {
 		return cfg, false, fmt.Errorf("load workspace silo.toml: %w", err)
+	}
+	if cfg.General.ID == "" {
+		return cfg, false, fmt.Errorf("[general].id is required in .silo/silo.toml")
 	}
 	return cfg, false, nil
 }
@@ -330,8 +384,8 @@ func EnsureWorkspaceFiles(podman bool) error {
 
 // EnsureImages builds the user and workspace images if they don't yet exist.
 // If force is true, workspace image is always rebuilt regardless of whether it exists.
-func EnsureImages(cfg Config, force bool) error {
-	tc, err := NewTemplateContext(cfg)
+func EnsureImages(cfg WorkspaceConfig, force bool) error {
+	tc, err := NewTemplateContextFromWorkspace(cfg)
 	if err != nil {
 		return fmt.Errorf("build template context: %w", err)
 	}
@@ -360,8 +414,7 @@ func DefaultCreateArgs(podman bool) []string {
 // user starter files. It delegates user-file creation to EnsureUserFiles so
 // `silo init` and `silo user init` share a single implementation.
 // If podman is non-nil, .silo/home.nix will include silo.podman.enable based on the value.
-// If podman is nil, the podman setting seeded from silo.user.toml is preserved.
-func EnsureInit(podman *bool) (Config, bool, error) {
+func EnsureInit(podman *bool) (WorkspaceConfig, bool, error) {
 	cfg, firstRun, err := InitWorkspaceConfig()
 	if err != nil {
 		return cfg, firstRun, fmt.Errorf("initialize workspace configuration: %w", err)
@@ -376,7 +429,7 @@ func EnsureInit(podman *bool) (Config, bool, error) {
 		if podman != nil {
 			cfg.Features.Podman = *podman
 		}
-		cfg.Podman.CreateArgs = append(cfg.Podman.CreateArgs, DefaultCreateArgs(cfg.Features.Podman)...)
+		cfg.Podman.CreateArgs = DefaultCreateArgs(cfg.Features.Podman)
 		if err := cfg.SaveWorkspaceConfig(); err != nil {
 			return cfg, firstRun, fmt.Errorf("save workspace config: %w", err)
 		}
@@ -385,7 +438,7 @@ func EnsureInit(podman *bool) (Config, bool, error) {
 }
 
 // EnsureBuilt ensures images exist, building them if needed.
-func EnsureBuilt() (Config, error) {
+func EnsureBuilt() (WorkspaceConfig, error) {
 	cfg, _, err := EnsureInit(nil)
 	if err != nil {
 		return cfg, fmt.Errorf("initialize workspace: %w", err)
@@ -397,36 +450,47 @@ func EnsureBuilt() (Config, error) {
 }
 
 // EnsureCreated ensures the container exists, creating it if needed.
-func EnsureCreated() (Config, error) {
-	cfg, err := EnsureBuilt()
+func EnsureCreated() (MergedConfig, error) {
+	if _, _, err := EnsureInit(nil); err != nil {
+		return MergedConfig{}, fmt.Errorf("initialize workspace: %w", err)
+	}
+	mergedCfg, err := RequireMergedConfig()
 	if err != nil {
-		return cfg, fmt.Errorf("build images: %w", err)
+		return MergedConfig{}, fmt.Errorf("load merged config: %w", err)
 	}
-	if !ContainerExists(WorkspaceContainerName(cfg.General.ID)) {
-		if err := CreateContainer(cfg, cfg.Podman.CreateArgs); err != nil {
-			return cfg, fmt.Errorf("create container: %w", err)
-		}
+	if ContainerExists(WorkspaceContainerName(mergedCfg.ID)) {
+		return mergedCfg, nil
 	}
-	return cfg, nil
+	workspaceCfg, err := RequireWorkspaceConfig()
+	if err != nil {
+		return mergedCfg, fmt.Errorf("load workspace config: %w", err)
+	}
+	if err := EnsureImages(workspaceCfg, false); err != nil {
+		return mergedCfg, fmt.Errorf("ensure images: %w", err)
+	}
+	if err := CreateContainer(mergedCfg, mergedCfg.Podman.CreateArgs); err != nil {
+		return mergedCfg, fmt.Errorf("create container: %w", err)
+	}
+	return mergedCfg, nil
 }
 
 // EnsureStarted ensures the container is running, starting it if needed.
-func EnsureStarted() (Config, error) {
-	cfg, err := EnsureCreated()
+func EnsureStarted() (MergedConfig, error) {
+	mergedCfg, err := EnsureCreated()
 	if err != nil {
-		return cfg, fmt.Errorf("create container: %w", err)
+		return MergedConfig{}, fmt.Errorf("create container: %w", err)
 	}
-	if !ContainerRunning(WorkspaceContainerName(cfg.General.ID)) {
-		performed, err := VolumeSetup(cfg)
+	if !ContainerRunning(WorkspaceContainerName(mergedCfg.ID)) {
+		performed, err := VolumeSetup(mergedCfg)
 		if err != nil {
-			return cfg, err
+			return MergedConfig{}, err
 		}
 		if performed {
 			fmt.Println("Volume setup complete")
 		}
-		if err := StartContainer(WorkspaceContainerName(cfg.General.ID)); err != nil {
-			return cfg, fmt.Errorf("start container: %w", err)
+		if err := StartContainer(WorkspaceContainerName(mergedCfg.ID)); err != nil {
+			return MergedConfig{}, fmt.Errorf("start container: %w", err)
 		}
 	}
-	return cfg, nil
+	return mergedCfg, nil
 }

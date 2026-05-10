@@ -11,15 +11,15 @@ import (
 const devContainerSuffix = "-dev"
 const devcontainerFileMode = 0644
 
-// DevContainerName returns the devcontainer name for the given config.
-func DevContainerName(cfg Config) string {
-	return containerNameWithSuffix(WorkspaceContainerName(cfg.General.ID), devContainerSuffix)
+// DevContainerName returns the devcontainer name for the given merged config.
+func DevContainerName(cfg MergedConfig) string {
+	return containerNameWithSuffix(WorkspaceContainerName(cfg.ID), devContainerSuffix)
 }
 
 // DevcontainerGenerate generates a .devcontainer.json for VS Code.
 // If force is true, the file is always overwritten.
 func DevcontainerGenerate(force bool) error {
-	cfg, err := RequireWorkspaceConfig()
+	cfg, err := RequireMergedConfig()
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}

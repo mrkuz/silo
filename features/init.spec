@@ -32,12 +32,6 @@ Feature: silo init — Initialize workspace
       Then the config should still have id "abc12345"
       And the exit code should be 0
 
-    Scenario: unknown flag shows error and help
-      When I run `silo init --unknown`
-      Then the stderr should contain "silo: unknown flag \"--unknown\""
-      And the stderr should contain "Usage:"
-      And the exit code should be 1
-
     Scenario: existing podman setting is preserved when flag not provided
       Given a workspace with silo config "abc12345"
       And the config has podman=true
@@ -52,102 +46,62 @@ Feature: silo init — Initialize workspace
       Then the config should still have podman=true
       And the exit code should be 0
 
-  Rule: silo.user.toml seeds new workspace config on first run
+  Rule: silo.init creates workspace config from defaults only
 
-    Scenario: silo.user.toml values seed the workspace config
-      Given the user's silo config directory has "silo.user.toml" with content:
-        """
-        [features]
-        podman = true
-
-        [shared_volume]
-        paths = ["$HOME/.cache/uv/"]
-
-        [podman]
-        create_args = ["--memory=2g"]
-        """
-      When I run `silo init`
-      Then the workspace config should have podman=true
-      And the workspace config should have create arguments ["--memory=2g"]
-
-    Scenario: silo.user.toml [general] section is ignored
-      Given the user's silo config directory has "silo.user.toml" with content:
-        """
-        [general]
-        id = "ignored-id"
-        user = "ignored-user"
-        """
+    Scenario: init creates workspace config with defaults on first run
+      Given a clean workspace with no existing silo files
       When I run `silo init`
       Then the workspace config should have an 8-character random id
-      And the workspace config should use the current username
+      And the workspace config should have podman=false (default)
+      And the workspace config should have empty shared volume paths (default)
+      And the workspace config should have default create arguments
+      And the workspace config should have no user set
 
-    Scenario: silo.user.toml empty or absent uses built-in defaults
-      Given the user's silo config directory has "silo.user.toml" with content:
-        """
-        """
-      When I run `silo init`
-      Then the workspace config should have podman=false
-
-    Scenario: silo.user.toml is created if it does not exist
-      Given the user's silo config directory exists but "silo.user.toml" is absent
-      When I run `silo init`
-      Then a file "silo.user.toml" should be created in the user's silo config directory
-      And the file "silo.user.toml" in the user's silo config directory should be empty
-
-    Scenario: silo.user.toml create arguments are prepended to default arguments
-      Given the user's silo config directory has "silo.user.toml" with content:
-        """
-        [podman]
-        create_args = ["--memory=2g"]
-        """
-      When I run `silo init`
-      Then the workspace config should have 5 create arguments
-      And the first create argument should be "--memory=2g"
-      And the second create argument should be "--cap-drop=ALL"
-
-  Rule: Feature flags set initial config on first run
-
-    Scenario: --podman sets podman=true on first run
+    Scenario: feature flags override defaults on first run
       Given a clean workspace with no existing silo files
       When I run `silo init --podman`
       Then the workspace config should have podman=true
       And the file ".silo/home.nix" should contain "silo.podman.enable = true"
-      And the exit code should be 0
 
-    Scenario: --no-podman sets podman=false on first run
-      Given a clean workspace with no existing silo files
-      When I run `silo init --no-podman`
-      Then the workspace config should have podman=false
-      And the file ".silo/home.nix" should not contain "silo.podman.enable = true"
-      And the exit code should be 0
-
-    Scenario: --podman flag overrides seeded config from silo.user.toml on first run
+    Scenario: silo init does not read silo.user.toml on first run
       Given the user's silo config directory has "silo.user.toml" with content:
         """
-        [features]
-        podman = true
+        [general]
+        user = "alice"
+
+        [shared_volume]
+        paths = ["$HOME/.cache/uv/"]
         """
       And a clean workspace with no existing silo files
-      When I run `silo init --no-podman`
-      Then the workspace config should have podman=false
-      And the exit code should be 0
+      When I run `silo init`
+      Then the workspace config should have empty shared volume paths (default)
+      And the workspace config should have no user set
 
-  Rule: Conflicting flags use last value
+  Rule: podman feature flag is stored in home.nix
 
-    Scenario: both --podman and --no-podman uses last flag
-      When I run `silo init --podman --no-podman`
-      Then the config should have podman=false
-      And the exit code should be 0
-
-  Rule: Display of file status during init
-
-    Scenario: init shows creating message for new files
+    Scenario: init --podman enables podman in home.nix
       Given a clean workspace with no existing silo files
-      When I run `silo init`
-      Then the output should contain "Creating .silo/silo.toml"
-      And the output should contain "Creating .silo/home.nix"
+      When I run `silo init --podman`
+      Then the file ".silo/home.nix" should contain "silo.podman.enable = true"
 
-    Scenario: init shows already exists message for existing files
+    Scenario: init --no-podman disables podman in home.nix
+      Given a clean workspace with no existing silo files
+      When I run `silo init --no-podman`
+      Then the file ".silo/home.nix" should contain "silo.podman.enable = false"
+
+  Rule: unknown flags show error and help
+
+    Scenario: unknown flag is rejected
+      When I run `silo init --unknown`
+      Then the stderr should contain "silo: unknown flag"
+      And the stderr should contain "Usage:"
+      And the exit code should be 1
+
+  Rule: Requires workspace config to be valid
+
+    Scenario: missing id in .silo/silo.toml returns error
       Given a workspace with silo config "abc12345"
+      And the config has id ""
       When I run `silo init`
-      Then the output should contain "'/path/to/workspace/.silo/silo.toml' already exists"
+      Then the exit code should not be 0
+      And the error should indicate ".silo/silo.toml" is missing required field

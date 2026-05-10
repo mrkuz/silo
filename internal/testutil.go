@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -65,11 +66,12 @@ func FirstRunWithFiles(t *testing.T, starterFiles map[string]string) string {
 	})
 }
 
-// SubsequentRun sets up an existing workspace with config cfg and calls SetupUserConfig
-// for user-level files. Returns the XDG_CONFIG_HOME path.
-func SubsequentRun(t *testing.T, cfg Config) string {
+// SubsequentRun sets up an existing workspace with config cfg and user,
+// and calls SetupUserConfig for user-level files.
+// Returns the XDG_CONFIG_HOME path.
+func SubsequentRun(t *testing.T, cfg WorkspaceConfig, user string) string {
 	SetupWorkspace(t, cfg)
-	SetupUserConfig(t)
+	SetupUserConfig(t, user)
 	return os.Getenv("XDG_CONFIG_HOME")
 }
 
@@ -112,7 +114,7 @@ func WriteUserFile(t *testing.T, siloUser, name, content string) {
 }
 
 // WriteUserToml encodes cfg as TOML and writes it to a file under the user's silo config directory.
-func WriteUserToml(t *testing.T, siloUser, name string, cfg Config) {
+func WriteUserToml(t *testing.T, siloUser, name string, cfg UserConfig) {
 	t.Helper()
 	path := filepath.Join(siloUser, name)
 	if err := WriteTOML(path, cfg); err != nil {
@@ -123,7 +125,7 @@ func WriteUserToml(t *testing.T, siloUser, name string, cfg Config) {
 // SetupWorkspace creates a temp directory, writes a .silo/silo.toml from cfg,
 // and os.Chdir into it. The original directory is restored via t.Cleanup.
 // NOTE: os.Chdir is process-global — do not use t.Parallel() in tests calling this.
-func SetupWorkspace(t *testing.T, cfg Config) string {
+func SetupWorkspace(t *testing.T, cfg WorkspaceConfig) string {
 	t.Helper()
 	orig, err := os.Getwd()
 	if err != nil {
@@ -151,29 +153,57 @@ func SetupWorkspace(t *testing.T, cfg Config) string {
 // SetupUserConfig points XDG_CONFIG_HOME at a new temp directory and writes
 // the minimal files required by EnsureUserFiles and BuildUserImage.
 // Needed by any test that calls InitWorkspaceConfig or EnsureImages.
-func SetupUserConfig(t *testing.T) {
+func SetupUserConfig(t *testing.T, users ...string) {
 	t.Helper()
+	user := "testuser"
+	if len(users) > 0 {
+		user = users[0]
+	}
 	base := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", base)
 	siloDir := filepath.Join(base, "silo")
 	if err := os.MkdirAll(siloDir, 0755); err != nil {
 		t.Fatalf("mkdir silo config dir: %v", err)
 	}
-	// home.user.nix is read by BuildUserImage; write the minimal empty module.
 	if err := os.WriteFile(filepath.Join(siloDir, "home.user.nix"), []byte("{\n  config,\n  pkgs,\n  ...\n}:\n{\n}\n"), 0644); err != nil {
 		t.Fatalf("write home.user.nix: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(siloDir, "silo.user.toml"), []byte{}, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(siloDir, "silo.user.toml"), []byte(fmt.Sprintf("[general]\nuser = %q\n", user)), 0644); err != nil {
 		t.Fatalf("write silo.user.toml: %v", err)
 	}
 }
 
-// MinimalConfig returns a Config suitable for use in unit tests.
-func MinimalConfig(id string) Config {
-	return Config{
-		General:      GeneralConfig{ID: id, User: "testuser"},
+// MinimalUserConfig returns a UserConfig for testing.
+func MinimalUserConfig(user string) UserConfig {
+	return UserConfig{
+		General:      UserGeneralConfig{User: user},
+		SharedVolume: SharedVolumeConfig{Paths: []string{}},
+	}
+}
+
+// MinimalMergedConfig returns a MergedConfig suitable for use in unit tests.
+func MinimalMergedConfig(id, user string) MergedConfig {
+	return MergedConfig{
+		ID:           id,
+		User:         user,
 		Features:     FeaturesConfig{Podman: false},
 		SharedVolume: SharedVolumeConfig{Paths: []string{}},
 		Podman:       PodmanConfig{CreateArgs: []string{}},
 	}
+}
+
+// MinimalWorkspaceConfig returns a WorkspaceConfig suitable for use in unit tests.
+func MinimalWorkspaceConfig(id string) WorkspaceConfig {
+	return WorkspaceConfig{
+		General:      WorkspaceGeneralConfig{ID: id},
+		Features:     FeaturesConfig{Podman: false},
+		SharedVolume: SharedVolumeConfig{Paths: []string{}},
+		Podman:       PodmanConfig{CreateArgs: []string{}},
+	}
+}
+
+// MinimalConfig returns a WorkspaceConfig suitable for use in unit tests.
+// Kept for backward compatibility - new code should use MinimalWorkspaceConfig.
+func MinimalConfig(id string) WorkspaceConfig {
+	return MinimalWorkspaceConfig(id)
 }

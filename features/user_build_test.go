@@ -3,7 +3,6 @@ package features_test
 import (
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -20,8 +19,7 @@ func TestFeatureUserBuild(t *testing.T) {
 	// Background: the user's XDG_CONFIG_HOME points to a fresh directory
 	// and the user's silo config directory has all starter files
 
-	currentUser, _ := user.Current()
-	userImage := "silo-" + currentUser.Username
+	userImage := "silo-testuser"
 
 	t.Run("Rule: Builds the user image if missing", func(t *testing.T) {
 		t.Run("Scenario: missing user image triggers build", func(t *testing.T) {
@@ -88,8 +86,12 @@ func TestFeatureUserBuild(t *testing.T) {
 	t.Run("Rule: Automatically runs user init if needed", func(t *testing.T) {
 		t.Run("Scenario: missing user files triggers automatic user init", func(t *testing.T) {
 			// Given a fresh XDG_CONFIG_HOME without starter files
-			base := t.TempDir()
-			t.Setenv("XDG_CONFIG_HOME", base)
+			internal.FirstRunWithFiles(t, map[string]string{
+				"home.user.nix": internal.HomeUserNix,
+				"silo.user.toml": `[general]
+user = "testuser"
+`,
+			})
 			// And no user image exists
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{

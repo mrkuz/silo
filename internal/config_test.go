@@ -33,13 +33,12 @@ func TestBaseImageName(t *testing.T) {
 }
 
 func TestTOMLRoundtrip(t *testing.T) {
-	original := Config{
-		General: GeneralConfig{
-			ID:   "abc12345",
-			User: "testuser",
+	original := WorkspaceConfig{
+		General: WorkspaceGeneralConfig{
+			ID: "abc12345",
 		},
 		Features: FeaturesConfig{
-			Podman:       true,
+			Podman: true,
 		},
 		SharedVolume: SharedVolumeConfig{
 			Paths: []string{".cache/uv/", ".local/share/opencode/"},
@@ -60,8 +59,8 @@ func TestTOMLRoundtrip(t *testing.T) {
 	}
 	f.Close()
 
-	parsed, err := ParseTOML(path)
-	if err != nil {
+	var parsed WorkspaceConfig
+	if err := ParseTOML(path, &parsed); err != nil {
 		t.Fatal(err)
 	}
 
@@ -90,8 +89,8 @@ func TestTOMLRoundtrip(t *testing.T) {
 }
 
 func TestTOMLEmptyCreateArgs(t *testing.T) {
-	cfg := Config{
-		General:      GeneralConfig{ID: "x", User: "u"},
+	cfg := WorkspaceConfig{
+		General:      WorkspaceGeneralConfig{ID: "x"},
 		Features:     FeaturesConfig{Podman: false},
 		SharedVolume: SharedVolumeConfig{Paths: []string{}},
 	}
@@ -107,8 +106,8 @@ func TestTOMLEmptyCreateArgs(t *testing.T) {
 	}
 	f.Close()
 
-	parsed, err := ParseTOML(f.Name())
-	if err != nil {
+	var parsed WorkspaceConfig
+	if err := ParseTOML(f.Name(), &parsed); err != nil {
 		t.Fatal(err)
 	}
 	if len(parsed.Podman.CreateArgs) != 0 {
@@ -116,8 +115,8 @@ func TestTOMLEmptyCreateArgs(t *testing.T) {
 	}
 }
 
-func TestDefaultConfig(t *testing.T) {
-	cfg, err := DefaultConfig()
+func TestDefaultWorkspaceConfig(t *testing.T) {
+	cfg, err := DefaultWorkspaceConfig()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -129,9 +128,6 @@ func TestDefaultConfig(t *testing.T) {
 	}
 	if WorkspaceImageName(cfg.General.ID) != "silo-"+cfg.General.ID {
 		t.Errorf("WorkspaceImageName %q does not match expected %q", WorkspaceImageName(cfg.General.ID), "silo-"+cfg.General.ID)
-	}
-	if cfg.General.User == "" {
-		t.Error("expected non-empty User")
 	}
 	if cfg.Features.Podman {
 		t.Errorf("unexpected feature defaults: %+v", cfg.Features)
@@ -145,18 +141,35 @@ func TestDefaultConfig(t *testing.T) {
 }
 
 func TestLoadSiloUserTOML(t *testing.T) {
-	t.Run("returns empty config when file absent", func(t *testing.T) {
+	t.Run("returns error when file absent", func(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		_, err := LoadSiloUserTOML()
+		if err == nil {
+			t.Error("expected error when file absent")
+		}
+	})
+
+	t.Run("parses user from existing file", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		siloConfigPath := filepath.Join(base, "silo", "silo.user.toml")
+		if err := os.MkdirAll(filepath.Dir(siloConfigPath), 0755); err != nil {
+			t.Fatal(err)
+		}
+		content := []byte("[general]\nuser = \"alice\"\n")
+		if err := os.WriteFile(siloConfigPath, content, 0644); err != nil {
+			t.Fatal(err)
+		}
 		cfg, err := LoadSiloUserTOML()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if cfg.General.ID != "" {
-			t.Errorf("expected zero config for absent file, got %+v", cfg)
+		if cfg.General.User != "alice" {
+			t.Errorf("expected User alice, got %q", cfg.General.User)
 		}
 	})
 
-	t.Run("parses features from existing file", func(t *testing.T) {
+	t.Run("missing general.user returns error", func(t *testing.T) {
 		base := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", base)
 		siloConfigPath := filepath.Join(base, "silo", "silo.user.toml")
@@ -167,12 +180,9 @@ func TestLoadSiloUserTOML(t *testing.T) {
 		if err := os.WriteFile(siloConfigPath, content, 0644); err != nil {
 			t.Fatal(err)
 		}
-		cfg, err := LoadSiloUserTOML()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !cfg.Features.Podman {
-			t.Error("expected Features.Podman = true")
+		_, err := LoadSiloUserTOML()
+		if err == nil {
+			t.Error("expected error when [general].user is missing")
 		}
 	})
 
@@ -255,7 +265,7 @@ func TestEnsureFile(t *testing.T) {
 func TestInitWorkspaceConfig(t *testing.T) {
 	t.Run("first run: creates .silo/silo.toml with generated ID", func(t *testing.T) {
 		SetupUserConfig(t)
-		SetupWorkspace(t, Config{}) // write an *empty* silo.toml so setupWorkspace doesn't interfere
+		SetupWorkspace(t, WorkspaceConfig{}) // write an *empty* silo.toml so setupWorkspace doesn't interfere
 		// Remove the file so we simulate a true first run.
 		os.Remove(SiloToml())
 		os.Remove(SiloDir()) // remove dir too so it is recreated
@@ -286,6 +296,23 @@ func TestInitWorkspaceConfig(t *testing.T) {
 		}
 		if cfg.General.ID != "deadbeef" {
 			t.Errorf("expected ID deadbeef, got %q", cfg.General.ID)
+		}
+	})
+}
+
+func TestRequireWorkspaceConfig(t *testing.T) {
+	t.Run("missing ID returns error", func(t *testing.T) {
+		SetupUserConfig(t)
+		cfg := MinimalConfig("abc12345")
+		cfg.General.ID = ""
+		SetupWorkspace(t, cfg)
+
+		_, err := RequireWorkspaceConfig()
+		if err == nil {
+			t.Error("expected error when [general].id is empty")
+		}
+		if !strings.Contains(err.Error(), "[general].id is required") {
+			t.Errorf("expected error to mention '[general].id is required', got: %v", err)
 		}
 	})
 }
@@ -448,8 +475,8 @@ func TestSaveWorkspaceConfigNilGuards(t *testing.T) {
 	if err := cfg.SaveWorkspaceConfig(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	parsed, err := ParseTOML(SiloToml())
-	if err != nil {
+	var parsed WorkspaceConfig
+	if err := ParseTOML(SiloToml(), &parsed); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	if parsed.SharedVolume.Paths == nil {

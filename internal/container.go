@@ -40,15 +40,21 @@ func ResolveContainerPath(path string, user string) string {
 // VolumeSetup creates directories on the silo-shared volume from the host side
 // by running a temporary container with the user image, ensuring directories exist
 // before they are mounted as subpath volumes. Returns true if directories were created.
-func VolumeSetup(cfg Config) (bool, error) {
+func VolumeSetup(cfg MergedConfig) (bool, error) {
 	if len(cfg.SharedVolume.Paths) == 0 {
 		return false, nil
 	}
 
-	// Ensure the user image exists before using it for volume setup
-	userImage := BaseImageName(cfg.General.User)
+	userImage := BaseImageName(cfg.User)
 	if !ImageExists(userImage) {
-		tc, err := NewTemplateContext(cfg)
+		mergedCfg := MergedConfig{
+			User:         cfg.User,
+			ID:           cfg.ID,
+			Features:     cfg.Features,
+			SharedVolume: SharedVolumeConfig{Paths: []string{}},
+			Podman:       PodmanConfig{CreateArgs: []string{}},
+		}
+		tc, err := NewTemplateContext(mergedCfg)
 		if err != nil {
 			return false, fmt.Errorf("build template context: %w", err)
 		}
@@ -59,7 +65,7 @@ func VolumeSetup(cfg Config) (bool, error) {
 
 	var mkdirCmd strings.Builder
 	for i, path := range cfg.SharedVolume.Paths {
-		containerPath := ResolveContainerPath(path, cfg.General.User)
+		containerPath := ResolveContainerPath(path, cfg.User)
 		if containerPath == "" {
 			continue
 		}
@@ -97,20 +103,6 @@ func ContainerExists(name string) bool {
 	return ExecCommand("podman", "container", "exists", name).Run() == nil
 }
 
-// PrintDryRun prints how a podman command would be invoked (without running it).
-// Arguments with spaces or special characters are quoted for shell clarity.
-func PrintDryRun(args []string) {
-	quoted := make([]string, len(args))
-	for i, a := range args {
-		if strings.ContainsAny(a, " \t\"'\\") {
-			quoted[i] = fmt.Sprintf("%q", a)
-		} else {
-			quoted[i] = a
-		}
-	}
-	fmt.Println("podman " + strings.Join(quoted, " "))
-}
-
 // ConnectContainer opens an interactive session in the running container via podman exec.
 func ConnectContainer(name string) error {
 	args := append([]string{"exec", "-ti"}, name)
@@ -122,7 +114,7 @@ func ConnectContainer(name string) error {
 }
 
 // WorkspaceMountPath returns the container-side mount path for the current working directory.
-func WorkspaceMountPath(cfg Config) (string, error) {
+func WorkspaceMountPath(cfg WorkspaceConfig) (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("get current working directory: %w", err)
@@ -141,7 +133,8 @@ func containerNameWithSuffix(baseName, suffix string) string {
 
 // ContainerArgs returns podman flags for container name, hostname, and basic settings.
 // Security and capability args are stored in [podman].create_args in silo.toml.
-func ContainerArgs(cfg Config, containerNameSuffix ...string) []string {
+// user is the username to set in the container; containerNameSuffix is an optional suffix for the container name.
+func ContainerArgs(cfg WorkspaceConfig, user string, containerNameSuffix ...string) []string {
 	suffix := ""
 	if len(containerNameSuffix) > 0 {
 		suffix = containerNameSuffix[0]
@@ -149,14 +142,17 @@ func ContainerArgs(cfg Config, containerNameSuffix ...string) []string {
 	containerName := containerNameWithSuffix(WorkspaceContainerName(cfg.General.ID), suffix)
 
 	args := []string{"--name", containerName, "--hostname", containerName}
-	args = append(args, "--user", cfg.General.User)
+	if user != "" {
+		args = append(args, "--user", user)
+	}
 
 	return args
 }
 
 // BuildContainerArgs returns podman container-specific arguments from cfg.
 // Callers should prepend subcommands ("create", "run") as needed.
-func BuildContainerArgs(cfg Config) ([]string, error) {
+// user is the username for resolving container paths; if empty, shared volume paths are skipped.
+func BuildContainerArgs(cfg WorkspaceConfig, user string) ([]string, error) {
 	hostDir, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("get current working directory: %w", err)
@@ -164,7 +160,7 @@ func BuildContainerArgs(cfg Config) ([]string, error) {
 
 	var args []string
 
-	args = append(args, ContainerArgs(cfg)...)
+	args = append(args, ContainerArgs(cfg, user)...)
 
 	// Workspace mount (host dir → container path)
 	containerDir, err := WorkspaceMountPath(cfg)
@@ -175,8 +171,12 @@ func BuildContainerArgs(cfg Config) ([]string, error) {
 	args = append(args, "--workdir", containerDir)
 
 	// Shared volume - mount each path as a subpath of the named volume
+	// user may be empty during container create; VolumeSetup will handle path creation
 	for _, path := range cfg.SharedVolume.Paths {
-		containerPath := ResolveContainerPath(path, cfg.General.User)
+		if user == "" {
+			continue
+		}
+		containerPath := ResolveContainerPath(path, user)
 		// Skip invalid/relative paths
 		if containerPath == "" {
 			continue
@@ -191,16 +191,21 @@ func BuildContainerArgs(cfg Config) ([]string, error) {
 
 // CreateContainer creates a new container. It does not start it.
 // Extra args are forwarded to podman create.
-func CreateContainer(cfg Config, extra []string) error {
-	podmanArgs, err := BuildContainerArgs(cfg)
+func CreateContainer(cfg MergedConfig, extra []string) error {
+	podmanArgs, err := BuildContainerArgs(WorkspaceConfig{
+		General:      WorkspaceGeneralConfig{ID: cfg.ID},
+		Features:     cfg.Features,
+		SharedVolume: cfg.SharedVolume,
+		Podman:       cfg.Podman,
+	}, cfg.User)
 	if err != nil {
 		return fmt.Errorf("build container arguments: %w", err)
 	}
 	createArgs := append([]string{"create"}, podmanArgs...)
 	createArgs = append(createArgs, extra...)
-	createArgs = append(createArgs, WorkspaceImageName(cfg.General.ID))
+	createArgs = append(createArgs, WorkspaceImageName(cfg.ID))
 
-	fmt.Printf("Creating %s...\n", WorkspaceContainerName(cfg.General.ID))
+	fmt.Printf("Creating %s...\n", WorkspaceContainerName(cfg.ID))
 	if err := RunVisible("podman", createArgs...); err != nil {
 		return fmt.Errorf("create container: %w", err)
 	}
@@ -283,25 +288,4 @@ func PrintRunningStatus(isRunning bool) {
 // PrintNotFound prints a not found message.
 func PrintNotFound(name string) {
 	fmt.Printf("%s not found\n", name)
-}
-
-// RemoveNamedContainer removes a named container, handling running state and force flag.
-func RemoveNamedContainer(name string, force bool) error {
-	if !ContainerExists(name) {
-		PrintNotFound(name)
-		return nil
-	}
-	if ContainerRunning(name) {
-		if !force {
-			return fmt.Errorf("%s is running", name)
-		}
-		if err := StopContainer(name); err != nil {
-			return fmt.Errorf("stop container before removal: %w", err)
-		}
-	}
-	fmt.Printf("Removing %s...\n", name)
-	if err := RemoveContainer(name); err != nil {
-		return fmt.Errorf("remove container: %w", err)
-	}
-	return nil
 }

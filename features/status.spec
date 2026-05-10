@@ -1,7 +1,7 @@
 @status
 Feature: silo status — Show workspace container status
 
-  `silo status` prints whether the workspace container is currently running or stopped.
+  `silo status` prints whether the workspace container is running or stopped.
   It requires the workspace to have been initialized first.
 
   Background:

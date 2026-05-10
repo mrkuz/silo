@@ -19,8 +19,7 @@ func TestFeatureDevcontainerStatus(t *testing.T) {
 	t.Run("Rule: Reports devcontainer running state", func(t *testing.T) {
 		t.Run("Scenario: status shows Running when devcontainer is up", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "true"),
@@ -37,8 +36,7 @@ func TestFeatureDevcontainerStatus(t *testing.T) {
 
 		t.Run("Scenario: status shows Stopped when devcontainer is not running", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "false"),

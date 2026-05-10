@@ -21,8 +21,7 @@ func TestFeatureStart(t *testing.T) {
 	t.Run("Rule: Starts the container", func(t *testing.T) {
 		t.Run("Scenario: start runs podman start", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
@@ -45,8 +44,7 @@ func TestFeatureStart(t *testing.T) {
 
 		t.Run("Scenario: start prints a message when starting", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
@@ -71,8 +69,7 @@ func TestFeatureStart(t *testing.T) {
 	t.Run("Rule: Idempotency — already running container is a no-op", func(t *testing.T) {
 		t.Run("Scenario: running container is not restarted", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
@@ -96,8 +93,7 @@ func TestFeatureStart(t *testing.T) {
 	t.Run("Rule: Creates container if missing (builds images if needed)", func(t *testing.T) {
 		t.Run("Scenario: missing container triggers full build-and-create chain", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
@@ -122,8 +118,7 @@ func TestFeatureStart(t *testing.T) {
 
 		t.Run("Scenario: missing images trigger build before container creation", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
@@ -152,9 +147,8 @@ func TestFeatureStart(t *testing.T) {
 	t.Run("Rule: Runs volume setup before starting", func(t *testing.T) {
 		t.Run("Scenario: shared volume directories are created before container starts", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
 			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
@@ -187,8 +181,7 @@ func TestFeatureStart(t *testing.T) {
 	t.Run("Rule: Does not connect to the container", func(t *testing.T) {
 		t.Run("Scenario: start does not attach to the container", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),

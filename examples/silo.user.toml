@@ -1,8 +1,7 @@
-[features]
-podman = false
+[general]
+user = "markus"
 
 [shared_volume]
-name  = "silo-shared"
 paths = [
   "$HOME/.local/share/fish/fish_history",
   "$HOME/.claude.json",

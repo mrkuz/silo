@@ -65,7 +65,7 @@ Feature: silo devcontainer connect — Open an interactive shell in the devconta
       When I run `silo devcontainer connect` and `silo devcontainer connect` in parallel
       Then two independent shell sessions should be opened in "silo-abc12345-dev"
 
-  Rule: Does not affect the workspace container
+  Rule: devcontainer connect does not affect the workspace container
 
     Scenario: devcontainer connect does not check workspace container state
       Given the devcontainer "silo-abc12345-dev" is running

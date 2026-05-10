@@ -17,15 +17,15 @@ func TestFeatureStop(t *testing.T) {
 	// Background: a workspace with silo config "abc12345"
 	// and the user's XDG_CONFIG_HOME points to a fresh directory
 
-	t.Run("Rule: Stops the running container", func(t *testing.T) {
-		t.Run("Scenario: stop terminates the container immediately", func(t *testing.T) {
+	t.Run("Rule: Running container is stopped and removed", func(t *testing.T) {
+		t.Run("Scenario: stop terminates and removes the container", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
 				"podman stop -t 0 silo-abc12345":                                     exec.Command("true"),
+				"podman rm -f silo-abc12345":                                         exec.Command("true"),
 			})
 
 			// When I run `silo stop`
@@ -33,54 +33,61 @@ func TestFeatureStop(t *testing.T) {
 
 			// Then podman should run "stop" with "-t" and "0" on "silo-abc12345"
 			mock.AssertExec("podman", "stop", "-t", "0", "silo-abc12345")
+			// And podman should run "rm" with "-f" on "silo-abc12345"
+			mock.AssertExec("podman", "rm", "-f", "silo-abc12345")
 			// And the output should contain "Stopping silo-abc12345..."
 			if !strings.Contains(output, "Stopping silo-abc12345...") {
 				t.Errorf("expected output to contain 'Stopping silo-abc12345...', got: %s", output)
 			}
+			// And the output should contain "Removing silo-abc12345..."
+			if !strings.Contains(output, "Removing silo-abc12345...") {
+				t.Errorf("expected output to contain 'Removing silo-abc12345...', got: %s", output)
+			}
+			// And the exit code should be 0
 		})
 	})
 
-	t.Run("Rule: No-op if container is already stopped", func(t *testing.T) {
-		t.Run("Scenario: stopped container is not an error", func(t *testing.T) {
+	t.Run("Rule: Stopped container is removed", func(t *testing.T) {
+		t.Run("Scenario: stopped container prints message and is removed", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
+				"podman rm -f silo-abc12345":                                         exec.Command("true"),
 			})
 
 			// When I run `silo stop`
 			output := internal.CaptureStdout(func() { cmd.Stop() })
 
-			// Then the output should contain "silo-abc12345 is not running"
+			// Then podman should run "rm" with "-f" on "silo-abc12345"
+			mock.AssertExec("podman", "rm", "-f", "silo-abc12345")
+			// And the output should contain "silo-abc12345 is not running"
 			if !strings.Contains(output, "silo-abc12345 is not running") {
 				t.Errorf("expected output to contain 'silo-abc12345 is not running', got: %s", output)
 			}
-			// And no podman stop should be called
-			mock.AssertNoExec("podman", "stop", "<any>")
+			// And the output should contain "Removing silo-abc12345..."
+			if !strings.Contains(output, "Removing silo-abc12345...") {
+				t.Errorf("expected output to contain 'Removing silo-abc12345...', got: %s", output)
+			}
+			// And the exit code should be 0
 		})
-	})
 
-	t.Run("Rule: Stop does not remove container or image", func(t *testing.T) {
-		t.Run("Scenario: stop only stops, it does not remove anything", func(t *testing.T) {
+		t.Run("Scenario: absent container prints not found and exits 0", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-				"podman stop <any>": exec.Command("true"),
+				"podman container exists silo-abc12345": exec.Command("false"),
 			})
 
 			// When I run `silo stop`
-			cmd.Stop()
+			output := internal.CaptureStdout(func() { cmd.Stop() })
 
-			// Then podman should run "stop" on "silo-abc12345"
-			// But podman should not run "rm" on "silo-abc12345"
-			mock.AssertNoExec("podman", "rm", "<any>")
-			// And podman should not run "rmi" on "silo-abc12345"
-			mock.AssertNoExec("podman", "rmi", "<any>")
+			// Then the output should contain "silo-abc12345 not found"
+			if !strings.Contains(output, "silo-abc12345 not found") {
+				t.Errorf("expected output to contain 'silo-abc12345 not found', got: %s", output)
+			}
 		})
 	})
 

@@ -23,8 +23,7 @@ func TestFeatureRm(t *testing.T) {
 	t.Run("Rule: Removes the workspace image", func(t *testing.T) {
 		t.Run("Scenario: rm removes the workspace image when no container exists", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
@@ -52,8 +51,7 @@ func TestFeatureRm(t *testing.T) {
 
 		t.Run("Scenario: missing image prints not found", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
@@ -80,8 +78,7 @@ func TestFeatureRm(t *testing.T) {
 	t.Run("Rule: Running container blocks removal", func(t *testing.T) {
 		t.Run("Scenario: running container returns error without modifying state", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
@@ -115,8 +112,7 @@ func TestFeatureRm(t *testing.T) {
 	t.Run("Rule: Stopped container is removed before image removal", func(t *testing.T) {
 		t.Run("Scenario: stopped container is removed before image removal", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
@@ -165,8 +161,7 @@ func TestFeatureRm(t *testing.T) {
 	t.Run("Rule: rm does not remove the user image", func(t *testing.T) {
 		t.Run("Scenario: rm only removes the workspace image, not the user image", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),

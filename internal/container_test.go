@@ -9,11 +9,11 @@ import (
 )
 
 func TestContainerArgsBasic(t *testing.T) {
-	cfg := Config{
-		General:  GeneralConfig{ID: "abc12345", User: "testuser"},
+	cfg := WorkspaceConfig{
+		General:  WorkspaceGeneralConfig{ID: "abc12345"},
 		Features: FeaturesConfig{Podman: true},
 	}
-	args := ContainerArgs(cfg)
+	args := ContainerArgs(cfg, "testuser")
 	joined := strings.Join(args, " ")
 	if !strings.Contains(joined, "--name silo-abc12345") {
 		t.Errorf("expected --name silo-abc12345 in args: %v", args)
@@ -27,11 +27,11 @@ func TestContainerArgsBasic(t *testing.T) {
 }
 
 func TestContainerArgsNonNested(t *testing.T) {
-	cfg := Config{
-		General:  GeneralConfig{ID: "abc12345", User: "testuser"},
+	cfg := WorkspaceConfig{
+		General:  WorkspaceGeneralConfig{ID: "abc12345"},
 		Features: FeaturesConfig{Podman: false},
 	}
-	args := ContainerArgs(cfg)
+	args := ContainerArgs(cfg, "testuser")
 	joined := strings.Join(args, " ")
 	if !strings.Contains(joined, "--name silo-abc12345") {
 		t.Errorf("expected --name silo-abc12345 in args: %v", args)
@@ -42,11 +42,11 @@ func TestContainerArgsNonNested(t *testing.T) {
 }
 
 func TestContainerArgsNameSuffix(t *testing.T) {
-	cfg := Config{
-		General:  GeneralConfig{ID: "abc12345"},
+	cfg := WorkspaceConfig{
+		General:  WorkspaceGeneralConfig{ID: "abc12345"},
 		Features: FeaturesConfig{Podman: false},
 	}
-	args := ContainerArgs(cfg, "-dev")
+	args := ContainerArgs(cfg, "", "-dev")
 	joined := strings.Join(args, " ")
 	if !strings.Contains(joined, "--name silo-abc12345-dev") {
 		t.Errorf("expected --name with suffix in args: %v", args)
@@ -57,8 +57,8 @@ func TestContainerArgsNameSuffix(t *testing.T) {
 }
 
 func TestWorkspaceMountPath(t *testing.T) {
-	cfg := Config{
-		General: GeneralConfig{ID: "abc12345"},
+	cfg := WorkspaceConfig{
+		General: WorkspaceGeneralConfig{ID: "abc12345"},
 	}
 	got, err := WorkspaceMountPath(cfg)
 	if err != nil {
@@ -72,16 +72,15 @@ func TestWorkspaceMountPath(t *testing.T) {
 }
 
 func TestBuildContainerArgsMinimal(t *testing.T) {
-	cfg := Config{
-		General: GeneralConfig{
-			ID:   "abc12345",
-			User: "alice",
+	cfg := WorkspaceConfig{
+		General: WorkspaceGeneralConfig{
+			ID: "abc12345",
 		},
 		Features: FeaturesConfig{
-			Podman:       false,
+			Podman: false,
 		},
 	}
-	args, err := BuildContainerArgs(cfg)
+	args, err := BuildContainerArgs(cfg, "alice")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -101,16 +100,15 @@ func TestBuildContainerArgsMinimal(t *testing.T) {
 }
 
 func TestBuildContainerArgsNoDuplicateFlags(t *testing.T) {
-	cfg := Config{
-		General: GeneralConfig{
-			ID:   "abc12345",
-			User: "alice",
+	cfg := WorkspaceConfig{
+		General: WorkspaceGeneralConfig{
+			ID: "abc12345",
 		},
 		Features: FeaturesConfig{
-			Podman:       false,
+			Podman: false,
 		},
 	}
-	args, err := BuildContainerArgs(cfg)
+	args, err := BuildContainerArgs(cfg, "alice")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -128,19 +126,18 @@ func TestBuildContainerArgsNoDuplicateFlags(t *testing.T) {
 }
 
 func TestBuildContainerArgsSharedVolume(t *testing.T) {
-	cfg := Config{
-		General: GeneralConfig{
-			ID:   "abc12345",
-			User: "alice",
+	cfg := WorkspaceConfig{
+		General: WorkspaceGeneralConfig{
+			ID: "abc12345",
 		},
 		Features: FeaturesConfig{
-			Podman:       false,
+			Podman: false,
 		},
 		SharedVolume: SharedVolumeConfig{
 			Paths: []string{"$HOME/.cache/uv/"},
 		},
 	}
-	args, err := BuildContainerArgs(cfg)
+	args, err := BuildContainerArgs(cfg, "alice")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -151,7 +148,7 @@ func TestBuildContainerArgsSharedVolume(t *testing.T) {
 }
 
 func TestCreateContainerCreateArgs(t *testing.T) {
-	cfg := MinimalConfig("abc12345")
+	cfg := MinimalMergedConfig("abc12345", "testuser")
 	cfg.Podman.CreateArgs = []string{"--memory", "512m"}
 	mock := NewMock(t)
 	mock.MockExec(map[string]*exec.Cmd{})
@@ -165,7 +162,7 @@ func TestCreateContainerCreateArgs(t *testing.T) {
 }
 
 func TestCreateContainerCreateArgsNested(t *testing.T) {
-	cfg := MinimalConfig("abc12345")
+	cfg := MinimalMergedConfig("abc12345", "testuser")
 	cfg.Podman.CreateArgs = []string{"--security-opt", "label=disable", "--device", "/dev/fuse"}
 	mock := NewMock(t)
 	mock.MockExec(map[string]*exec.Cmd{})
@@ -184,7 +181,7 @@ func TestCreateContainerCreateArgsNested(t *testing.T) {
 }
 
 func TestCreateContainerCreateArgsNonNested(t *testing.T) {
-	cfg := MinimalConfig("abc12345")
+	cfg := MinimalMergedConfig("abc12345", "testuser")
 	cfg.Podman.CreateArgs = []string{"--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"}
 	mock := NewMock(t)
 	mock.MockExec(map[string]*exec.Cmd{})
@@ -207,7 +204,7 @@ func TestCreateContainerCreateArgsNonNested(t *testing.T) {
 
 func TestVolumeSetup(t *testing.T) {
 	t.Run("skipped when paths empty", func(t *testing.T) {
-		cfg := MinimalConfig("abc12345")
+		cfg := MinimalMergedConfig("abc12345", "testuser")
 		cfg.SharedVolume.Paths = []string{}
 		mock := NewMock(t)
 		mock.MockExec(map[string]*exec.Cmd{})
@@ -218,7 +215,7 @@ func TestVolumeSetup(t *testing.T) {
 	})
 
 	t.Run("runs user image to create directories", func(t *testing.T) {
-		cfg := MinimalConfig("abc12345")
+		cfg := MinimalMergedConfig("abc12345", "testuser")
 		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 		mock := NewMock(t)
 		mock.MockExec(map[string]*exec.Cmd{})

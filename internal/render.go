@@ -117,33 +117,31 @@ type TemplateContext struct {
 	SharedVolumePaths []string // resolved container paths for subpath mounts
 }
 
-// NewTemplateContext builds a TemplateContext from Config for template rendering.
+// NewTemplateContext builds a TemplateContext from MergedConfig for template rendering.
 // An optional suffix is appended to the container name.
-func NewTemplateContext(cfg Config, containerNameSuffix ...string) (TemplateContext, error) {
+func NewTemplateContext(cfg MergedConfig, containerNameSuffix ...string) (TemplateContext, error) {
 	suffix := ""
 	if len(containerNameSuffix) > 0 {
 		suffix = containerNameSuffix[0]
 	}
-	containerName := containerNameWithSuffix(WorkspaceContainerName(cfg.General.ID), suffix)
+	containerName := containerNameWithSuffix(WorkspaceContainerName(cfg.ID), suffix)
 	sharedVolumeNameValue := ""
 	if len(cfg.SharedVolume.Paths) > 0 {
 		sharedVolumeNameValue = "silo-shared"
 	}
 
-	home := "/home/" + cfg.General.User
-	workspaceMount, err := WorkspaceMountPath(cfg)
+	home := "/home/" + cfg.User
+	workspaceMount, err := WorkspaceMountPath(WorkspaceConfig{General: WorkspaceGeneralConfig{ID: cfg.ID}})
 	if err != nil {
 		return TemplateContext{}, fmt.Errorf("resolve workspace mount path: %w", err)
 	}
-	// Build resolved container paths for each shared volume path
 	var sharedPaths []string
 	if len(cfg.SharedVolume.Paths) > 0 {
 		sharedPaths = make([]string, len(cfg.SharedVolume.Paths))
 		for i, path := range cfg.SharedVolume.Paths {
-			sharedPaths[i] = ResolveContainerPath(path, cfg.General.User)
+			sharedPaths[i] = ResolveContainerPath(path, cfg.User)
 		}
 	}
-	// Build devcontainer args: name, hostname, and security args (no --user for devcontainer)
 	devcontainerArgs := []string{"--name", containerName, "--hostname", containerName}
 	if cfg.Features.Podman {
 		devcontainerArgs = append(devcontainerArgs, "--security-opt", "label=disable", "--device", "/dev/fuse")
@@ -152,17 +150,57 @@ func NewTemplateContext(cfg Config, containerNameSuffix ...string) (TemplateCont
 	}
 
 	return TemplateContext{
-		User:              cfg.General.User,
+		User:              cfg.User,
 		Home:              home,
-		Image:             WorkspaceImageName(cfg.General.ID),
-		BaseImage:         BaseImageName(cfg.General.User),
+		Image:             WorkspaceImageName(cfg.ID),
+		BaseImage:         BaseImageName(cfg.User),
 		ContainerName:     containerName,
 		SharedVolumeName:  sharedVolumeNameValue,
 		WorkspaceMount:    workspaceMount,
 		System:            DetectNixSystem(),
-		ContainerArgs:     ContainerArgs(cfg, containerNameSuffix...),
+		ContainerArgs:     ContainerArgs(WorkspaceConfig{General: WorkspaceGeneralConfig{ID: cfg.ID}}, cfg.User, containerNameSuffix...),
 		DevcontainerArgs:  devcontainerArgs,
 		SharedVolumePaths: sharedPaths,
+	}, nil
+}
+
+// NewTemplateContextFromWorkspace builds a TemplateContext from WorkspaceConfig for template rendering.
+// It reads the user from silo.user.toml to determine the BaseImage and ContainerArgs.
+func NewTemplateContextFromWorkspace(cfg WorkspaceConfig) (TemplateContext, error) {
+	containerName := WorkspaceContainerName(cfg.General.ID)
+	sharedVolumeNameValue := ""
+	if len(cfg.SharedVolume.Paths) > 0 {
+		sharedVolumeNameValue = "silo-shared"
+	}
+
+	workspaceMount, err := WorkspaceMountPath(cfg)
+	if err != nil {
+		return TemplateContext{}, fmt.Errorf("resolve workspace mount path: %w", err)
+	}
+	devcontainerArgs := []string{"--name", containerName, "--hostname", containerName}
+	if cfg.Features.Podman {
+		devcontainerArgs = append(devcontainerArgs, "--security-opt", "label=disable", "--device", "/dev/fuse")
+	} else {
+		devcontainerArgs = append(devcontainerArgs, "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges")
+	}
+
+	userCfg, err := LoadSiloUserTOML()
+	if err != nil {
+		return TemplateContext{}, fmt.Errorf("load user configuration: %w", err)
+	}
+	user := userCfg.General.User
+
+	return TemplateContext{
+		User:             user,
+		Home:             "/home/" + user,
+		BaseImage:        BaseImageName(user),
+		Image:            WorkspaceImageName(cfg.General.ID),
+		ContainerName:    containerName,
+		SharedVolumeName: sharedVolumeNameValue,
+		WorkspaceMount:   workspaceMount,
+		System:           DetectNixSystem(),
+		ContainerArgs:    ContainerArgs(cfg, user, ""),
+		DevcontainerArgs: devcontainerArgs,
 	}, nil
 }
 

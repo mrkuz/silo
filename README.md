@@ -59,15 +59,16 @@ go install .
 Every workspace goes through a fixed chain of steps. Each step depends on the ones before it. Running `silo` (or `silo connect`) triggers the full chain automatically.
 
 ```
-init → build → setup → start → connect
+init → build → create → volume setup → start → connect
 ```
 
 | Step | Description | Output | Idempotency |
 |---|---|---|---|
 | **init** | Creates `.silo/silo.toml`, `.silo/home.nix`; runs `silo user init` to create user files | Workspace + user files | Writes config only on first run |
 | **build** | Ensures user image exists, then builds workspace image if needed | Container image | Images are cached; only missing ones are built |
-| **start** | Creates the container if needed, then starts it | Running container | Skipped if container is already running |
-| **setup** | Creates directories on the shared volume using a temporary container | Configured container | Safe to re-run |
+| **create** | Creates the container if it doesn't exist | Container (stopped) | Skipped if container already exists |
+| **volume setup** | Creates directories on the shared volume | Configured container | Safe to re-run |
+| **start** | Starts the container if not running | Running container | Skipped if container is already running |
 | **connect** | Opens an interactive shell inside the running container | Terminal session | — |
 
 You can run individual steps:
@@ -201,29 +202,62 @@ Show the full command reference.
 
 ## Configuration
 
-Configuration is TOML-based with two tiers. Later tiers override earlier ones:
+Configuration is TOML-based with three tiers. Later tiers override earlier ones:
 
 1. Built-in defaults
 2. User config at `$XDG_CONFIG_HOME/silo/silo.user.toml`
 3. Workspace config at `.silo/silo.toml`
-4. Runtime flags
 
 On macOS, `~/.config/silo/` is used unless `$XDG_CONFIG_HOME` is set explicitly.
 
-### Workspace config: `.silo/silo.toml`
+The two config files serve different purposes:
 
-Created automatically on first run. Seeded from `$XDG_CONFIG_HOME/silo/silo.user.toml` if present.
+| | `silo.user.toml` | `.silo/silo.toml` |
+|---|---|---|
+| **Purpose** | Defaults for new workspaces; shared across all workspaces | Per-workspace runtime config |
+| **`[general]`** | `user` — your username | `id` — workspace ID (8-char random) |
+| **`[features]`** | — | `podman` — enable nested Podman |
+| **`[shared_volume]`** | `paths` — default paths | `paths` — additional paths (merged) |
+| **`[podman]`** | `create_args` — prepended | `create_args` — base args |
+
+### Merge behavior
+
+- **`[general].user`** — from user config only
+- **`[general].id`** — from workspace config only; set once on first run
+- **`[features].podman`** — from workspace config only; set by `silo init --[no-]podman`
+- **`[shared_volume].paths`** — merged: user paths first, then workspace paths
+- **`[podman].create_args`** — merged: user args prepended to workspace args
+
+### User config: `$XDG_CONFIG_HOME/silo/silo.user.toml`
+
+Default values for new workspaces. Your username and default shared volume paths live here. `[general].id` is ignored.
 
 ```toml
 [general]
-id             = "ab3f9c12"          # 8-char random ID; names container and image
-user           = "alice"
-
-[features]
-podman        = false                # Enable Podman inside the container
+user = "alice"
 
 [shared_volume]
-name  = "silo-shared"                        # Podman volume name (default: silo-shared)
+paths = [
+    "$HOME/.cache/uv/",                      # persist and share directory (trailing /)
+    "$HOME/.local/share/fish/fish_history",  # persist and share file
+]
+
+[podman]
+create_args = []
+```
+
+### Workspace config: `.silo/silo.toml`
+
+Per-workspace runtime config. Created automatically on first run.
+
+```toml
+[general]
+id = "ab3f9c12"
+
+[features]
+podman = false
+
+[shared_volume]
 paths = [
     "$HOME/.local/share/fish/fish_history",  # persist and share file
     "$HOME/.cache/uv/",                      # persist and share directory (trailing /)
@@ -237,31 +271,6 @@ create_args = [
   "no-new-privileges"
 ]
 ```
-
-**`[general]`**
-
-| Key | Description |
-|---|---|
-| `id` | 8-character random alphanumeric workspace ID |
-| `user` | Current username on the host |
-
-**`[features]`**
-
-| Key | Default | Description |
-|---|---|---|
-| `podman` | `false` | Enable Podman inside the container |
-
-**`[shared_volume]`**
-
-| Key | Default | Description |
-|---|---|---|
-| `paths` | `[]` | Paths inside the container backed by the shared volume. A trailing slash means directory; no trailing slash means file. `$HOME` is the only supported placeholder prefix. Shared volume support is active when this list is non-empty. The volume is always named `silo-shared`. |
-
-**`[podman]`**
-
-| Key | Default | Description |
-|---|---|---|
-| `create_args` | computed | Arguments appended to `podman create`. Set by `silo init` based on enabled features. User-provided arguments in `silo.user.toml` are prepended. |
 
 ### Workspace config: `.silo/home.nix`
 
@@ -277,13 +286,13 @@ Home-manager config applied only to this workspace's image. Created as an empty 
 }
 ```
 
-### User config: `$XDG_CONFIG_HOME/silo/`
+### User config files: `$XDG_CONFIG_HOME/silo/`
 
 | File | Description |
 |---|---|
-| `silo.user.toml` | Default values for new workspaces. `[general]` is ignored. |
-| `home.user.nix` | User home-manager config baked into the user image. |
-| `devcontainer.in.json` | Merged into every generated `.devcontainer.json`. |
+| `silo.user.toml` | Default values for new workspaces |
+| `home.user.nix` | User home-manager config baked into the user image |
+| `devcontainer.in.json` | Merged into every generated `.devcontainer.json` |
 
 See `examples/` for reference configs.
 
@@ -306,7 +315,7 @@ The host directory is mounted into the container at `/workspace/<id>/<dirname>`,
 
 ### Shared volume
 
-The named Podman volume (default: `silo-shared`, configurable via `[shared_volume].name`) is mounted at `/silo/shared` inside every container. Data stored there — such as package caches — is shared across all workspaces and survives container restarts and image rebuilds.
+The named Podman volume (`silo-shared`) is mounted at `/silo/shared` inside every container. Data stored there — such as package caches — is shared across all workspaces and survives container restarts and image rebuilds.
 
 For paths listed in `[shared_volume]`, a subpath mount is created inside the container. A trailing slash marks a directory; no trailing slash marks a file. `$HOME` is expanded inside the container.
 

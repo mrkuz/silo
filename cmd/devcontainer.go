@@ -17,7 +17,7 @@ func DevcontainerGenerate(args []string) error {
 
 // DevcontainerStop implements `silo devcontainer stop`.
 func DevcontainerStop() error {
-	cfg, err := internal.RequireWorkspaceConfig()
+	cfg, err := internal.RequireMergedConfig()
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
@@ -42,7 +42,7 @@ func DevcontainerStop() error {
 
 // DevcontainerStatus implements `silo devcontainer status`.
 func DevcontainerStatus() error {
-	cfg, err := internal.RequireWorkspaceConfig()
+	cfg, err := internal.RequireMergedConfig()
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
@@ -53,7 +53,7 @@ func DevcontainerStatus() error {
 
 // DevcontainerConnect implements `silo devcontainer connect`.
 func DevcontainerConnect() error {
-	cfg, err := internal.RequireWorkspaceConfig()
+	cfg, err := internal.RequireMergedConfig()
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}

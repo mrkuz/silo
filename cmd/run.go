@@ -16,7 +16,7 @@ func Run(args []string) error {
 	if err != nil {
 		return fmt.Errorf("setup container: %w", err)
 	}
-	containerName := internal.WorkspaceContainerName(cfg.General.ID)
+	containerName := internal.WorkspaceContainerName(cfg.ID)
 	fmt.Printf("Connecting to %s...\n", containerName)
 	err = internal.ConnectContainer(containerName)
 	// Best-effort cleanup; original session error (if any) takes precedence.

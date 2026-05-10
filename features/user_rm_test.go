@@ -2,7 +2,6 @@ package features_test
 
 import (
 	"os/exec"
-	"os/user"
 	"strings"
 	"testing"
 
@@ -15,8 +14,7 @@ import (
 // current user. It has no effect if the image does not exist.
 func TestFeatureUserRm(t *testing.T) {
 	// Background: the user's XDG_CONFIG_HOME points to a fresh directory
-	currentUser, _ := user.Current()
-	userImage := "silo-" + currentUser.Username
+	userImage := "silo-testuser"
 
 	t.Run("Rule: Removes the user image when present", func(t *testing.T) {
 		t.Run("Scenario: user rmi removes the user image", func(t *testing.T) {

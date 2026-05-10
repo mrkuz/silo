@@ -23,6 +23,12 @@ Feature: silo user init — Create user starter files
       And the file "home.user.nix" in the user's silo config directory should contain "/bin/bash --login"
       And the exit code should be 0
 
+    Scenario: silo.user.toml contains [general] with current username
+      When I run `silo user init`
+      Then the file "silo.user.toml" in the user's silo config directory should contain `[general]`
+      And the file "silo.user.toml" in the user's silo config directory should contain the current username
+      And the exit code should be 0
+
   Rule: Idempotency — existing files are not overwritten
 
     Scenario: all existing user files are preserved
@@ -35,13 +41,13 @@ Feature: silo user init — Create user starter files
       And the file "silo.user.toml" in the user's silo config directory should contain "[features]"
       And the exit code should be 0
 
-  Rule: Display of file status during user init
+  Rule: Requires valid user config
 
-    Scenario: user init shows creating message for new files
+    Scenario: missing user in silo.user.toml returns error
+      Given the user's silo config directory has "silo.user.toml" with content "[features]"
       When I run `silo user init`
-      Then the output should contain "Creating <XDG_CONFIG_HOME>/silo/home.user.nix"
-      And the output should contain "Creating <XDG_CONFIG_HOME>/silo/devcontainer.in.json"
-      And the output should contain "Creating <XDG_CONFIG_HOME>/silo/silo.user.toml"
+      Then the exit code should not be 0
+      And the error should indicate "[general].user is required"
 
     Scenario: user init shows already exists message for existing files
       Given the user's silo config directory already has all starter files

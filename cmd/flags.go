@@ -58,7 +58,6 @@ func parseWithInterceptor(fs *flag.FlagSet, args []string) error {
 		return nil
 	}
 
-	// Return Unknown error
 	return ErroneousCommand()
 }
 

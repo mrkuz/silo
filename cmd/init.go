@@ -20,6 +20,16 @@ func Init(args []string) error {
 		}
 	}
 
+	// Ensure user files exist (creates silo.user.toml if missing)
+	if err := internal.EnsureUserFiles(); err != nil {
+		return fmt.Errorf("ensure user files: %w", err)
+	}
+
+	// Verify user config is valid
+	if _, err := internal.LoadSiloUserTOML(); err != nil {
+		return fmt.Errorf("load user configuration: %w", err)
+	}
+
 	// On first run, apply feature flags to initial config.
 	// On subsequent runs, feature flags are ignored.
 	_, _, err = internal.InitWorkspaceConfig()

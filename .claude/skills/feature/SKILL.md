@@ -15,6 +15,7 @@ A comprehensive workflow for implementing a new feature from idea to completion.
 
 ## Skill-specific rules
 
+- Always follow the whole workflow - do not skip or reorder phases without user approval
 - Once the feature specification is confirmed, do not modify without user approval
 
 ## Phase 1: Preparation

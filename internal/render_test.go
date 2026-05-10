@@ -157,11 +157,11 @@ func TestRenderDevcontainerJSON(t *testing.T) {
 
 func TestRenderDevcontainerJSONWithSharedVolume(t *testing.T) {
 	tc := TemplateContext{
-		Image:            "silo-abc12345",
-		User:             "alice",
-		ContainerName:    "silo-abc12345-dev",
-		DevcontainerArgs: []string{"--name", "silo-abc12345-dev", "--hostname", "silo-abc12345-dev", "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"},
-		SharedVolumeName: "silo-shared",
+		Image:             "silo-abc12345",
+		User:              "alice",
+		ContainerName:     "silo-abc12345-dev",
+		DevcontainerArgs:  []string{"--name", "silo-abc12345-dev", "--hostname", "silo-abc12345-dev", "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"},
+		SharedVolumeName:  "silo-shared",
 		SharedVolumePaths: []string{"/home/alice/.cache/uv", "/home/alice/.config/nvim"},
 	}
 	out, err := RenderTemplate("devcontainer.json.tmpl", tc)
@@ -185,11 +185,9 @@ func TestRenderDevcontainerJSONWithSharedVolume(t *testing.T) {
 }
 
 func TestNewTemplateContextDefaultSuffix(t *testing.T) {
-	cfg := Config{
-		General: GeneralConfig{
-			ID:   "abc12345",
-			User: "alice",
-		},
+	cfg := MergedConfig{
+		ID:       "abc12345",
+		User:     "alice",
 		Features: FeaturesConfig{Podman: false},
 		SharedVolume: SharedVolumeConfig{
 			Paths: []string{"$HOME/.cache/uv/", "$HOME/.config/nvim/"},
@@ -215,11 +213,9 @@ func TestNewTemplateContextDefaultSuffix(t *testing.T) {
 }
 
 func TestNewTemplateContextWithSuffix(t *testing.T) {
-	cfg := Config{
-		General: GeneralConfig{
-			ID:   "abc12345",
-			User: "alice",
-		},
+	cfg := MergedConfig{
+		ID:       "abc12345",
+		User:     "alice",
 		Features: FeaturesConfig{Podman: false},
 	}
 	tc, err := NewTemplateContext(cfg, "-dev")
@@ -236,11 +232,9 @@ func TestNewTemplateContextWithSuffix(t *testing.T) {
 }
 
 func TestNewTemplateContextWithoutSharedVolume(t *testing.T) {
-	cfg := Config{
-		General: GeneralConfig{
-			ID:   "abc12345",
-			User: "alice",
-		},
+	cfg := MergedConfig{
+		ID:       "abc12345",
+		User:     "alice",
 		Features: FeaturesConfig{Podman: false},
 		SharedVolume: SharedVolumeConfig{
 			Paths: []string{},
@@ -256,11 +250,9 @@ func TestNewTemplateContextWithoutSharedVolume(t *testing.T) {
 }
 
 func TestNewTemplateContextWorkspaceMount(t *testing.T) {
-	cfg := Config{
-		General: GeneralConfig{
-			ID:   "abc12345",
-			User: "alice",
-		},
+	cfg := MergedConfig{
+		ID:       "abc12345",
+		User:     "alice",
 		Features: FeaturesConfig{Podman: false},
 	}
 	tc, err := NewTemplateContext(cfg)

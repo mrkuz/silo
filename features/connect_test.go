@@ -24,8 +24,7 @@ func TestFeatureConnect(t *testing.T) {
 			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-alice":                                     exec.Command("true"),
@@ -53,8 +52,7 @@ func TestFeatureConnect(t *testing.T) {
 			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-alice":                                     exec.Command("true"),
@@ -79,8 +77,7 @@ func TestFeatureConnect(t *testing.T) {
 			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-alice":                                     exec.Command("true"),
@@ -106,8 +103,7 @@ func TestFeatureConnect(t *testing.T) {
 			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-alice":        exec.Command("true"),
@@ -132,8 +128,7 @@ func TestFeatureConnect(t *testing.T) {
 			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-alice":                                     exec.Command("true"),
@@ -162,8 +157,7 @@ func TestFeatureConnect(t *testing.T) {
 			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-alice":                                     exec.Command("true"),

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os/user"
 
 	"github.com/mrkuz/silo/internal"
 )
@@ -13,21 +12,19 @@ func UserBuild(args []string) error {
 	if err != nil {
 		return err
 	}
-	u, err := user.Current()
-	if err != nil {
-		return fmt.Errorf("get current user: %w", err)
+	if err := internal.EnsureUserFiles(); err != nil {
+		return fmt.Errorf("ensure user files: %w", err)
 	}
-	cfg := internal.Config{
-		General: internal.GeneralConfig{
-			User: u.Username,
-		},
+	userCfg, err := internal.LoadSiloUserTOML()
+	if err != nil {
+		return fmt.Errorf("load user config: %w", err)
+	}
+	cfg := internal.MergedConfig{
+		User: userCfg.General.User,
 	}
 	tc, err := internal.NewTemplateContext(cfg)
 	if err != nil {
 		return fmt.Errorf("build template context: %w", err)
-	}
-	if err := internal.EnsureUserFiles(); err != nil {
-		return fmt.Errorf("ensure user files: %w", err)
 	}
 	if !force && internal.ImageExists(tc.BaseImage) {
 		fmt.Printf("%s already exists\n", tc.BaseImage)
@@ -35,6 +32,27 @@ func UserBuild(args []string) error {
 	}
 	if err := internal.EnsureUserImage(tc, force); err != nil {
 		return err
+	}
+	return nil
+}
+
+// UserRm implements `silo user rm`. Removes the user image.
+func UserRm() error {
+	if err := internal.EnsureUserFiles(); err != nil {
+		return fmt.Errorf("ensure user files: %w", err)
+	}
+	userCfg, err := internal.LoadSiloUserTOML()
+	if err != nil {
+		return fmt.Errorf("load user config: %w", err)
+	}
+	userImage := internal.BaseImageName(userCfg.General.User)
+	if internal.ImageExists(userImage) {
+		fmt.Printf("Removing %s...\n", userImage)
+		if err := internal.RemoveImage(userImage); err != nil {
+			return fmt.Errorf("remove user image: %w", err)
+		}
+	} else {
+		internal.PrintNotFound(userImage)
 	}
 	return nil
 }
@@ -55,23 +73,8 @@ func UserInit(args []string) error {
 	if err := internal.EnsureUserFiles(); err != nil {
 		return fmt.Errorf("ensure user files: %w", err)
 	}
-	return nil
-}
-
-// UserRm implements `silo user rm`. Removes the user image.
-func UserRm() error {
-	u, err := user.Current()
-	if err != nil {
-		return fmt.Errorf("get current user: %w", err)
-	}
-	userImage := internal.BaseImageName(u.Username)
-	if internal.ImageExists(userImage) {
-		fmt.Printf("Removing %s...\n", userImage)
-		if err := internal.RemoveImage(userImage); err != nil {
-			return fmt.Errorf("remove user image: %w", err)
-		}
-	} else {
-		internal.PrintNotFound(userImage)
+	if _, err := internal.LoadSiloUserTOML(); err != nil {
+		return fmt.Errorf("load user configuration: %w", err)
 	}
 	return nil
 }

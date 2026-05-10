@@ -171,12 +171,11 @@ func TestFeatureDevcontainer(t *testing.T) {
 
 		t.Run("Scenario: devcontainer runs volume setup before generating when shared volume is configured", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
 			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "testuser")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman image exists silo-alice":        exec.Command("true"),
+				"podman image exists silo-testuser":     exec.Command("true"),
 				"podman image exists silo-abc12345":     exec.Command("true"),
 				"podman container exists silo-abc12345": exec.Command("false"),
 				"podman run --rm <...>":                 exec.Command("true"),
@@ -188,7 +187,7 @@ func TestFeatureDevcontainer(t *testing.T) {
 			// Then shared volume directories should be created before generating .devcontainer.json.
 			record := mock.AssertExec("podman", "run", "--rm", "<...>")
 			cmdStr := strings.Join(record.Args, " ")
-			expectedPath := "/silo/shared/home/alice/.cache/uv"
+			expectedPath := "/silo/shared/home/testuser/.cache/uv"
 			if !strings.Contains(cmdStr, "mkdir -p "+expectedPath) {
 				t.Errorf("expected volume setup with 'mkdir -p %s', got: %s", expectedPath, cmdStr)
 			}
@@ -198,10 +197,12 @@ func TestFeatureDevcontainer(t *testing.T) {
 	t.Run("Rule: User config is merged into generated .devcontainer.json", func(t *testing.T) {
 		t.Run("Scenario: user devcontainer.in.json merges into generated .devcontainer.json", func(t *testing.T) {
 			internal.FirstRunWith(t, func(siloUser string) {
+				internal.WriteUserFile(t, siloUser, "silo.user.toml", `[general]
+user = "alice"
+`)
 				internal.WriteUserFile(t, siloUser, "devcontainer.in.json", `{"customizations": {"vscode": {"extensions": ["ms-python.python"]}}}`)
 			})
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
 			internal.SetupWorkspace(t, cfg)
 
 			// When I run `silo devcontainer`
@@ -233,10 +234,12 @@ func TestFeatureDevcontainer(t *testing.T) {
 
 		t.Run("Scenario: arrays are concatenated on merge", func(t *testing.T) {
 			internal.FirstRunWith(t, func(siloUser string) {
+				internal.WriteUserFile(t, siloUser, "silo.user.toml", `[general]
+user = "alice"
+`)
 				internal.WriteUserFile(t, siloUser, "devcontainer.in.json", `{"features": ["c"]}`)
 			})
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
 			internal.SetupWorkspace(t, cfg)
 
 			// When I run `silo devcontainer`
@@ -265,10 +268,12 @@ func TestFeatureDevcontainer(t *testing.T) {
 
 		t.Run("Scenario: scalars from user config override generated values", func(t *testing.T) {
 			internal.FirstRunWith(t, func(siloUser string) {
+				internal.WriteUserFile(t, siloUser, "silo.user.toml", `[general]
+user = "alice"
+`)
 				internal.WriteUserFile(t, siloUser, "devcontainer.in.json", `{"name": "my-devcontainer"}`)
 			})
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
 			internal.SetupWorkspace(t, cfg)
 
 			// When I run `silo devcontainer`

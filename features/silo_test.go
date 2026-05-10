@@ -24,8 +24,7 @@ func TestFeatureSilo(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			// And the user's XDG_CONFIG_HOME points to a fresh directory
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 
 			// And the container "silo-abc12345" is running
 			// And the user image "silo-alice" exists
@@ -51,8 +50,7 @@ func TestFeatureSilo(t *testing.T) {
 		t.Run("Scenario: without cleanup flags, container keeps running after session ends", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 
 			// And the container "silo-abc12345" is running
 			// And the user image "silo-alice" exists
@@ -92,8 +90,7 @@ func TestFeatureSilo(t *testing.T) {
 		t.Run("Scenario: container is stopped after shell exits", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 
 			// And the container "silo-abc12345" is running
 			// And the user image "silo-alice" exists
@@ -120,8 +117,7 @@ func TestFeatureSilo(t *testing.T) {
 		t.Run("Scenario: --stop removes the container", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 
 			// And the container "silo-abc12345" is running
 			// And the user image "silo-alice" exists
@@ -150,13 +146,11 @@ func TestFeatureSilo(t *testing.T) {
 		})
 	})
 
-
 	t.Run("Rule: Runs the full lifecycle chain if needed", func(t *testing.T) {
 		t.Run("Scenario: stopped container triggers start", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 
 			// And the container "silo-abc12345" exists but is stopped
 			// And the user image "silo-alice" exists
@@ -184,8 +178,7 @@ func TestFeatureSilo(t *testing.T) {
 		t.Run("Scenario: missing container triggers full build-and-create chain", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 
 			// And no container exists
 			// And the user image "silo-alice" exists
@@ -217,7 +210,9 @@ func TestFeatureSilo(t *testing.T) {
 			// And the user's silo config directory has all starter files
 			internal.FirstRunWithFiles(t, map[string]string{
 				"home.user.nix": internal.HomeUserNix,
-				"silo.user.toml":  "",
+				"silo.user.toml": `[general]
+user = "alice"
+`,
 			})
 
 			// Control the generated ID so we can verify exact names
@@ -242,8 +237,8 @@ func TestFeatureSilo(t *testing.T) {
 			if _, statErr := os.Stat(internal.SiloDir() + "/home.nix"); statErr != nil {
 				t.Errorf("expected .silo/home.nix to be created: %v", statErr)
 			}
-			// And a user image should be built (silo-markus)
-			userBuild := mock.AssertExec("podman", "build", "-t", "silo-markus", "<...>")
+			// And a user image should be built (silo-alice)
+			userBuild := mock.AssertExec("podman", "build", "-t", "silo-alice", "<...>")
 			// And a workspace image "silo-abc12345" should be built
 			workspaceBuild := mock.AssertExec("podman", "build", "-t", "silo-abc12345", "<...>")
 			// And the container should be created
@@ -274,8 +269,7 @@ func TestFeatureSilo(t *testing.T) {
 		t.Run("Scenario: missing user image triggers user image build first", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 
 			// And no user image exists
 			// And no workspace image exists
@@ -310,8 +304,7 @@ func TestFeatureSilo(t *testing.T) {
 		t.Run("Scenario: missing workspace image triggers workspace image build", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 
 			// And the user image "silo-alice" exists
 			// And no workspace image exists
@@ -338,11 +331,9 @@ func TestFeatureSilo(t *testing.T) {
 		})
 
 		t.Run("Scenario: volume setup runs before container start when shared volume is configured", func(t *testing.T) {
-			// Given a workspace with silo config "abc12345"
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
 			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 
 			// And the container "silo-abc12345" exists but is stopped
 			// And the user image "silo-alice" exists
@@ -380,8 +371,7 @@ func TestFeatureSilo(t *testing.T) {
 	t.Run("Rule: unknown command and flags show error and help", func(t *testing.T) {
 		t.Run("Scenario: unknown command shows error and help", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 
 			// When I run `silo nonsense`
 			err := cmd.Run([]string{"nonsense"})
@@ -398,8 +388,7 @@ func TestFeatureSilo(t *testing.T) {
 
 		t.Run("Scenario: unknown flag shows error and help", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 
 			// When I run `silo --unknown`
 			err := cmd.Run([]string{"--unknown"})

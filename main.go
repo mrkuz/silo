@@ -2,6 +2,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -65,6 +66,16 @@ func main() {
 }
 
 func fatal(err error) {
-	fmt.Fprintln(os.Stderr, "silo:", err)
+	fmt.Fprintln(os.Stderr, "silo:", unwrapFirst(err))
 	os.Exit(1)
+}
+
+func unwrapFirst(err error) error {
+	for {
+		unwrap := errors.Unwrap(err)
+		if unwrap == nil {
+			return err
+		}
+		err = unwrap
+	}
 }

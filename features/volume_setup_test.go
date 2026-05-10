@@ -22,9 +22,8 @@ func TestFeatureVolumeSetup(t *testing.T) {
 	t.Run("Rule: Creates directories on the shared volume", func(t *testing.T) {
 		t.Run("Scenario: volume setup creates directories on the shared volume", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
 			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-alice": exec.Command("true"),
@@ -56,9 +55,8 @@ func TestFeatureVolumeSetup(t *testing.T) {
 
 		t.Run("Scenario: volume setup creates both files and directories", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
 			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/", "$HOME/.local/share/fish/fish_history"}
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-alice": exec.Command("true"),
@@ -97,9 +95,8 @@ func TestFeatureVolumeSetup(t *testing.T) {
 	t.Run("Rule: No-op when shared volume is not configured", func(t *testing.T) {
 		t.Run("Scenario: disabled shared volume is a no-op", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
-			cfg.SharedVolume.Paths = nil
-			internal.SubsequentRun(t, cfg)
+			cfg.SharedVolume.Paths = []string{}
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{})
 
@@ -123,9 +120,8 @@ func TestFeatureVolumeSetup(t *testing.T) {
 
 		t.Run("Scenario: empty paths list is a no-op", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
 			cfg.SharedVolume.Paths = []string{}
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{})
 
@@ -151,9 +147,8 @@ func TestFeatureVolumeSetup(t *testing.T) {
 	t.Run("Rule: Uses a temporary container, not the workspace container", func(t *testing.T) {
 		t.Run("Scenario: volume setup does not require workspace container to exist", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
 			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-alice":        exec.Command("true"),
@@ -180,9 +175,8 @@ func TestFeatureVolumeSetup(t *testing.T) {
 	t.Run("Rule: Builds user image if missing before running temporary container", func(t *testing.T) {
 		t.Run("Scenario: missing user image triggers build", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.General.User = "alice"
 			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
-			internal.SubsequentRun(t, cfg)
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-alice": exec.Command("false"),
