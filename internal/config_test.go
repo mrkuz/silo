@@ -144,10 +144,10 @@ func TestDefaultConfig(t *testing.T) {
 	}
 }
 
-func TestLoadSiloInTOML(t *testing.T) {
+func TestLoadSiloUserTOML(t *testing.T) {
 	t.Run("returns empty config when file absent", func(t *testing.T) {
 		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-		cfg, err := LoadSiloInTOML()
+		cfg, err := LoadSiloUserTOML()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -159,7 +159,7 @@ func TestLoadSiloInTOML(t *testing.T) {
 	t.Run("parses features from existing file", func(t *testing.T) {
 		base := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", base)
-		siloConfigPath := filepath.Join(base, "silo", "silo.in.toml")
+		siloConfigPath := filepath.Join(base, "silo", "silo.user.toml")
 		if err := os.MkdirAll(filepath.Dir(siloConfigPath), 0755); err != nil {
 			t.Fatal(err)
 		}
@@ -167,7 +167,7 @@ func TestLoadSiloInTOML(t *testing.T) {
 		if err := os.WriteFile(siloConfigPath, content, 0644); err != nil {
 			t.Fatal(err)
 		}
-		cfg, err := LoadSiloInTOML()
+		cfg, err := LoadSiloUserTOML()
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -179,14 +179,14 @@ func TestLoadSiloInTOML(t *testing.T) {
 	t.Run("malformed TOML returns error", func(t *testing.T) {
 		base := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", base)
-		siloConfigPath := filepath.Join(base, "silo", "silo.in.toml")
+		siloConfigPath := filepath.Join(base, "silo", "silo.user.toml")
 		if err := os.MkdirAll(filepath.Dir(siloConfigPath), 0755); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.WriteFile(siloConfigPath, []byte("invalid = [toml"), 0644); err != nil {
 			t.Fatal(err)
 		}
-		_, err := LoadSiloInTOML()
+		_, err := LoadSiloUserTOML()
 		if err == nil {
 			t.Error("expected error for malformed TOML")
 		}
@@ -298,7 +298,7 @@ func TestEnsureUserFiles(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		dir := filepath.Join(base, "silo")
-		for _, name := range []string{"home.user.nix", "devcontainer.in.json", "silo.in.toml"} {
+		for _, name := range []string{"home.user.nix", "devcontainer.in.json", "silo.user.toml"} {
 			if _, err := os.Stat(filepath.Join(dir, name)); os.IsNotExist(err) {
 				t.Errorf("expected %s to be created", name)
 			}

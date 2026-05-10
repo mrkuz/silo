@@ -217,7 +217,7 @@ func TestFeatureSilo(t *testing.T) {
 			// And the user's silo config directory has all starter files
 			internal.FirstRunWithFiles(t, map[string]string{
 				"home.user.nix": internal.HomeUserNix,
-				"silo.in.toml":  "",
+				"silo.user.toml":  "",
 			})
 
 			// Control the generated ID so we can verify exact names

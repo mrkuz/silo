@@ -20,7 +20,7 @@ Feature: silo init — Initialize workspace
       When I run `silo init`
       Then a file "home.user.nix" should be created in the user's silo config directory
       And a file "devcontainer.in.json" should be created in the user's silo config directory
-      And a file "silo.in.toml" should be created in the user's silo config directory
+      And a file "silo.user.toml" should be created in the user's silo config directory
       And the exit code should be 0
 
   Rule: Idempotency — subsequent runs do not modify existing config
@@ -52,10 +52,10 @@ Feature: silo init — Initialize workspace
       Then the config should still have podman=true
       And the exit code should be 0
 
-  Rule: silo.in.toml seeds new workspace config on first run
+  Rule: silo.user.toml seeds new workspace config on first run
 
-    Scenario: silo.in.toml values seed the workspace config
-      Given the user's silo config directory has "silo.in.toml" with content:
+    Scenario: silo.user.toml values seed the workspace config
+      Given the user's silo config directory has "silo.user.toml" with content:
         """
         [features]
         podman = true
@@ -72,8 +72,8 @@ Feature: silo init — Initialize workspace
       And the workspace config should have shared_volume name "my-shared"
       And the workspace config should have create arguments ["--memory=2g"]
 
-    Scenario: silo.in.toml [general] section is ignored
-      Given the user's silo config directory has "silo.in.toml" with content:
+    Scenario: silo.user.toml [general] section is ignored
+      Given the user's silo config directory has "silo.user.toml" with content:
         """
         [general]
         id = "ignored-id"
@@ -83,22 +83,22 @@ Feature: silo init — Initialize workspace
       Then the workspace config should have an 8-character random id
       And the workspace config should use the current username
 
-    Scenario: silo.in.toml empty or absent uses built-in defaults
-      Given the user's silo config directory has "silo.in.toml" with content:
+    Scenario: silo.user.toml empty or absent uses built-in defaults
+      Given the user's silo config directory has "silo.user.toml" with content:
         """
         """
       When I run `silo init`
       Then the workspace config should have podman=false
       And the workspace config should have shared_volume name "silo-shared"
 
-    Scenario: silo.in.toml is created if it does not exist
-      Given the user's silo config directory exists but "silo.in.toml" is absent
+    Scenario: silo.user.toml is created if it does not exist
+      Given the user's silo config directory exists but "silo.user.toml" is absent
       When I run `silo init`
-      Then a file "silo.in.toml" should be created in the user's silo config directory
-      And the file "silo.in.toml" in the user's silo config directory should be empty
+      Then a file "silo.user.toml" should be created in the user's silo config directory
+      And the file "silo.user.toml" in the user's silo config directory should be empty
 
-    Scenario: silo.in.toml create arguments are prepended to default arguments
-      Given the user's silo config directory has "silo.in.toml" with content:
+    Scenario: silo.user.toml create arguments are prepended to default arguments
+      Given the user's silo config directory has "silo.user.toml" with content:
         """
         [podman]
         create_args = ["--memory=2g"]
@@ -124,8 +124,8 @@ Feature: silo init — Initialize workspace
       And the file ".silo/home.nix" should not contain "silo.podman.enable = true"
       And the exit code should be 0
 
-    Scenario: --podman flag overrides seeded config from silo.in.toml on first run
-      Given the user's silo config directory has "silo.in.toml" with content:
+    Scenario: --podman flag overrides seeded config from silo.user.toml on first run
+      Given the user's silo config directory has "silo.user.toml" with content:
         """
         [features]
         podman = true

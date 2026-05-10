@@ -50,9 +50,9 @@ func TestFeatureInit(t *testing.T) {
 			}
 			// Then a file "home.user.nix" should be created in the user's silo config directory
 			// And a file "devcontainer.in.json" should be created in the user's silo config directory
-			// And a file "silo.in.toml" should be created in the user's silo config directory
+			// And a file "silo.user.toml" should be created in the user's silo config directory
 			userDir := filepath.Join(base, "silo")
-			for _, name := range []string{"home.user.nix", "devcontainer.in.json", "silo.in.toml"} {
+			for _, name := range []string{"home.user.nix", "devcontainer.in.json", "silo.user.toml"} {
 				if _, err := os.Stat(filepath.Join(userDir, name)); os.IsNotExist(err) {
 					t.Errorf("expected %s to be created in user's silo config directory", name)
 				}
@@ -148,11 +148,11 @@ func TestFeatureInit(t *testing.T) {
 		})
 	})
 
-	t.Run("Rule: silo.in.toml seeds new workspace config on first run", func(t *testing.T) {
-		t.Run("Scenario: silo.in.toml values seed the workspace config", func(t *testing.T) {
-			// Given the user's silo config directory has "silo.in.toml" with:
+	t.Run("Rule: silo.user.toml seeds new workspace config on first run", func(t *testing.T) {
+		t.Run("Scenario: silo.user.toml values seed the workspace config", func(t *testing.T) {
+			// Given the user's silo config directory has "silo.user.toml" with:
 			internal.FirstRunWith(t, func(siloUser string) {
-				internal.WriteUserFile(t, siloUser, "silo.in.toml", `
+				internal.WriteUserFile(t, siloUser, "silo.user.toml", `
 					[features]
 					podman = true
 
@@ -173,13 +173,13 @@ func TestFeatureInit(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			// Then the workspace config should have paths set from silo.in.toml
+			// Then the workspace config should have paths set from silo.user.toml
 			if len(saved.SharedVolume.Paths) == 0 {
-				t.Error("expected SharedVolume.Paths to be set from silo.in.toml")
+				t.Error("expected SharedVolume.Paths to be set from silo.user.toml")
 			}
 			// And the workspace config should have podman=true
 			if !saved.Features.Podman {
-				t.Error("expected Podman=true from silo.in.toml")
+				t.Error("expected Podman=true from silo.user.toml")
 			}
 			// And the workspace config should have shared_volume name "my-shared"
 			if saved.SharedVolume.Name != "my-shared" {
@@ -194,10 +194,10 @@ func TestFeatureInit(t *testing.T) {
 			}
 		})
 
-		t.Run("Scenario: silo.in.toml [general] section is ignored", func(t *testing.T) {
-			// Given the user's silo config directory has "silo.in.toml" with:
+		t.Run("Scenario: silo.user.toml [general] section is ignored", func(t *testing.T) {
+			// Given the user's silo config directory has "silo.user.toml" with:
 			internal.FirstRunWith(t, func(siloUser string) {
-				internal.WriteUserFile(t, siloUser, "silo.in.toml", `
+				internal.WriteUserFile(t, siloUser, "silo.user.toml", `
 					[general]
 					id = "ignored-id"
 					user = "ignored-user"
@@ -223,10 +223,10 @@ func TestFeatureInit(t *testing.T) {
 			}
 		})
 
-		t.Run("Scenario: silo.in.toml empty or absent uses built-in defaults", func(t *testing.T) {
-			// Given the user's silo config directory has "silo.in.toml" with:
+		t.Run("Scenario: silo.user.toml empty or absent uses built-in defaults", func(t *testing.T) {
+			// Given the user's silo config directory has "silo.user.toml" with:
 			internal.FirstRunWith(t, func(siloUser string) {
-				internal.WriteUserFile(t, siloUser, "silo.in.toml", "")
+				internal.WriteUserFile(t, siloUser, "silo.user.toml", "")
 			})
 
 			// When I run `silo init`
@@ -247,33 +247,33 @@ func TestFeatureInit(t *testing.T) {
 			}
 		})
 
-		t.Run("Scenario: silo.in.toml is created if it does not exist", func(t *testing.T) {
-			// Given the user's silo config directory exists but "silo.in.toml" is absent
-			base := internal.FirstRunWith(t, nil) // nil configFunc = don't write silo.in.toml
+		t.Run("Scenario: silo.user.toml is created if it does not exist", func(t *testing.T) {
+			// Given the user's silo config directory exists but "silo.user.toml" is absent
+			base := internal.FirstRunWith(t, nil) // nil configFunc = don't write silo.user.toml
 
 			// When I run `silo init`
 			if err := cmd.Init([]string{}); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			userTomlPath := filepath.Join(base, "silo", "silo.in.toml")
-			// Then a file "silo.in.toml" should be created in the user's silo config directory
+			userTomlPath := filepath.Join(base, "silo", "silo.user.toml")
+			// Then a file "silo.user.toml" should be created in the user's silo config directory
 			if _, err := os.Stat(userTomlPath); os.IsNotExist(err) {
-				t.Error("expected silo.in.toml to be created in user's config directory")
+				t.Error("expected silo.user.toml to be created in user's config directory")
 			}
 			content, err := os.ReadFile(userTomlPath)
 			if err != nil {
-				t.Fatalf("failed to read silo.in.toml: %v", err)
+				t.Fatalf("failed to read silo.user.toml: %v", err)
 			}
-			// And the file "silo.in.toml" in the user's silo config directory should be empty
+			// And the file "silo.user.toml" in the user's silo config directory should be empty
 			if len(content) != 0 {
-				t.Errorf("expected empty silo.in.toml, got %q", string(content))
+				t.Errorf("expected empty silo.user.toml, got %q", string(content))
 			}
 		})
 
-		t.Run("Scenario: silo.in.toml create arguments are prepended to default arguments", func(t *testing.T) {
-			// Given the user's silo config directory has "silo.in.toml" with:
+		t.Run("Scenario: silo.user.toml create arguments are prepended to default arguments", func(t *testing.T) {
+			// Given the user's silo config directory has "silo.user.toml" with:
 			internal.FirstRunWith(t, func(siloUser string) {
-				internal.WriteUserFile(t, siloUser, "silo.in.toml", `
+				internal.WriteUserFile(t, siloUser, "silo.user.toml", `
 				[podman]
 				create_args = ["--memory=2g"]
 				`)
@@ -355,10 +355,10 @@ func TestFeatureInit(t *testing.T) {
 			}
 		})
 
-		t.Run("Scenario: --podman flag overrides seeded config from silo.in.toml on first run", func(t *testing.T) {
-			// Given the user's silo config directory has "silo.in.toml" with:
+		t.Run("Scenario: --podman flag overrides seeded config from silo.user.toml on first run", func(t *testing.T) {
+			// Given the user's silo config directory has "silo.user.toml" with:
 			internal.FirstRunWith(t, func(siloUser string) {
-				internal.WriteUserFile(t, siloUser, "silo.in.toml", `
+				internal.WriteUserFile(t, siloUser, "silo.user.toml", `
 				[features]
 				podman = true
 				`)

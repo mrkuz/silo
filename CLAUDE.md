@@ -60,7 +60,7 @@ Note: `start` internally calls `EnsureCreated` (which creates the container if n
 
 **Configuration hierarchy** (later overrides earlier):
 1. Built-in defaults
-2. User config at `$XDG_CONFIG_HOME/silo/silo.in.toml`
+2. User config at `$XDG_CONFIG_HOME/silo/silo.user.toml`
 3. Workspace config at `.silo/silo.toml`
 4. Runtime flags
 
@@ -78,7 +78,7 @@ Note: `start` internally calls `EnsureCreated` (which creates the container if n
 
 ## TOML Style
 
-Match the formatting in `examples/silo.in.toml`:
+Match the formatting in `examples/silo.user.toml`:
 - Unindented keys (no leading spaces)
 - 2-space array elements
 - Blank line between tables

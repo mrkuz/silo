@@ -114,7 +114,7 @@ Run the full lifecycle chain if needed, then connect to the container for the cu
 
 ### `silo init`
 
-Initialize workspace files. Creates `.silo/silo.toml` and `.silo/home.nix`, then delegates to `silo user init` for user files. Writes config only on first run. If a flag is not provided, the default from `silo.in.toml` is used; if that's also unset, built-in defaults apply.
+Initialize workspace files. Creates `.silo/silo.toml` and `.silo/home.nix`, then delegates to `silo user init` for user files. Writes config only on first run. If a flag is not provided, the default from `silo.user.toml` is used; if that's also unset, built-in defaults apply.
 
 | Flag | Description |
 |---|---|
@@ -154,7 +154,7 @@ Remove the workspace image. If the container exists and is stopped, it is remove
 Create user starter files under `$XDG_CONFIG_HOME/silo/` if they do not exist:
 
 - `home.user.nix` — user home-manager config baked into the user image
-- `silo.in.toml` — default values for new workspaces
+- `silo.user.toml` — default values for new workspaces
 - `devcontainer.in.json` — merged into every generated `.devcontainer.json`
 
 ### `silo user build`
@@ -204,7 +204,7 @@ Show the full command reference.
 Configuration is TOML-based with two tiers. Later tiers override earlier ones:
 
 1. Built-in defaults
-2. User config at `$XDG_CONFIG_HOME/silo/silo.in.toml`
+2. User config at `$XDG_CONFIG_HOME/silo/silo.user.toml`
 3. Workspace config at `.silo/silo.toml`
 4. Runtime flags
 
@@ -212,7 +212,7 @@ On macOS, `~/.config/silo/` is used unless `$XDG_CONFIG_HOME` is set explicitly.
 
 ### Workspace config: `.silo/silo.toml`
 
-Created automatically on first run. Seeded from `$XDG_CONFIG_HOME/silo/silo.in.toml` if present.
+Created automatically on first run. Seeded from `$XDG_CONFIG_HOME/silo/silo.user.toml` if present.
 
 ```toml
 [general]
@@ -262,7 +262,7 @@ create_args = [
 
 | Key | Default | Description |
 |---|---|---|
-| `create_args` | computed | Arguments appended to `podman create`. Set by `silo init` based on enabled features. User-provided arguments in `silo.in.toml` are prepended. |
+| `create_args` | computed | Arguments appended to `podman create`. Set by `silo init` based on enabled features. User-provided arguments in `silo.user.toml` are prepended. |
 
 ### Workspace config: `.silo/home.nix`
 
@@ -282,7 +282,7 @@ Home-manager config applied only to this workspace's image. Created as an empty 
 
 | File | Description |
 |---|---|
-| `silo.in.toml` | Default values for new workspaces. `[general]` is ignored. |
+| `silo.user.toml` | Default values for new workspaces. `[general]` is ignored. |
 | `home.user.nix` | User home-manager config baked into the user image. |
 | `devcontainer.in.json` | Merged into every generated `.devcontainer.json`. |
 

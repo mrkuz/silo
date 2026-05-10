@@ -44,9 +44,9 @@ func TestFeatureVolumeSetup(t *testing.T) {
 			if !strings.Contains(cmdStr, "mkdir -p "+expectedPath) {
 				t.Errorf("expected mkdir -p %s, got: %s", expectedPath, cmdStr)
 			}
-			// And the output should contain "volume setup complete"
-			if !strings.Contains(output, "volume setup complete") {
-				t.Errorf("expected 'volume setup complete' in output, got: %s", output)
+			// And the output should contain "Volume setup complete"
+			if !strings.Contains(output, "Volume setup complete") {
+				t.Errorf("expected 'Volume setup complete' in output, got: %s", output)
 			}
 			// And the exit code should be 0
 			if err != nil {
@@ -83,9 +83,9 @@ func TestFeatureVolumeSetup(t *testing.T) {
 			if !strings.Contains(cmdStr, "touch "+filePath) {
 				t.Errorf("expected touch %s, got: %s", filePath, cmdStr)
 			}
-			// And the output should contain "volume setup complete"
-			if !strings.Contains(output, "volume setup complete") {
-				t.Errorf("expected 'volume setup complete' in output, got: %s", output)
+			// And the output should contain "Volume setup complete"
+			if !strings.Contains(output, "Volume setup complete") {
+				t.Errorf("expected 'Volume setup complete' in output, got: %s", output)
 			}
 			// And the exit code should be 0
 			if err != nil {
@@ -111,8 +111,8 @@ func TestFeatureVolumeSetup(t *testing.T) {
 
 			// Then no podman run should be called
 			mock.AssertNoExec("podman", "run", "<...>")
-			// And the output should not contain "volume setup complete"
-			if strings.Contains(output, "volume setup complete") {
+			// And the output should not contain "Volume setup complete"
+			if strings.Contains(output, "Volume setup complete") {
 				t.Errorf("expected no output for no-op, got: %s", output)
 			}
 			// And the exit code should be 0
@@ -137,8 +137,8 @@ func TestFeatureVolumeSetup(t *testing.T) {
 
 			// Then no podman run should be called
 			mock.AssertNoExec("podman", "run", "<...>")
-			// And the output should not contain "volume setup complete"
-			if strings.Contains(output, "volume setup complete") {
+			// And the output should not contain "Volume setup complete"
+			if strings.Contains(output, "Volume setup complete") {
 				t.Errorf("expected no output for no-op, got: %s", output)
 			}
 			// And the exit code should be 0
@@ -166,9 +166,9 @@ func TestFeatureVolumeSetup(t *testing.T) {
 				err = cmd.VolumeSetup()
 			})
 
-			// Then the output should contain "volume setup complete"
-			if !strings.Contains(output, "volume setup complete") {
-				t.Errorf("expected 'volume setup complete' in output, got: %s", output)
+			// Then the output should contain "Volume setup complete"
+			if !strings.Contains(output, "Volume setup complete") {
+				t.Errorf("expected 'Volume setup complete' in output, got: %s", output)
 			}
 			// And the exit code should be 0
 			if err != nil {
@@ -199,9 +199,9 @@ func TestFeatureVolumeSetup(t *testing.T) {
 			mock.AssertExec("podman", "build", "<...>")
 			// And directories should be created on the shared volume
 			mock.AssertExec("podman", "run", "--rm", "<...>")
-			// And the output should contain "volume setup complete"
-			if !strings.Contains(output, "volume setup complete") {
-				t.Errorf("expected 'volume setup complete' in output, got: %s", output)
+			// And the output should contain "Volume setup complete"
+			if !strings.Contains(output, "Volume setup complete") {
+				t.Errorf("expected 'Volume setup complete' in output, got: %s", output)
 			}
 			if err != nil {
 				t.Errorf("expected exit code 0, got error: %v", err)

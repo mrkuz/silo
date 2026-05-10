@@ -163,8 +163,8 @@ func SetupUserConfig(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(siloDir, "home.user.nix"), []byte("{\n  config,\n  pkgs,\n  ...\n}:\n{\n}\n"), 0644); err != nil {
 		t.Fatalf("write home.user.nix: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(siloDir, "silo.in.toml"), []byte{}, 0644); err != nil {
-		t.Fatalf("write silo.in.toml: %v", err)
+	if err := os.WriteFile(filepath.Join(siloDir, "silo.user.toml"), []byte{}, 0644); err != nil {
+		t.Fatalf("write silo.user.toml: %v", err)
 	}
 }
 

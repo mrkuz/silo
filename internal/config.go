@@ -222,24 +222,24 @@ func EnsureDevcontainerInJSON() error {
 	return EnsureFile(filepath.Join(dir, "devcontainer.in.json"), []byte(emptyJSON))
 }
 
-// EnsureSiloInTOML creates $XDG_CONFIG_HOME/silo/silo.in.toml if it does not exist.
-func EnsureSiloInTOML() error {
+// EnsureSiloUserTOML creates $XDG_CONFIG_HOME/silo/silo.user.toml if it does not exist.
+func EnsureSiloUserTOML() error {
 	dir, err := UserConfigDir()
 	if err != nil {
-		return fmt.Errorf("create silo.in.toml in config directory: %w", err)
+		return fmt.Errorf("create silo.user.toml in config directory: %w", err)
 	}
-	return EnsureFile(filepath.Join(dir, "silo.in.toml"), []byte{})
+	return EnsureFile(filepath.Join(dir, "silo.user.toml"), []byte{})
 }
 
-// LoadSiloInTOML parses $XDG_CONFIG_HOME/silo/silo.in.toml.
+// LoadSiloUserTOML parses $XDG_CONFIG_HOME/silo/silo.user.toml.
 // The [general] section is not meaningful and is ignored.
 // Returns an empty Config if the file does not exist.
-func LoadSiloInTOML() (Config, error) {
+func LoadSiloUserTOML() (Config, error) {
 	dir, err := UserConfigDir()
 	if err != nil {
-		return Config{}, fmt.Errorf("get config directory to load silo.in.toml: %w", err)
+		return Config{}, fmt.Errorf("get config directory to load silo.user.toml: %w", err)
 	}
-	path := filepath.Join(dir, "silo.in.toml")
+	path := filepath.Join(dir, "silo.user.toml")
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return Config{}, nil
 	}
@@ -266,20 +266,20 @@ func UserStarterFiles() ([]UserStarterFile, error) {
 	return []UserStarterFile{
 		{filepath.Join(dir, "home.user.nix"), []byte(HomeUserNix)},
 		{filepath.Join(dir, "devcontainer.in.json"), []byte(emptyJSON)},
-		{filepath.Join(dir, "silo.in.toml"), []byte{}},
+		{filepath.Join(dir, "silo.user.toml"), []byte{}},
 	}, nil
 }
 
-// SeedWorkspaceConfig returns a new config seeded from silo.in.toml and built-in defaults.
+// SeedWorkspaceConfig returns a new config seeded from silo.user.toml and built-in defaults.
 // Unlike InitWorkspaceConfig, this always seeds fresh and ignores any existing silo.toml.
 func SeedWorkspaceConfig() (Config, error) {
 	defaults, err := DefaultConfig()
 	if err != nil {
 		return Config{}, err
 	}
-	cfg, err := LoadSiloInTOML()
+	cfg, err := LoadSiloUserTOML()
 	if err != nil {
-		return Config{}, fmt.Errorf("load user silo.in.toml: %w", err)
+		return Config{}, fmt.Errorf("load user silo.user.toml: %w", err)
 	}
 	cfg.General = defaults.General
 	if cfg.Features == (FeaturesConfig{}) {
@@ -289,7 +289,7 @@ func SeedWorkspaceConfig() (Config, error) {
 }
 
 // InitWorkspaceConfig initializes workspace config from defaults or user settings.
-// Returns (cfg, firstRun, error). On first run, cfg is built from defaults and silo.in.toml.
+// Returns (cfg, firstRun, error). On first run, cfg is built from defaults and silo.user.toml.
 // On subsequent runs, cfg is loaded from silo.toml. Does NOT save — caller must save on first run.
 func InitWorkspaceConfig() (Config, bool, error) {
 	if _, err := os.Stat(SiloToml()); os.IsNotExist(err) {
@@ -373,7 +373,7 @@ func DefaultCreateArgs(podman bool) []string {
 // user starter files. It delegates user-file creation to EnsureUserFiles so
 // `silo init` and `silo user init` share a single implementation.
 // If podman is non-nil, .silo/home.nix will include silo.podman.enable based on the value.
-// If podman is nil, the podman setting seeded from silo.in.toml is preserved.
+// If podman is nil, the podman setting seeded from silo.user.toml is preserved.
 func EnsureInit(podman *bool) (Config, bool, error) {
 	cfg, firstRun, err := InitWorkspaceConfig()
 	if err != nil {
