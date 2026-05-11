@@ -307,7 +307,7 @@ user = "alice"
 
 		t.Run("Scenario: volume setup runs before container start when shared volume is configured", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
+			cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/"}
 			internal.SubsequentRun(t, cfg, "alice")
 
 			// And the container "silo-abc12345" exists but is stopped
@@ -326,7 +326,7 @@ user = "alice"
 			volumeSetup := mock.AssertExec("podman", "run", "--rm", "<...>")
 			cmdStr := strings.Join(volumeSetup.Args, " ")
 			// Verify volume setup creates the expected directory path
-			expectedPath := "/silo/shared/home/alice/.cache/uv"
+			expectedPath := "/silo/persistence/shared/home/alice/.cache/uv"
 			if !strings.Contains(cmdStr, "mkdir -p "+expectedPath) {
 				t.Errorf("expected mkdir -p %s, got: %s", expectedPath, cmdStr)
 			}

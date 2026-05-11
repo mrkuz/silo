@@ -34,8 +34,8 @@ func TestTOMLRoundtrip(t *testing.T) {
 		Features: FeaturesConfig{
 			Podman: true,
 		},
-		SharedVolume: SharedVolumeConfig{
-			Paths: []string{".cache/uv/", ".local/share/opencode/"},
+		Persistence: PersistenceConfig{
+			SharedPaths: []string{".cache/uv/", ".local/share/opencode/"},
 		},
 		Podman: PodmanConfig{
 			CreateArgs: []string{"--memory", "512m"},
@@ -64,12 +64,12 @@ func TestTOMLRoundtrip(t *testing.T) {
 	if parsed.Features != original.Features {
 		t.Errorf("Features mismatch: got %+v, want %+v", parsed.Features, original.Features)
 	}
-	if len(parsed.SharedVolume.Paths) != len(original.SharedVolume.Paths) {
-		t.Fatalf("SharedVolume.Paths len: got %d, want %d", len(parsed.SharedVolume.Paths), len(original.SharedVolume.Paths))
+	if len(parsed.Persistence.SharedPaths) != len(original.Persistence.SharedPaths) {
+		t.Fatalf("Persistence.SharedPaths len: got %d, want %d", len(parsed.Persistence.SharedPaths), len(original.Persistence.SharedPaths))
 	}
-	for i, want := range original.SharedVolume.Paths {
-		if parsed.SharedVolume.Paths[i] != want {
-			t.Errorf("SharedVolume.Paths[%d]: got %q, want %q", i, parsed.SharedVolume.Paths[i], want)
+	for i, want := range original.Persistence.SharedPaths {
+		if parsed.Persistence.SharedPaths[i] != want {
+			t.Errorf("Persistence.SharedPaths[%d]: got %q, want %q", i, parsed.Persistence.SharedPaths[i], want)
 		}
 	}
 	if len(parsed.Podman.CreateArgs) != len(original.Podman.CreateArgs) {
@@ -84,9 +84,9 @@ func TestTOMLRoundtrip(t *testing.T) {
 
 func TestTOMLEmptyCreateArgs(t *testing.T) {
 	cfg := WorkspaceConfig{
-		General:      WorkspaceGeneralConfig{ID: "x"},
-		Features:     FeaturesConfig{Podman: false},
-		SharedVolume: SharedVolumeConfig{Paths: []string{}},
+		General:     WorkspaceGeneralConfig{ID: "x"},
+		Features:    FeaturesConfig{Podman: false},
+		Persistence: PersistenceConfig{SharedPaths: []string{}},
 	}
 
 	f, err := os.CreateTemp("", "silo-test-*.toml")
@@ -126,8 +126,8 @@ func TestDefaultWorkspaceConfig(t *testing.T) {
 	if cfg.Features.Podman {
 		t.Errorf("unexpected feature defaults: %+v", cfg.Features)
 	}
-	if cfg.SharedVolume.Paths == nil {
-		t.Error("expected non-nil SharedVolume.Paths")
+	if cfg.Persistence.SharedPaths == nil {
+		t.Error("expected non-nil Persistence.SharedPaths")
 	}
 	if cfg.Podman.CreateArgs == nil {
 		t.Error("expected non-nil CreateArgs")
@@ -443,7 +443,7 @@ func TestSaveWorkspaceConfigTOMLFormat(t *testing.T) {
 	os.Chdir(dir)
 
 	cfg := MinimalConfig("abc12345")
-	cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/", "$HOME/.local/share/opencode/"}
+	cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/", "$HOME/.local/share/opencode/"}
 	if err := cfg.SaveWorkspaceConfig(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -464,7 +464,7 @@ func TestSaveWorkspaceConfigNilGuards(t *testing.T) {
 	os.Chdir(dir)
 
 	cfg := MinimalConfig("abc12345")
-	cfg.SharedVolume.Paths = nil
+	cfg.Persistence.SharedPaths = nil
 	cfg.Podman.CreateArgs = nil
 	if err := cfg.SaveWorkspaceConfig(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -473,8 +473,8 @@ func TestSaveWorkspaceConfigNilGuards(t *testing.T) {
 	if err := ParseTOML(SiloToml(), &parsed); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	if parsed.SharedVolume.Paths == nil {
-		t.Error("SharedVolume.Paths should not be nil after save")
+	if parsed.Persistence.SharedPaths == nil {
+		t.Error("Persistence.SharedPaths should not be nil after save")
 	}
 	if parsed.Podman.CreateArgs == nil {
 		t.Error("CreateArgs should not be nil after save")

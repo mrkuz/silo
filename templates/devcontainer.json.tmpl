@@ -6,11 +6,11 @@
   "overrideCommand": true,
   "workspaceFolder": "{{.WorkspaceMount}}",
   "workspaceMount": "source=${localWorkspaceFolder},target={{.WorkspaceMount}},type=bind,z",
-  {{- if .SharedVolumeName }}
+  {{- if .PersistenceVolumeName }}
   "mounts": [
-    {{- range $i, $path := .SharedVolumePaths}}
+    {{- range $i, $path := .PersistenceSharedPaths}}
     {{- if $i}},{{- end}}
-    "type=volume,source={{$.SharedVolumeName}},target={{$path}},subpath={{trimPrefix $path "/"}},z"
+    "type=volume,source={{$.PersistenceVolumeName}},target={{$path}},subpath=shared/{{trimPrefix $path "/"}},z"
     {{- end}}
   ],
   {{- end}}

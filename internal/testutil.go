@@ -176,29 +176,29 @@ func SetupUserConfig(t *testing.T, users ...string) {
 // MinimalUserConfig returns a UserConfig for testing.
 func MinimalUserConfig(user string) UserConfig {
 	return UserConfig{
-		General:      UserGeneralConfig{User: user},
-		SharedVolume: SharedVolumeConfig{Paths: []string{}},
+		General:     UserGeneralConfig{User: user},
+		Persistence: PersistenceConfig{SharedPaths: []string{}},
 	}
 }
 
 // MinimalMergedConfig returns a MergedConfig suitable for use in unit tests.
 func MinimalMergedConfig(id, user string) MergedConfig {
 	return MergedConfig{
-		ID:           id,
-		User:         user,
-		Features:     FeaturesConfig{Podman: false},
-		SharedVolume: SharedVolumeConfig{Paths: []string{}},
-		Podman:       PodmanConfig{CreateArgs: []string{}},
+		ID:          id,
+		User:        user,
+		Features:    FeaturesConfig{Podman: false},
+		Persistence: PersistenceConfig{SharedPaths: []string{}},
+		Podman:      PodmanConfig{CreateArgs: []string{}},
 	}
 }
 
 // MinimalWorkspaceConfig returns a WorkspaceConfig suitable for use in unit tests.
 func MinimalWorkspaceConfig(id string) WorkspaceConfig {
 	return WorkspaceConfig{
-		General:      WorkspaceGeneralConfig{ID: id},
-		Features:     FeaturesConfig{Podman: false},
-		SharedVolume: SharedVolumeConfig{Paths: []string{}},
-		Podman:       PodmanConfig{CreateArgs: []string{}},
+		General:     WorkspaceGeneralConfig{ID: id},
+		Features:    FeaturesConfig{Podman: false},
+		Persistence: PersistenceConfig{SharedPaths: []string{}},
+		Podman:      PodmanConfig{CreateArgs: []string{}},
 	}
 }
 

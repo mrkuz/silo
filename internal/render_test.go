@@ -133,18 +133,18 @@ func TestRenderDevcontainerJSONWithSharedVolume(t *testing.T) {
 		User:              "alice",
 		ContainerName:     "silo-abc12345-dev",
 		DevcontainerArgs:  []string{"--name", "silo-abc12345-dev", "--hostname", "silo-abc12345-dev", "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"},
-		SharedVolumeName:  "silo-shared",
-		SharedVolumePaths: []string{"/home/alice/.cache/uv", "/home/alice/.config/nvim"},
+		PersistenceVolumeName:  "silo",
+		PersistenceSharedPaths: []string{"/home/alice/.cache/uv", "/home/alice/.config/nvim"},
 	}
 	out, err := RenderTemplate("devcontainer.json.tmpl", tc)
 	if err != nil {
 		t.Fatal(err)
 	}
 	s := string(out)
-	if !strings.Contains(s, `"type=volume,source=silo-shared,target=/home/alice/.cache/uv,subpath=home/alice/.cache/uv,z"`) {
+	if !strings.Contains(s, `"type=volume,source=silo,target=/home/alice/.cache/uv,subpath=shared/home/alice/.cache/uv,z"`) {
 		t.Error("expected volume mount with subpath for .cache/uv in devcontainer.json")
 	}
-	if !strings.Contains(s, `"type=volume,source=silo-shared,target=/home/alice/.config/nvim,subpath=home/alice/.config/nvim,z"`) {
+	if !strings.Contains(s, `"type=volume,source=silo,target=/home/alice/.config/nvim,subpath=shared/home/alice/.config/nvim,z"`) {
 		t.Error("expected volume mount with subpath for .config/nvim in devcontainer.json")
 	}
 	var parsed map[string]any
@@ -161,8 +161,8 @@ func TestNewTemplateContextDefaultSuffix(t *testing.T) {
 		ID:       "abc12345",
 		User:     "alice",
 		Features: FeaturesConfig{Podman: false},
-		SharedVolume: SharedVolumeConfig{
-			Paths: []string{"$HOME/.cache/uv/", "$HOME/.config/nvim/"},
+		Persistence: PersistenceConfig{
+			SharedPaths: []string{"$HOME/.cache/uv/", "$HOME/.config/nvim/"},
 		},
 	}
 	tc, err := NewTemplateContext(cfg)
@@ -172,11 +172,11 @@ func TestNewTemplateContextDefaultSuffix(t *testing.T) {
 	if tc.ContainerName != "silo-abc12345" {
 		t.Fatalf("expected default container name, got %q", tc.ContainerName)
 	}
-	if tc.SharedVolumeName == "" {
-		t.Fatal("expected shared volume name to be set when feature is enabled")
+	if tc.PersistenceVolumeName == "" {
+		t.Fatal("expected persistence volume name to be set when feature is enabled")
 	}
-	if len(tc.SharedVolumePaths) != 2 {
-		t.Fatalf("expected 2 shared volume paths, got %d", len(tc.SharedVolumePaths))
+	if len(tc.PersistenceSharedPaths) != 2 {
+		t.Fatalf("expected 2 persistence shared paths, got %d", len(tc.PersistenceSharedPaths))
 	}
 	joined := strings.Join(tc.ContainerArgs, " ")
 	if !strings.Contains(joined, "--name silo-abc12345") {
@@ -208,16 +208,16 @@ func TestNewTemplateContextWithoutSharedVolume(t *testing.T) {
 		ID:       "abc12345",
 		User:     "alice",
 		Features: FeaturesConfig{Podman: false},
-		SharedVolume: SharedVolumeConfig{
-			Paths: []string{},
+		Persistence: PersistenceConfig{
+			SharedPaths: []string{},
 		},
 	}
 	tc, err := NewTemplateContext(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tc.SharedVolumeName != "" {
-		t.Fatalf("expected empty shared volume name when feature disabled, got %q", tc.SharedVolumeName)
+	if tc.PersistenceVolumeName != "" {
+		t.Fatalf("expected empty persistence volume name when feature disabled, got %q", tc.PersistenceVolumeName)
 	}
 }
 

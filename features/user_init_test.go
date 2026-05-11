@@ -102,8 +102,8 @@ func TestFeatureUserInit(t *testing.T) {
 				internal.WriteUserFile(t, siloUser, "silo.user.toml", `[general]
 user = "testuser"
 
-[shared_volume]
-paths = []
+[persistence]
+shared_paths = []
 `)
 			})
 

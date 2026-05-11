@@ -140,7 +140,7 @@ func TestFeatureStart(t *testing.T) {
 	t.Run("Rule: Runs volume setup before starting", func(t *testing.T) {
 		t.Run("Scenario: shared volume directories are created before container starts", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
+			cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/"}
 			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
@@ -158,7 +158,7 @@ func TestFeatureStart(t *testing.T) {
 			// Verify volume setup (podman run --rm) was called
 			record := mock.AssertExec("podman", "run", "--rm", "<...>")
 			cmdStr := strings.Join(record.Args, " ")
-			expectedPath := "/silo/shared/home/alice/.cache/uv"
+			expectedPath := "/silo/persistence/shared/home/alice/.cache/uv"
 			if !strings.Contains(cmdStr, "mkdir -p "+expectedPath) {
 				t.Errorf("expected mkdir -p %s, got: %s", expectedPath, cmdStr)
 			}

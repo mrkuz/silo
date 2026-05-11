@@ -49,10 +49,10 @@ RUN mkdir -p /var/empty && \
       nixbld$i ; \
   done
 
-# Shared volume directory
+# Persistence volume directory
 
-RUN mkdir -p /silo/shared && \
-  chown {{.User}}:{{.User}} /silo /silo/shared
+RUN mkdir -p /silo/persistence/shared && \
+  chown {{.User}}:{{.User}} /silo /silo/persistence /silo/persistence/shared
 
 # Nix configuration
 

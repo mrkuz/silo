@@ -106,9 +106,9 @@ func TestFeatureInit(t *testing.T) {
 
 		t.Run("Scenario: existing shared-volume and podman settings are preserved when flags not provided", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
-			// And the config has paths set and podman=true
+			// And the config has shared_paths set and podman=true
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
+			cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/"}
 			cfg.Features.Podman = true
 			internal.SubsequentRun(t, cfg, "alice")
 
@@ -116,14 +116,14 @@ func TestFeatureInit(t *testing.T) {
 			if err := cmd.Init([]string{}); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			// Then the config should still have paths set
+			// Then the config should still have shared_paths set
 			// And the config should still have podman=true
 			var saved internal.WorkspaceConfig
 			if err := internal.ParseTOML(internal.SiloToml(), &saved); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			if len(saved.SharedVolume.Paths) == 0 {
-				t.Error("expected SharedVolume.Paths to remain set")
+			if len(saved.Persistence.SharedPaths) == 0 {
+				t.Error("expected Persistence.SharedPaths to remain set")
 			}
 			if !saved.Features.Podman {
 				t.Error("expected Podman to remain true")
@@ -157,8 +157,8 @@ func TestFeatureInit(t *testing.T) {
 					[general]
 					user = "alice"
 
-					[shared_volume]
-					paths = ["$HOME/.cache/uv/"]
+					[persistence]
+					shared_paths = ["$HOME/.cache/uv/"]
 
 					[podman]
 					create_args = ["--memory=2g"]
@@ -181,9 +181,9 @@ func TestFeatureInit(t *testing.T) {
 			if saved.Features.Podman {
 				t.Error("expected podman=false (default)")
 			}
-			// And the workspace config should have empty paths (default)
-			if len(saved.SharedVolume.Paths) != 0 {
-				t.Errorf("expected empty paths, got %v", saved.SharedVolume.Paths)
+			// And the workspace config should have empty shared_paths (default)
+			if len(saved.Persistence.SharedPaths) != 0 {
+				t.Errorf("expected empty paths, got %v", saved.Persistence.SharedPaths)
 			}
 			// And the workspace config should have default create_args (not empty)
 			if len(saved.Podman.CreateArgs) == 0 {

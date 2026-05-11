@@ -70,9 +70,9 @@ Note: `start` internally calls `EnsureCreated` (which creates the container if n
 1. User image (`silo-<user>`): Fedora + Nix + home-manager, shared across workspaces
 2. Workspace image (`silo-<id>`): Layered on user image with workspace-specific `home.nix`
 
-**Shared volume:** The `silo-shared` named volume is mounted as subpath volumes at container paths (e.g., `/home/<user>/.cache/uv`). Paths in `[shared_volume]` are created on the volume before container start via `VolumeSetup`.
+**Persistence volume:** The `silo` named volume is mounted as subpath volumes at container paths under `/silo/persistence/shared` (e.g., `/silo/persistence/shared/home/<user>/.cache/uv`). Paths in `[persistence]` are created on the volume before container start via `VolumeSetup`. A trailing slash marks a directory; no trailing slash marks a file. `$HOME` is expanded inside the container.
 
-**Devcontainer merge:** `silo devcontainer` recursively merges `$XDG_CONFIG_HOME/silo/devcontainer.user.json` into generated `.devcontainer.json`.
+**Devcontainer merge:** `silo devcontainer` recursively merges `$XDG_CONFIG_HOME/silo/devcontainer.user.json` into generated `.devcontainer.json`. Arrays concatenate (user first, then project, then template); scalars override.
 
 **Only external dependency:** `github.com/BurntSushi/toml`
 

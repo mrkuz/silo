@@ -53,7 +53,7 @@ Feature: silo init — Initialize workspace
       When I run `silo init`
       Then the workspace config should have an 8-character random id
       And the workspace config should have podman=false (default)
-      And the workspace config should have empty shared volume paths (default)
+      And the workspace config should have empty shared_paths (default)
       And the workspace config should have default create arguments
       And the workspace config should have no user set
 
@@ -69,12 +69,12 @@ Feature: silo init — Initialize workspace
         [general]
         user = "alice"
 
-        [shared_volume]
-        paths = ["$HOME/.cache/uv/"]
+        [persistence]
+        shared_paths = ["$HOME/.cache/uv/"]
         """
       And a clean workspace with no existing silo files
       When I run `silo init`
-      Then the workspace config should have empty shared volume paths (default)
+      Then the workspace config should have empty shared_paths (default)
       And the workspace config should have no user set
 
   Rule: podman feature flag is stored in home.nix

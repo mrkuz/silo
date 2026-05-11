@@ -133,8 +133,8 @@ func TestBuildContainerArgsSharedVolume(t *testing.T) {
 		Features: FeaturesConfig{
 			Podman: false,
 		},
-		SharedVolume: SharedVolumeConfig{
-			Paths: []string{"$HOME/.cache/uv/"},
+		Persistence: PersistenceConfig{
+			SharedPaths: []string{"$HOME/.cache/uv/"},
 		},
 	}
 	args, err := BuildContainerArgs(cfg, "alice")
@@ -142,7 +142,7 @@ func TestBuildContainerArgsSharedVolume(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	joined := strings.Join(args, " ")
-	if !strings.Contains(joined, "--mount type=volume,source=silo-shared,target=/home/alice/.cache/uv,subpath=home/alice/.cache/uv,z") {
+	if !strings.Contains(joined, "--mount type=volume,source=silo,target=/home/alice/.cache/uv,subpath=shared/home/alice/.cache/uv,z") {
 		t.Errorf("expected subpath volume mount in args: %v", args)
 	}
 }
@@ -205,7 +205,7 @@ func TestCreateContainerCreateArgsNonNested(t *testing.T) {
 func TestVolumeSetup(t *testing.T) {
 	t.Run("skipped when paths empty", func(t *testing.T) {
 		cfg := MinimalMergedConfig("abc12345", "testuser")
-		cfg.SharedVolume.Paths = []string{}
+		cfg.Persistence.SharedPaths = []string{}
 		mock := NewMock(t)
 		mock.MockExec(map[string]*exec.Cmd{})
 		if _, err := VolumeSetup(cfg); err != nil {
@@ -216,13 +216,13 @@ func TestVolumeSetup(t *testing.T) {
 
 	t.Run("runs workspace image to create directories", func(t *testing.T) {
 		cfg := MinimalMergedConfig("abc12345", "testuser")
-		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
+		cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/"}
 		mock := NewMock(t)
 		mock.MockExec(map[string]*exec.Cmd{
 			"podman image exists silo-abc12345": exec.Command("true"),
 		})
 		_, _ = VolumeSetup(cfg)
-		mock.AssertExec("podman", "run", "--rm", "-v", "silo-shared:/silo/shared:z", "silo-abc12345", "sh", "-c", "<...>")
+		mock.AssertExec("podman", "run", "--rm", "-v", "silo:/silo/persistence:z", "silo-abc12345", "sh", "-c", "<...>")
 	})
 }
 
@@ -283,7 +283,7 @@ func TestContainerRunning(t *testing.T) {
 func TestEnsureChain(t *testing.T) {
 	t.Run("container absent — creates and starts", func(t *testing.T) {
 		cfg := MinimalConfig("abc12345")
-		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
+		cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/"}
 		SetupWorkspace(t, cfg)
 		SetupUserConfig(t)
 		mock := NewMock(t)
@@ -301,7 +301,7 @@ func TestEnsureChain(t *testing.T) {
 
 	t.Run("container stopped — starts", func(t *testing.T) {
 		cfg := MinimalConfig("abc12345")
-		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
+		cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/"}
 		SetupWorkspace(t, cfg)
 		SetupUserConfig(t)
 		mock := NewMock(t)
@@ -430,7 +430,7 @@ func TestEnsureStartedError(t *testing.T) {
 func TestEnsureStartedWithSharedVolume(t *testing.T) {
 	t.Run("ensureStarted succeeds even when container not running initially", func(t *testing.T) {
 		cfg := MinimalConfig("abc12345")
-		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
+		cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/"}
 		SetupWorkspace(t, cfg)
 		SetupUserConfig(t)
 		mock := NewMock(t)

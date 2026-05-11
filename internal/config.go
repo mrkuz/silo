@@ -13,9 +13,9 @@ import (
 
 // UserConfig holds user-level configuration from silo.user.toml
 type UserConfig struct {
-	General      UserGeneralConfig  `toml:"general"`
-	SharedVolume SharedVolumeConfig `toml:"shared_volume"`
-	Podman       UserPodmanConfig   `toml:"podman"`
+	General     UserGeneralConfig  `toml:"general"`
+	Persistence PersistenceConfig `toml:"persistence"`
+	Podman      UserPodmanConfig  `toml:"podman"`
 }
 
 type UserGeneralConfig struct {
@@ -28,10 +28,10 @@ type UserPodmanConfig struct {
 
 // WorkspaceConfig holds workspace-level configuration from .silo/silo.toml
 type WorkspaceConfig struct {
-	General      WorkspaceGeneralConfig `toml:"general"`
-	Features     FeaturesConfig         `toml:"features"`
-	SharedVolume SharedVolumeConfig     `toml:"shared_volume"`
-	Podman       PodmanConfig           `toml:"podman"`
+	General     WorkspaceGeneralConfig `toml:"general"`
+	Features    FeaturesConfig        `toml:"features"`
+	Persistence PersistenceConfig     `toml:"persistence"`
+	Podman      PodmanConfig          `toml:"podman"`
 }
 
 type WorkspaceGeneralConfig struct {
@@ -45,7 +45,7 @@ type MergedConfig struct {
 	User         string
 	ID           string
 	Features     FeaturesConfig
-	SharedVolume SharedVolumeConfig
+	Persistence  PersistenceConfig
 	Podman       PodmanConfig
 }
 
@@ -53,8 +53,8 @@ type FeaturesConfig struct {
 	Podman bool `toml:"podman"`
 }
 
-type SharedVolumeConfig struct {
-	Paths []string `toml:"paths"`
+type PersistenceConfig struct {
+	SharedPaths []string `toml:"shared_paths"`
 }
 
 type PodmanConfig struct {
@@ -93,8 +93,8 @@ func DefaultWorkspaceConfig() (WorkspaceConfig, error) {
 		Features: FeaturesConfig{
 			Podman: false,
 		},
-		SharedVolume: SharedVolumeConfig{
-			Paths: []string{},
+		Persistence: PersistenceConfig{
+			SharedPaths: []string{},
 		},
 		Podman: PodmanConfig{CreateArgs: []string{}},
 	}, nil
@@ -179,8 +179,8 @@ func (c WorkspaceConfig) SaveWorkspaceConfig() error {
 		return fmt.Errorf("create .silo/silo.toml: %w", err)
 	}
 	defer f.Close()
-	if c.SharedVolume.Paths == nil {
-		c.SharedVolume.Paths = []string{}
+	if c.Persistence.SharedPaths == nil {
+		c.Persistence.SharedPaths = []string{}
 	}
 	if c.Podman.CreateArgs == nil {
 		c.Podman.CreateArgs = []string{}
@@ -303,7 +303,7 @@ user = %q
 // Merge rules:
 //   - features.podman:         workspace overrides user config
 //   - podman.create_args:      user values prepended to workspace defaults
-//   - shared_volume.paths:     user values prepended to workspace defaults
+//   - persistence.shared_paths: user values prepended to workspace defaults
 //   - id:                       workspace only
 //   - user:                     user only
 func MergeUserInto(workspace WorkspaceConfig, user UserConfig) MergedConfig {
@@ -311,14 +311,14 @@ func MergeUserInto(workspace WorkspaceConfig, user UserConfig) MergedConfig {
 		User:         user.General.User,
 		ID:           workspace.General.ID,
 		Features:     workspace.Features,
-		SharedVolume: workspace.SharedVolume,
+		Persistence:  workspace.Persistence,
 		Podman:       workspace.Podman,
 	}
 	if len(user.Podman.CreateArgs) > 0 {
 		result.Podman.CreateArgs = append(user.Podman.CreateArgs, workspace.Podman.CreateArgs...)
 	}
-	if len(user.SharedVolume.Paths) > 0 {
-		result.SharedVolume.Paths = append(user.SharedVolume.Paths, workspace.SharedVolume.Paths...)
+	if len(user.Persistence.SharedPaths) > 0 {
+		result.Persistence.SharedPaths = append(user.Persistence.SharedPaths, workspace.Persistence.SharedPaths...)
 	}
 	return result
 }

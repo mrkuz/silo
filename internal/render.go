@@ -98,16 +98,16 @@ var templateFuncs = template.FuncMap{
 
 // TemplateContext provides data for template rendering across devcontainer, Containerfile, and setup scripts.
 type TemplateContext struct {
-	User              string
-	Home              string
-	Image             string
-	ContainerName     string
-	SharedVolumeName  string
-	WorkspaceMount    string
-	System            string
-	ContainerArgs     []string
-	DevcontainerArgs  []string
-	SharedVolumePaths []string // resolved container paths for subpath mounts
+	User                string
+	Home                string
+	Image               string
+	ContainerName       string
+	PersistenceVolumeName string
+	WorkspaceMount      string
+	System              string
+	ContainerArgs       []string
+	DevcontainerArgs    []string
+	PersistenceSharedPaths []string // resolved container paths for subpath mounts
 }
 
 // NewTemplateContext builds a TemplateContext from MergedConfig for template rendering.
@@ -119,8 +119,8 @@ func NewTemplateContext(cfg MergedConfig, containerNameSuffix ...string) (Templa
 	}
 	containerName := containerNameWithSuffix(WorkspaceContainerName(cfg.ID), suffix)
 	sharedVolumeNameValue := ""
-	if len(cfg.SharedVolume.Paths) > 0 {
-		sharedVolumeNameValue = "silo-shared"
+	if len(cfg.Persistence.SharedPaths) > 0 {
+		sharedVolumeNameValue = "silo"
 	}
 
 	home := "/home/" + cfg.User
@@ -129,9 +129,9 @@ func NewTemplateContext(cfg MergedConfig, containerNameSuffix ...string) (Templa
 		return TemplateContext{}, fmt.Errorf("resolve workspace mount path: %w", err)
 	}
 	var sharedPaths []string
-	if len(cfg.SharedVolume.Paths) > 0 {
-		sharedPaths = make([]string, len(cfg.SharedVolume.Paths))
-		for i, path := range cfg.SharedVolume.Paths {
+	if len(cfg.Persistence.SharedPaths) > 0 {
+		sharedPaths = make([]string, len(cfg.Persistence.SharedPaths))
+		for i, path := range cfg.Persistence.SharedPaths {
 			sharedPaths[i] = ResolveContainerPath(path, cfg.User)
 		}
 	}
@@ -143,16 +143,16 @@ func NewTemplateContext(cfg MergedConfig, containerNameSuffix ...string) (Templa
 	}
 
 	return TemplateContext{
-		User:              cfg.User,
-		Home:              home,
-		Image:             WorkspaceImageName(cfg.ID),
-		ContainerName:     containerName,
-		SharedVolumeName:  sharedVolumeNameValue,
-		WorkspaceMount:    workspaceMount,
-		System:            DetectNixSystem(),
-		ContainerArgs:     ContainerArgs(WorkspaceConfig{General: WorkspaceGeneralConfig{ID: cfg.ID}}, cfg.User, containerNameSuffix...),
-		DevcontainerArgs:  devcontainerArgs,
-		SharedVolumePaths: sharedPaths,
+		User:                  cfg.User,
+		Home:                  home,
+		Image:                 WorkspaceImageName(cfg.ID),
+		ContainerName:         containerName,
+		PersistenceVolumeName: sharedVolumeNameValue,
+		WorkspaceMount:        workspaceMount,
+		System:                DetectNixSystem(),
+		ContainerArgs:         ContainerArgs(WorkspaceConfig{General: WorkspaceGeneralConfig{ID: cfg.ID}}, cfg.User, containerNameSuffix...),
+		DevcontainerArgs:      devcontainerArgs,
+		PersistenceSharedPaths: sharedPaths,
 	}, nil
 }
 
@@ -161,8 +161,8 @@ func NewTemplateContext(cfg MergedConfig, containerNameSuffix ...string) (Templa
 func NewTemplateContextFromWorkspace(cfg WorkspaceConfig) (TemplateContext, error) {
 	containerName := WorkspaceContainerName(cfg.General.ID)
 	sharedVolumeNameValue := ""
-	if len(cfg.SharedVolume.Paths) > 0 {
-		sharedVolumeNameValue = "silo-shared"
+	if len(cfg.Persistence.SharedPaths) > 0 {
+		sharedVolumeNameValue = "silo"
 	}
 
 	workspaceMount, err := WorkspaceMountPath(cfg)
@@ -183,15 +183,15 @@ func NewTemplateContextFromWorkspace(cfg WorkspaceConfig) (TemplateContext, erro
 	user := userCfg.General.User
 
 	return TemplateContext{
-		User:             user,
-		Home:             "/home/" + user,
-		Image:            WorkspaceImageName(cfg.General.ID),
-		ContainerName:    containerName,
-		SharedVolumeName: sharedVolumeNameValue,
-		WorkspaceMount:   workspaceMount,
-		System:           DetectNixSystem(),
-		ContainerArgs:    ContainerArgs(cfg, user, ""),
-		DevcontainerArgs: devcontainerArgs,
+		User:                  user,
+		Home:                  "/home/" + user,
+		Image:                 WorkspaceImageName(cfg.General.ID),
+		ContainerName:         containerName,
+		PersistenceVolumeName: sharedVolumeNameValue,
+		WorkspaceMount:        workspaceMount,
+		System:                DetectNixSystem(),
+		ContainerArgs:         ContainerArgs(cfg, user, ""),
+		DevcontainerArgs:      devcontainerArgs,
 	}, nil
 }
 

@@ -1,8 +1,8 @@
 [general]
 user = "markus"
 
-[shared_volume]
-paths = [
+[persistence]
+shared_paths = [
   "$HOME/.local/share/fish/fish_history",
   "$HOME/.claude.json",
   "$HOME/.claude/",

@@ -10,8 +10,8 @@ import (
 	"github.com/mrkuz/silo/internal"
 )
 
-// Feature: silo volume setup — Create directories on the shared volume
-// `silo volume setup` creates directories on the shared volume so they can be mounted
+// Feature: silo volume setup — Create directories on the persistence volume
+// `silo volume setup` creates directories on the persistence volume so they can be mounted
 // as subpath volumes inside containers. It runs a temporary container with the workspace
 // image — the workspace container does not need to be running. It is also run
 // automatically after every `silo start`.
@@ -19,10 +19,10 @@ func TestFeatureVolumeSetup(t *testing.T) {
 	// Background: a workspace with silo config "abc12345"
 	// and the user's XDG_CONFIG_HOME points to a fresh directory
 
-	t.Run("Rule: Creates directories on the shared volume", func(t *testing.T) {
-		t.Run("Scenario: volume setup creates directories on the shared volume", func(t *testing.T) {
+	t.Run("Rule: Creates directories on the persistence volume", func(t *testing.T) {
+		t.Run("Scenario: volume setup creates directories on the persistence volume", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
+			cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/"}
 			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
@@ -35,11 +35,11 @@ func TestFeatureVolumeSetup(t *testing.T) {
 				err = cmd.VolumeSetup()
 			})
 
-			// Then podman should run "run" with "--rm" and volume "silo-shared:/silo/shared:z"
+			// Then podman should run "run" with "--rm" and volume "silo:/silo/persistence:z"
 			record := mock.AssertExec("podman", "run", "--rm", "<...>")
 			cmdStr := strings.Join(record.Args, " ")
-			// And the run command should create "/silo/shared/home/alice/.cache/uv" as a directory with mode 755
-			expectedPath := "/silo/shared/home/alice/.cache/uv"
+			// And the run command should create "/silo/persistence/shared/home/alice/.cache/uv" as a directory with mode 755
+			expectedPath := "/silo/persistence/shared/home/alice/.cache/uv"
 			if !strings.Contains(cmdStr, "mkdir -p "+expectedPath) {
 				t.Errorf("expected mkdir -p %s, got: %s", expectedPath, cmdStr)
 			}
@@ -55,7 +55,7 @@ func TestFeatureVolumeSetup(t *testing.T) {
 
 		t.Run("Scenario: volume setup creates both files and directories", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/", "$HOME/.local/share/fish/fish_history"}
+			cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/", "$HOME/.local/share/fish/fish_history"}
 			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
@@ -68,16 +68,16 @@ func TestFeatureVolumeSetup(t *testing.T) {
 				err = cmd.VolumeSetup()
 			})
 
-			// Then podman should run "run" with "--rm" and volume "silo-shared:/silo/shared:z"
+			// Then podman should run "run" with "--rm" and volume "silo:/silo/persistence:z"
 			record := mock.AssertExec("podman", "run", "--rm", "<...>")
 			cmdStr := strings.Join(record.Args, " ")
-			// And the run command should create "/silo/shared/home/alice/.cache/uv" as a directory with mode 755
-			dirPath := "/silo/shared/home/alice/.cache/uv"
+			// And the run command should create "/silo/persistence/shared/home/alice/.cache/uv" as a directory with mode 755
+			dirPath := "/silo/persistence/shared/home/alice/.cache/uv"
 			if !strings.Contains(cmdStr, "mkdir -p "+dirPath) {
 				t.Errorf("expected mkdir -p %s, got: %s", dirPath, cmdStr)
 			}
-			// And the run command should create "/silo/shared/home/alice/.local/share/fish/fish_history" as a file with mode 644
-			filePath := "/silo/shared/home/alice/.local/share/fish/fish_history"
+			// And the run command should create "/silo/persistence/shared/home/alice/.local/share/fish/fish_history" as a file with mode 644
+			filePath := "/silo/persistence/shared/home/alice/.local/share/fish/fish_history"
 			if !strings.Contains(cmdStr, "touch "+filePath) {
 				t.Errorf("expected touch %s, got: %s", filePath, cmdStr)
 			}
@@ -92,10 +92,10 @@ func TestFeatureVolumeSetup(t *testing.T) {
 		})
 	})
 
-	t.Run("Rule: No-op when shared volume paths is empty", func(t *testing.T) {
-		t.Run("Scenario: empty paths list is a no-op", func(t *testing.T) {
+	t.Run("Rule: No-op when shared paths is empty", func(t *testing.T) {
+		t.Run("Scenario: empty shared_paths list is a no-op", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.SharedVolume.Paths = []string{}
+			cfg.Persistence.SharedPaths = []string{}
 			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{})
@@ -122,7 +122,7 @@ func TestFeatureVolumeSetup(t *testing.T) {
 	t.Run("Rule: Uses workspace image for temporary container", func(t *testing.T) {
 		t.Run("Scenario: volume setup uses workspace image and does not require workspace container to exist", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
-			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
+			cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/"}
 			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{

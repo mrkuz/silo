@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const volumeMountPath = "/silo/shared"
+const volumeMountPath = "/silo/persistence"
 
 // ResolveContainerPath converts a shared volume path to its container mount target.
 // - Absolute paths (e.g., "/etc/shared/") are used directly.
@@ -37,11 +37,11 @@ func ResolveContainerPath(path string, user string) string {
 	return ""
 }
 
-// VolumeSetup creates directories on the silo-shared volume from the host side
+// VolumeSetup creates directories on the silo volume from the host side
 // by running a temporary container with the workspace image, ensuring directories exist
 // before they are mounted as subpath volumes. Returns true if directories were created.
 func VolumeSetup(cfg MergedConfig) (bool, error) {
-	if len(cfg.SharedVolume.Paths) == 0 {
+	if len(cfg.Persistence.SharedPaths) == 0 {
 		return false, nil
 	}
 
@@ -51,7 +51,7 @@ func VolumeSetup(cfg MergedConfig) (bool, error) {
 	}
 
 	var mkdirCmd strings.Builder
-	for i, path := range cfg.SharedVolume.Paths {
+	for i, path := range cfg.Persistence.SharedPaths {
 		containerPath := ResolveContainerPath(path, cfg.User)
 		if containerPath == "" {
 			continue
@@ -60,14 +60,14 @@ func VolumeSetup(cfg MergedConfig) (bool, error) {
 			mkdirCmd.WriteString(" && ")
 		}
 		isDir := strings.HasSuffix(path, "/")
-		volPath := volumeMountPath + containerPath
+		volPath := volumeMountPath + "/shared" + containerPath
 		if isDir {
 			mkdirCmd.WriteString("mkdir -p " + volPath + " && chmod 755 " + volPath)
 		} else {
 			mkdirCmd.WriteString("mkdir -p $(dirname " + volPath + ") && touch " + volPath + " && chmod 644 " + volPath)
 		}
 	}
-	cmd := ExecCommand("podman", "run", "--rm", "-v", "silo-shared:"+volumeMountPath+":z", workspaceImage, "sh", "-c", mkdirCmd.String())
+	cmd := ExecCommand("podman", "run", "--rm", "-v", "silo:"+volumeMountPath+":z", workspaceImage, "sh", "-c", mkdirCmd.String())
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -159,7 +159,7 @@ func BuildContainerArgs(cfg WorkspaceConfig, user string) ([]string, error) {
 
 	// Shared volume - mount each path as a subpath of the named volume
 	// user may be empty during container create; VolumeSetup will handle path creation
-	for _, path := range cfg.SharedVolume.Paths {
+	for _, path := range cfg.Persistence.SharedPaths {
 		if user == "" {
 			continue
 		}
@@ -169,8 +169,9 @@ func BuildContainerArgs(cfg WorkspaceConfig, user string) ([]string, error) {
 			continue
 		}
 		// subpath is the path within the volume (without leading /)
-		subpath := strings.TrimPrefix(containerPath, "/")
-		args = append(args, "--mount", fmt.Sprintf("type=volume,source=%s,target=%s,subpath=%s,z", "silo-shared", containerPath, subpath))
+		// paths now reside under /silo/persistence/shared
+		subpath := "shared/" + strings.TrimPrefix(containerPath, "/")
+		args = append(args, "--mount", fmt.Sprintf("type=volume,source=%s,target=%s,subpath=%s,z", "silo", containerPath, subpath))
 	}
 
 	return args, nil
@@ -180,10 +181,10 @@ func BuildContainerArgs(cfg WorkspaceConfig, user string) ([]string, error) {
 // Extra args are forwarded to podman create.
 func CreateContainer(cfg MergedConfig, extra []string) error {
 	podmanArgs, err := BuildContainerArgs(WorkspaceConfig{
-		General:      WorkspaceGeneralConfig{ID: cfg.ID},
-		Features:     cfg.Features,
-		SharedVolume: cfg.SharedVolume,
-		Podman:       cfg.Podman,
+		General:    WorkspaceGeneralConfig{ID: cfg.ID},
+		Features:   cfg.Features,
+		Persistence: cfg.Persistence,
+		Podman:    cfg.Podman,
 	}, cfg.User)
 	if err != nil {
 		return fmt.Errorf("build container arguments: %w", err)
