@@ -34,8 +34,8 @@ func TestMatchPattern(t *testing.T) {
 		{"podman", "podman <...?>", true},
 		{"podman build foo", "podman <...?>", true},
 		// Additional cases
-		{"podman build silo-alice", "podman build <any>", true},
-		{"podman build silo-alice", "podman <...>", true},
+		{"podman build silo-abc", "podman build <any>", true},
+		{"podman build foo", "podman <...>", true},
 	}
 
 	for _, tt := range tests {
@@ -120,8 +120,8 @@ func TestExecKey(t *testing.T) {
 
 func TestRecordString(t *testing.T) {
 	t.Run("ExecRecord", func(t *testing.T) {
-		r := ExecRecord{Name: "podman", Args: []string{"build", "-t", "silo-alice"}}
-		want := "podman build -t silo-alice"
+		r := ExecRecord{Name: "podman", Args: []string{"build", "-t", "silo-abc12345"}}
+		want := "podman build -t silo-abc12345"
 		if got := r.String(); got != want {
 			t.Errorf("String() = %q, want %q", got, want)
 		}
@@ -147,10 +147,10 @@ func TestRecordString(t *testing.T) {
 // Record Match() tests
 
 func TestExecRecordMatch(t *testing.T) {
-	r := ExecRecord{Name: "podman", Args: []string{"build", "silo-alice"}}
+	r := ExecRecord{Name: "podman", Args: []string{"build", "silo-abc12345"}}
 
-	if !r.Match("podman", "build", "silo-alice") {
-		t.Error("expected exact match podman build silo-alice")
+	if !r.Match("podman", "build", "silo-abc12345") {
+		t.Error("expected exact match podman build silo-abc12345")
 	}
 
 	if r.Match("podman", "build") {
@@ -206,12 +206,12 @@ func TestMockExec(t *testing.T) {
 	mock := NewMock(t)
 
 	responses := map[string]*exec.Cmd{
-		"podman build silo-alice":   exec.Command("true"),
+		"podman build silo-abc12345": exec.Command("true"),
 		"podman image exists <any>": exec.Command("false"),
 	}
 	mock.MockExec(responses)
 
-	cmd := ExecCommand("podman", "build", "silo-alice")
+	cmd := ExecCommand("podman", "build", "silo-abc12345")
 	if cmd == nil {
 		t.Error("expected non-nil cmd")
 	}
@@ -333,17 +333,17 @@ func TestAssertExec(t *testing.T) {
 			"podman build <any>": exec.Command("true"),
 		})
 
-		ExecCommand("podman", "build", "silo-alice")
+		ExecCommand("podman", "build", "silo-abc12345")
 
-		rec := mock.AssertExec("podman", "build", "silo-alice")
+		rec := mock.AssertExec("podman", "build", "silo-abc12345")
 		if rec == nil {
 			t.Fatal("expected record, got nil")
 		}
 		if rec.Name != "podman" {
 			t.Errorf("expected name 'podman', got %q", rec.Name)
 		}
-		if rec.Args[1] != "silo-alice" {
-			t.Errorf("expected args[1] 'silo-alice', got %q", rec.Args[1])
+		if rec.Args[1] != "silo-abc12345" {
+			t.Errorf("expected args[1] 'silo-abc12345', got %q", rec.Args[1])
 		}
 	})
 
@@ -362,7 +362,7 @@ func TestAssertNoExec(t *testing.T) {
 		"podman build <any>": exec.Command("true"),
 	})
 
-	ExecCommand("podman", "build", "silo-alice")
+	ExecCommand("podman", "build", "silo-abc12345")
 
 	mock.AssertNoExec("podman", "rm", "<...>")
 }
@@ -521,21 +521,21 @@ func TestEllipsisOneOrMore(t *testing.T) {
 		"podman build <...>": exec.Command("true"),
 	})
 
-	ExecCommand("podman", "build", "silo-alice")
-	ExecCommand("podman", "build", "silo-bob")
+	ExecCommand("podman", "build", "silo-abc12345")
+	ExecCommand("podman", "build", "silo-xyz789")
 
 	if len(mock.execCalls) != 2 {
 		t.Fatalf("expected 2 calls, got %d", len(mock.execCalls))
 	}
 
-	rec := mock.AssertExec("podman", "build", "silo-alice")
+	rec := mock.AssertExec("podman", "build", "silo-abc12345")
 	if rec == nil {
-		t.Fatal("expected record for silo-alice")
+		t.Fatal("expected record for silo-abc12345")
 	}
 
-	rec2 := mock.AssertExec("podman", "build", "silo-bob")
+	rec2 := mock.AssertExec("podman", "build", "silo-xyz789")
 	if rec2 == nil {
-		t.Fatal("expected record for silo-bob")
+		t.Fatal("expected record for silo-xyz789")
 	}
 }
 

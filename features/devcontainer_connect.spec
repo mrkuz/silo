@@ -13,7 +13,6 @@ Feature: silo devcontainer connect — Open an interactive shell in the devconta
 
     Scenario: devcontainer connect opens an interactive shell
       Given the devcontainer "silo-abc12345-dev" is running
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo devcontainer connect`
       Then podman should run "exec" with "-ti" on "silo-abc12345-dev"
@@ -22,7 +21,6 @@ Feature: silo devcontainer connect — Open an interactive shell in the devconta
 
     Scenario: devcontainer connect prints a message before opening shell
       Given the devcontainer "silo-abc12345-dev" is running
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo devcontainer connect`
       Then the output should contain "Connecting to silo-abc12345-dev..."
@@ -31,7 +29,6 @@ Feature: silo devcontainer connect — Open an interactive shell in the devconta
 
     Scenario: devcontainer connect fails if devcontainer is not running
       Given the devcontainer "silo-abc12345-dev" exists but is stopped
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo devcontainer connect`
       Then the exit code should not be 0
@@ -39,7 +36,6 @@ Feature: silo devcontainer connect — Open an interactive shell in the devconta
 
     Scenario: devcontainer connect fails if devcontainer does not exist
       Given no devcontainer exists
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo devcontainer connect`
       Then the exit code should not be 0
@@ -49,7 +45,6 @@ Feature: silo devcontainer connect — Open an interactive shell in the devconta
 
     Scenario: exiting the devcontainer connect shell does not stop the devcontainer
       Given the devcontainer "silo-abc12345-dev" is running
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo devcontainer connect`
       And the interactive session ends
@@ -60,7 +55,6 @@ Feature: silo devcontainer connect — Open an interactive shell in the devconta
 
     Scenario: two parallel devcontainer connect calls create two independent shells
       Given the devcontainer "silo-abc12345-dev" is running
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo devcontainer connect` and `silo devcontainer connect` in parallel
       Then two independent shell sessions should be opened in "silo-abc12345-dev"

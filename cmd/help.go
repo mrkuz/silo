@@ -14,8 +14,6 @@ const HelpText = `Usage:
   silo rm
   silo status
   silo user init
-  silo user build [-f|--force]
-  silo user rm
   silo devcontainer [-f|--force]
   silo devcontainer connect
   silo devcontainer stop
@@ -37,9 +35,6 @@ Commands:
   rm                    Remove the workspace image
   status                Print container status
   user init             Create user files
-  user build            Build the user image
-    -f, --force           Force rebuild user image
-  user rm               Remove the user image
   devcontainer          Generate .devcontainer.json
     -f, --force           Overwrite existing .devcontainer.json
   devcontainer connect  Connect to the devcontainer

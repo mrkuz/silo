@@ -272,11 +272,6 @@ func LoadSiloUserTOML() (UserConfig, error) {
 	return cfg, nil
 }
 
-// BaseImageName returns the user image tag for the given user.
-func BaseImageName(user string) string {
-	return "silo-" + user
-}
-
 // userStarterFile describes a single user-config starter file.
 type UserStarterFile struct {
 	Path    string
@@ -363,40 +358,23 @@ func EnsureUserFiles() error {
 	return nil
 }
 
-// EnsureUserImage builds the shared user image if it does not exist.
-// If force is true, the image is always rebuilt regardless of whether it exists.
-func EnsureUserImage(tc TemplateContext, force bool) error {
-	userImage := tc.BaseImage
-	if !force && ImageExists(userImage) {
-		return nil
-	}
-	fmt.Printf("Building user image %s...\n", userImage)
-	if err := BuildUserImage(userImage, tc, force); err != nil {
-		return fmt.Errorf("build user image: %w", err)
-	}
-	return nil
-}
-
 // EnsureWorkspaceFiles silently creates workspace starter files if they do not exist.
 func EnsureWorkspaceFiles(podman bool) error {
 	return EnsureWorkspaceHomeNix(podman, false)
 }
 
-// EnsureImages builds the user and workspace images if they don't yet exist.
-// If force is true, workspace image is always rebuilt regardless of whether it exists.
+// EnsureImages builds the workspace image if it doesn't yet exist.
+// If force is true, the image is always rebuilt regardless of whether it exists.
 func EnsureImages(cfg WorkspaceConfig, force bool) error {
 	tc, err := NewTemplateContextFromWorkspace(cfg)
 	if err != nil {
 		return fmt.Errorf("build template context: %w", err)
 	}
-	if err := EnsureUserImage(tc, false); err != nil {
-		return err
-	}
 	if !force && ImageExists(WorkspaceImageName(cfg.General.ID)) {
 		return nil
 	}
 	fmt.Printf("Building workspace image %s...\n", WorkspaceImageName(cfg.General.ID))
-	if err := BuildWorkspaceImage(WorkspaceImageName(cfg.General.ID), tc, force); err != nil {
+	if err := BuildImage(WorkspaceImageName(cfg.General.ID), tc, force); err != nil {
 		return fmt.Errorf("build workspace image: %w", err)
 	}
 	return nil

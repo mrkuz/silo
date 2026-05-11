@@ -214,13 +214,15 @@ func TestVolumeSetup(t *testing.T) {
 		mock.AssertNoExec("podman", "run", "<...>")
 	})
 
-	t.Run("runs user image to create directories", func(t *testing.T) {
+	t.Run("runs workspace image to create directories", func(t *testing.T) {
 		cfg := MinimalMergedConfig("abc12345", "testuser")
 		cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 		mock := NewMock(t)
-		mock.MockExec(map[string]*exec.Cmd{})
+		mock.MockExec(map[string]*exec.Cmd{
+			"podman image exists silo-abc12345": exec.Command("true"),
+		})
 		_, _ = VolumeSetup(cfg)
-		mock.AssertExec("podman", "run", "--rm", "-v", "silo-shared:/silo/shared:z", "silo-testuser", "sh", "-c", "<...>")
+		mock.AssertExec("podman", "run", "--rm", "-v", "silo-shared:/silo/shared:z", "silo-abc12345", "sh", "-c", "<...>")
 	})
 }
 
@@ -286,7 +288,6 @@ func TestEnsureChain(t *testing.T) {
 		SetupUserConfig(t)
 		mock := NewMock(t)
 		mock.MockExec(map[string]*exec.Cmd{
-			"podman image exists silo-testuser":     exec.Command("true"),
 			"podman image exists silo-abc12345":     exec.Command("true"),
 			"podman container exists silo-abc12345": exec.Command("false"),
 		})

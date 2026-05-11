@@ -14,14 +14,12 @@ Feature: silo (default invocation) — Run lifecycle and connect to the containe
 
     Scenario: default silo connects to the container
       Given the container "silo-abc12345" is running
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo`
       Then podman should run "exec" with "-ti" on "silo-abc12345"
 
     Scenario: without cleanup flags, container keeps running after session ends
       Given the container "silo-abc12345" is running
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo`
       And the interactive session ends
@@ -35,7 +33,6 @@ Feature: silo (default invocation) — Run lifecycle and connect to the containe
 
     Scenario: container is stopped and removed after shell exits
       Given the container "silo-abc12345" is running
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo --stop`
       And the interactive session ends
@@ -44,7 +41,6 @@ Feature: silo (default invocation) — Run lifecycle and connect to the containe
 
     Scenario: --stop does not remove the image
       Given the container "silo-abc12345" is running
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo --stop`
       And the interactive session ends
@@ -54,7 +50,6 @@ Feature: silo (default invocation) — Run lifecycle and connect to the containe
 
     Scenario: stopped container triggers start
       Given the container "silo-abc12345" exists but is stopped
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo`
       Then podman should run "start" on "silo-abc12345"
@@ -64,7 +59,6 @@ Feature: silo (default invocation) — Run lifecycle and connect to the containe
 
     Scenario: missing container triggers full build-and-create chain
       Given no container exists
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo`
       Then the container "silo-abc12345" should be created
@@ -73,33 +67,20 @@ Feature: silo (default invocation) — Run lifecycle and connect to the containe
       And the output should contain "Creating silo-abc12345..."
       And the output should contain "Starting silo-abc12345..."
 
-    Scenario: fresh workspace triggers full lifecycle: init, user image build, workspace image build, create, volume setup, start, connect
+    Scenario: fresh workspace triggers full lifecycle: init, workspace image build, create, volume setup, start, connect
       Given a clean workspace with no existing silo files
       And the user's silo config directory has all starter files
-      And no user image exists
       And no workspace image exists
       And no container exists
       When I run `silo`
       Then workspace files should be created: ".silo/silo.toml" and ".silo/home.nix"
-      And the user image "silo-alice" should be built
       And the workspace image "silo-abc12345" should be built
       And the container "silo-abc12345" should be created
       And the container "silo-abc12345" should be running
       And podman should run "exec" with "-ti" on "silo-abc12345"
 
-    Scenario: missing user image triggers user image build first
-      Given no user image exists
-      And the workspace image "silo-abc12345" exists
-      And no container exists
-      When I run `silo`
-      Then the user image "silo-alice" should be built
-      And the workspace image "silo-abc12345" should be built
-      And the container "silo-abc12345" should be created
-      And podman should run "exec" with "-ti" on "silo-abc12345"
-
     Scenario: missing workspace image triggers workspace image build
-      Given the user image "silo-alice" exists
-      And no workspace image exists
+      Given no workspace image exists
       And no container exists
       When I run `silo`
       Then the workspace image "silo-abc12345" should be built
@@ -108,7 +89,6 @@ Feature: silo (default invocation) — Run lifecycle and connect to the containe
 
     Scenario: volume setup runs before container start when shared volume is configured
       Given the config has paths ["$HOME/.cache/uv/"]
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       And no container exists
       When I run `silo`

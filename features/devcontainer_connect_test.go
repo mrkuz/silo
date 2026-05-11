@@ -20,7 +20,6 @@ func TestFeatureDevcontainerConnect(t *testing.T) {
 	t.Run("Rule: Connects to the running devcontainer", func(t *testing.T) {
 		t.Run("Scenario: devcontainer connect opens an interactive shell", func(t *testing.T) {
 			// Given the devcontainer "silo-abc12345-dev" is running
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SubsequentRun(t, cfg, "alice")
@@ -47,7 +46,6 @@ func TestFeatureDevcontainerConnect(t *testing.T) {
 
 		t.Run("Scenario: devcontainer connect prints a message before opening shell", func(t *testing.T) {
 			// Given the devcontainer "silo-abc12345-dev" is running
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SubsequentRun(t, cfg, "alice")
@@ -70,7 +68,6 @@ func TestFeatureDevcontainerConnect(t *testing.T) {
 	t.Run("Rule: Requires devcontainer to be running", func(t *testing.T) {
 		t.Run("Scenario: devcontainer connect fails if devcontainer is not running", func(t *testing.T) {
 			// Given the devcontainer "silo-abc12345-dev" exists but is stopped
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SubsequentRun(t, cfg, "alice")
@@ -95,7 +92,6 @@ func TestFeatureDevcontainerConnect(t *testing.T) {
 
 		t.Run("Scenario: devcontainer connect fails if devcontainer does not exist", func(t *testing.T) {
 			// Given no devcontainer exists
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SubsequentRun(t, cfg, "alice")
@@ -121,7 +117,6 @@ func TestFeatureDevcontainerConnect(t *testing.T) {
 	t.Run("Rule: Exiting the shell leaves the devcontainer running", func(t *testing.T) {
 		t.Run("Scenario: exiting the devcontainer connect shell does not stop the devcontainer", func(t *testing.T) {
 			// Given the devcontainer "silo-abc12345-dev" is running
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SubsequentRun(t, cfg, "alice")
@@ -148,7 +143,6 @@ func TestFeatureDevcontainerConnect(t *testing.T) {
 	t.Run("Rule: Multiple sessions can be connected simultaneously", func(t *testing.T) {
 		t.Run("Scenario: two parallel devcontainer connect calls create two independent shells", func(t *testing.T) {
 			// Given the devcontainer "silo-abc12345-dev" is running
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SubsequentRun(t, cfg, "alice")

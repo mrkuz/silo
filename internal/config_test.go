@@ -26,12 +26,6 @@ func TestGenerateID(t *testing.T) {
 	}
 }
 
-func TestBaseImageName(t *testing.T) {
-	if got := BaseImageName("alice"); got != "silo-alice" {
-		t.Errorf("got %q, want %q", got, "silo-alice")
-	}
-}
-
 func TestTOMLRoundtrip(t *testing.T) {
 	original := WorkspaceConfig{
 		General: WorkspaceGeneralConfig{

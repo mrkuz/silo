@@ -13,7 +13,6 @@ Feature: silo connect — Open an interactive shell in the workspace container
 
     Scenario: connect opens an interactive shell
       Given the container "silo-abc12345" is running
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo connect`
       Then podman should run "exec" with "-ti" on "silo-abc12345"
@@ -22,7 +21,6 @@ Feature: silo connect — Open an interactive shell in the workspace container
 
     Scenario: connect prints a message before opening shell
       Given the container "silo-abc12345" is running
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo connect`
       Then the output should contain "Connecting to silo-abc12345..."
@@ -33,7 +31,6 @@ Feature: silo connect — Open an interactive shell in the workspace container
 
     Scenario: connect fails if container is not running
       Given the container "silo-abc12345" exists but is stopped
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo connect`
       Then the exit code should not be 0
@@ -42,7 +39,6 @@ Feature: silo connect — Open an interactive shell in the workspace container
 
     Scenario: connect fails if container does not exist
       Given no container exists
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo connect`
       Then the exit code should not be 0
@@ -52,7 +48,6 @@ Feature: silo connect — Open an interactive shell in the workspace container
 
     Scenario: exiting the connect shell does not stop the container
       Given the container "silo-abc12345" is running
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo connect`
       And the interactive session ends
@@ -63,8 +58,6 @@ Feature: silo connect — Open an interactive shell in the workspace container
 
     Scenario: two parallel connect calls create two independent shells in the same container
       Given the container "silo-abc12345" is running
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo connect` and `silo connect` in parallel
       Then two independent shell sessions should be opened in "silo-abc12345"
-

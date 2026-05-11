@@ -27,13 +27,11 @@ func TestFeatureSilo(t *testing.T) {
 			internal.SubsequentRun(t, cfg, "alice")
 
 			// And the container "silo-abc12345" is running
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 			})
 
@@ -53,13 +51,11 @@ func TestFeatureSilo(t *testing.T) {
 			internal.SubsequentRun(t, cfg, "alice")
 
 			// And the container "silo-abc12345" is running
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 			})
 
@@ -87,19 +83,17 @@ func TestFeatureSilo(t *testing.T) {
 	})
 
 	t.Run("Rule: --stop stops the container after the session exits", func(t *testing.T) {
-		t.Run("Scenario: container is stopped after shell exits", func(t *testing.T) {
+		t.Run("Scenario: container is stopped and removed after shell exits", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SubsequentRun(t, cfg, "alice")
 
 			// And the container "silo-abc12345" is running
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 			})
 
@@ -114,19 +108,17 @@ func TestFeatureSilo(t *testing.T) {
 			}
 		})
 
-		t.Run("Scenario: --stop removes the container", func(t *testing.T) {
+		t.Run("Scenario: --stop does not remove the image", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SubsequentRun(t, cfg, "alice")
 
 			// And the container "silo-abc12345" is running
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 			})
 
@@ -153,13 +145,11 @@ func TestFeatureSilo(t *testing.T) {
 			internal.SubsequentRun(t, cfg, "alice")
 
 			// And the container "silo-abc12345" exists but is stopped
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
-				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 			})
 
@@ -181,12 +171,10 @@ func TestFeatureSilo(t *testing.T) {
 			internal.SubsequentRun(t, cfg, "alice")
 
 			// And no container exists
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
-				"podman image exists silo-alice":        exec.Command("true"),
 				"podman image exists silo-abc12345":     exec.Command("true"),
 			})
 
@@ -204,7 +192,7 @@ func TestFeatureSilo(t *testing.T) {
 			}
 		})
 
-		t.Run("Scenario: fresh workspace triggers full lifecycle: init, user image build, workspace image build, create, volume setup, start, connect", func(t *testing.T) {
+		t.Run("Scenario: fresh workspace triggers full lifecycle: init, workspace image build, create, volume setup, start, connect", func(t *testing.T) {
 			// Given a clean workspace with no existing silo files
 			// And the user's XDG_CONFIG_HOME points to a fresh directory
 			// And the user's silo config directory has all starter files
@@ -218,7 +206,6 @@ user = "alice"
 			// Control the generated ID so we can verify exact names
 			internal.SetGeneratedIDFunc(t, func() string { return "abc12345" })
 
-			// And no user image exists
 			// And no workspace image exists
 			// And no container exists
 			mock := internal.NewMock(t)
@@ -237,8 +224,6 @@ user = "alice"
 			if _, statErr := os.Stat(internal.SiloDir() + "/home.nix"); statErr != nil {
 				t.Errorf("expected .silo/home.nix to be created: %v", statErr)
 			}
-			// And a user image should be built (silo-alice)
-			userBuild := mock.AssertExec("podman", "build", "-t", "silo-alice", "<...>")
 			// And a workspace image "silo-abc12345" should be built
 			workspaceBuild := mock.AssertExec("podman", "build", "-t", "silo-abc12345", "<...>")
 			// And the container should be created
@@ -249,9 +234,6 @@ user = "alice"
 			exec := mock.AssertExec("podman", "exec", "-ti", "silo-abc12345", "<...>")
 
 			// Verify full sequence ordering
-			if userBuild.Seq >= workspaceBuild.Seq {
-				t.Error("expected user image build before workspace image build")
-			}
 			if workspaceBuild.Seq >= create.Seq {
 				t.Error("expected workspace image build before container create")
 			}
@@ -266,35 +248,30 @@ user = "alice"
 			}
 		})
 
-		t.Run("Scenario: missing user image triggers user image build first", func(t *testing.T) {
+		t.Run("Scenario: missing workspace image triggers image build", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SubsequentRun(t, cfg, "alice")
 
-			// And no user image exists
 			// And no workspace image exists
 			// And no container exists
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
-				"podman image exists silo-alice":        exec.Command("false"),
 				"podman image exists silo-abc12345":     exec.Command("false"),
 			})
 
 			// When I run `silo`
 			err := cmd.Run([]string{})
 
-			// Then the user image "silo-alice" should be built
-			userBuild := mock.AssertExec("podman", "build", "-t", "silo-alice", "<...>")
-			// And the workspace image "silo-abc12345" should be built
+			// Then the workspace image "silo-abc12345" should be built
 			workspaceBuild := mock.AssertExec("podman", "build", "-t", "silo-abc12345", "<...>")
 			// And the container should be created
 			mock.AssertExec("podman", "create", "<...>")
 			// And podman should run "exec" with "-ti"
 			mock.AssertExec("podman", "exec", "-ti", "<any>", "<...>")
-			// User image should be built before workspace image
-			if userBuild != nil && workspaceBuild != nil && userBuild.Seq >= workspaceBuild.Seq {
-				t.Error("expected user image to be built before workspace image")
+			if workspaceBuild == nil {
+				t.Fatal("expected workspace image to be built")
 			}
 			if err != nil {
 				t.Errorf("expected exit code 0, got error: %v", err)
@@ -306,13 +283,11 @@ user = "alice"
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SubsequentRun(t, cfg, "alice")
 
-			// And the user image "silo-alice" exists
 			// And no workspace image exists
 			// And no container exists
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
-				"podman image exists silo-alice":        exec.Command("true"),
 				"podman image exists silo-abc12345":     exec.Command("false"),
 			})
 
@@ -336,13 +311,11 @@ user = "alice"
 			internal.SubsequentRun(t, cfg, "alice")
 
 			// And the container "silo-abc12345" exists but is stopped
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
-				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 			})
 

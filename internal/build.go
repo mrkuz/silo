@@ -32,11 +32,11 @@ func DetectNixSystem() string {
 	}
 }
 
-// BuildUserImage builds the user image using home.user.nix.
-func BuildUserImage(tag string, tc TemplateContext, noCache bool) error {
-	containerfile, err := RenderTemplate("Containerfile.user.tmpl", tc)
+// BuildImage builds the workspace image with user and workspace config baked in.
+func BuildImage(tag string, tc TemplateContext, noCache bool) error {
+	containerfile, err := RenderTemplate("Containerfile.tmpl", tc)
 	if err != nil {
-		return fmt.Errorf("render Containerfile.user template: %w", err)
+		return fmt.Errorf("render Containerfile template: %w", err)
 	}
 	flakeNix, err := RenderTemplate("flake.nix.tmpl", tc)
 	if err != nil {
@@ -61,27 +61,6 @@ func BuildUserImage(tag string, tc TemplateContext, noCache bool) error {
 		return fmt.Errorf("read silo module: %w", err)
 	}
 
-	files := map[string][]byte{
-		"Containerfile":            containerfile,
-		"flake.nix":                flakeNix,
-		"home.user.nix":            homeUserNix,
-		"home-workspace-empty.nix": []byte(emptyHomeNix),
-		"modules/podman.nix":       podmanModule,
-		"modules/silo.nix":         siloModule,
-	}
-	if err := RunBuild(tag, files, noCache); err != nil {
-		return fmt.Errorf("build user image: %w", err)
-	}
-	return nil
-}
-
-// BuildWorkspaceImage builds the workspace image layered on top of the user image.
-func BuildWorkspaceImage(tag string, tc TemplateContext, noCache bool) error {
-	containerfile, err := RenderTemplate("Containerfile.tmpl", tc)
-	if err != nil {
-		return fmt.Errorf("render Containerfile template: %w", err)
-	}
-
 	homeWorkspaceNix, err := ReadFile(filepath.Join(SiloDir(), "home.nix"))
 	if err != nil {
 		fallback, renderErr := RenderWorkspaceHomeNix(false)
@@ -93,10 +72,14 @@ func BuildWorkspaceImage(tag string, tc TemplateContext, noCache bool) error {
 
 	files := map[string][]byte{
 		"Containerfile":      containerfile,
-		"home-workspace.nix": homeWorkspaceNix,
+		"flake.nix":          flakeNix,
+		"home.user.nix":      homeUserNix,
+		"home.nix": homeWorkspaceNix,
+		"modules/podman.nix": podmanModule,
+		"modules/silo.nix":   siloModule,
 	}
 	if err := RunBuild(tag, files, noCache); err != nil {
-		return fmt.Errorf("build workspace image: %w", err)
+		return fmt.Errorf("build image: %w", err)
 	}
 	return nil
 }

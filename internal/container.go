@@ -38,29 +38,16 @@ func ResolveContainerPath(path string, user string) string {
 }
 
 // VolumeSetup creates directories on the silo-shared volume from the host side
-// by running a temporary container with the user image, ensuring directories exist
+// by running a temporary container with the workspace image, ensuring directories exist
 // before they are mounted as subpath volumes. Returns true if directories were created.
 func VolumeSetup(cfg MergedConfig) (bool, error) {
 	if len(cfg.SharedVolume.Paths) == 0 {
 		return false, nil
 	}
 
-	userImage := BaseImageName(cfg.User)
-	if !ImageExists(userImage) {
-		mergedCfg := MergedConfig{
-			User:         cfg.User,
-			ID:           cfg.ID,
-			Features:     cfg.Features,
-			SharedVolume: SharedVolumeConfig{Paths: []string{}},
-			Podman:       PodmanConfig{CreateArgs: []string{}},
-		}
-		tc, err := NewTemplateContext(mergedCfg)
-		if err != nil {
-			return false, fmt.Errorf("build template context: %w", err)
-		}
-		if err := EnsureUserImage(tc, false); err != nil {
-			return false, fmt.Errorf("ensure user image: %w", err)
-		}
+	workspaceImage := WorkspaceImageName(cfg.ID)
+	if !ImageExists(workspaceImage) {
+		return false, fmt.Errorf("workspace image %s not found", workspaceImage)
 	}
 
 	var mkdirCmd strings.Builder
@@ -80,7 +67,7 @@ func VolumeSetup(cfg MergedConfig) (bool, error) {
 			mkdirCmd.WriteString("mkdir -p $(dirname " + volPath + ") && touch " + volPath + " && chmod 644 " + volPath)
 		}
 	}
-	cmd := ExecCommand("podman", "run", "--rm", "-v", "silo-shared:"+volumeMountPath+":z", userImage, "sh", "-c", mkdirCmd.String())
+	cmd := ExecCommand("podman", "run", "--rm", "-v", "silo-shared:"+volumeMountPath+":z", workspaceImage, "sh", "-c", mkdirCmd.String())
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {

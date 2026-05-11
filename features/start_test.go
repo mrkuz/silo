@@ -26,7 +26,6 @@ func TestFeatureStart(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
-				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 				"podman start silo-abc12345":                                         exec.Command("true"),
 			})
@@ -49,7 +48,6 @@ func TestFeatureStart(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
-				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 				"podman start silo-abc12345":                                         exec.Command("true"),
 			})
@@ -74,7 +72,6 @@ func TestFeatureStart(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
-				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 			})
 
@@ -97,7 +94,6 @@ func TestFeatureStart(t *testing.T) {
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
-				"podman image exists silo-alice":        exec.Command("true"),
 				"podman image exists silo-abc12345":     exec.Command("true"),
 				"podman create <...>":                   exec.Command("true"),
 				"podman start silo-abc12345":            exec.Command("true"),
@@ -116,15 +112,13 @@ func TestFeatureStart(t *testing.T) {
 			}
 		})
 
-		t.Run("Scenario: missing images trigger build before container creation", func(t *testing.T) {
+		t.Run("Scenario: missing image triggers build before container creation", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
-				"podman image exists silo-alice":        exec.Command("false"),
 				"podman image exists silo-abc12345":     exec.Command("false"),
-				"podman build -t silo-alice <...>":      exec.Command("true"),
 				"podman build -t silo-abc12345 <...>":   exec.Command("true"),
 				"podman create <...>":                   exec.Command("true"),
 				"podman start silo-abc12345":            exec.Command("true"),
@@ -133,8 +127,7 @@ func TestFeatureStart(t *testing.T) {
 			// When I run `silo start`
 			err := cmd.Start()
 
-			// Then both user and workspace images should be built
-			mock.AssertExec("podman", "build", "-t", "silo-alice", "<...>")
+			// Then workspace image should be built
 			mock.AssertExec("podman", "build", "-t", "silo-abc12345", "<...>")
 			mock.AssertExec("podman", "create", "<...>")
 			mock.AssertExec("podman", "start", "silo-abc12345")
@@ -153,7 +146,6 @@ func TestFeatureStart(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
-				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 				"podman run --rm <...>":                                              exec.Command("true"),
 				"podman start silo-abc12345":                                         exec.Command("true"),
@@ -186,7 +178,6 @@ func TestFeatureStart(t *testing.T) {
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
-				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 				"podman start silo-abc12345":                                         exec.Command("true"),
 			})

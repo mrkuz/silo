@@ -2,7 +2,7 @@
 Feature: silo volume setup — Create directories on the shared volume
 
   `silo volume setup` creates directories on the shared volume so they can be mounted
-  as subpath volumes inside containers. It runs a temporary container with the user
+  as subpath volumes inside containers. It runs a temporary container with the workspace
   image — the workspace container does not need to be running. It is also run
   automatically after every `silo start`.
 
@@ -14,7 +14,7 @@ Feature: silo volume setup — Create directories on the shared volume
 
     Scenario: volume setup creates directories on the shared volume
       Given the config has paths ["$HOME/.cache/uv/"]
-      And the user image "silo-alice" exists
+      And the workspace image "silo-abc12345" exists
       When I run `silo volume setup`
       Then podman should run "run" with "--rm" and volume "silo-shared:/silo/shared:z"
       And the run command should create "/silo/shared/home/alice/.cache/uv" as a directory with mode 755
@@ -23,7 +23,7 @@ Feature: silo volume setup — Create directories on the shared volume
 
     Scenario: volume setup creates both files and directories
       Given the config has paths ["$HOME/.cache/uv/", "$HOME/.local/share/fish/fish_history"]
-      And the user image "silo-alice" exists
+      And the workspace image "silo-abc12345" exists
       When I run `silo volume setup`
       Then podman should run "run" with "--rm" and volume "silo-shared:/silo/shared:z"
       And the run command should create "/silo/shared/home/alice/.cache/uv" as a directory with mode 755
@@ -39,24 +39,15 @@ Feature: silo volume setup — Create directories on the shared volume
       And the output should not contain "volume setup complete"
       And the exit code should be 0
 
-  Rule: Uses a temporary container, not the workspace container
+  Rule: Uses workspace image for temporary container
 
-    Scenario: volume setup does not require workspace container to exist
+    Scenario: volume setup uses workspace image and does not require workspace container to exist
       Given the config has paths ["$HOME/.cache/uv/"]
       And no container exists
-      And the user image "silo-alice" exists
+      And the workspace image "silo-abc12345" exists
       When I run `silo volume setup`
       Then the output should contain "volume setup complete"
       And the exit code should be 0
-
-  Rule: Builds user image if missing before running temporary container
-
-    Scenario: missing user image triggers build
-      Given the config has paths ["$HOME/.cache/uv/"]
-      And no user image exists
-      When I run `silo volume setup`
-      Then the user image "silo-alice" should be built
-      And directories should be created on the shared volume
 
   Rule: Requires workspace to be initialized
 

@@ -64,12 +64,6 @@ const HomeUserNix = `{ config, pkgs, ... }:
 }
 `
 
-// emptyHomeNix is the empty home-manager module used in the build context.
-const emptyHomeNix = `{ config, pkgs, ... }:
-{
-}
-`
-
 // WorkspaceHomeNixTmpl is the home-manager module for workspaces.
 // It is rendered by RenderWorkspaceHomeNix with the podman parameter.
 const WorkspaceHomeNixTmpl = `{ config, pkgs, ... }:
@@ -107,7 +101,6 @@ type TemplateContext struct {
 	User              string
 	Home              string
 	Image             string
-	BaseImage         string
 	ContainerName     string
 	SharedVolumeName  string
 	WorkspaceMount    string
@@ -153,7 +146,6 @@ func NewTemplateContext(cfg MergedConfig, containerNameSuffix ...string) (Templa
 		User:              cfg.User,
 		Home:              home,
 		Image:             WorkspaceImageName(cfg.ID),
-		BaseImage:         BaseImageName(cfg.User),
 		ContainerName:     containerName,
 		SharedVolumeName:  sharedVolumeNameValue,
 		WorkspaceMount:    workspaceMount,
@@ -165,7 +157,7 @@ func NewTemplateContext(cfg MergedConfig, containerNameSuffix ...string) (Templa
 }
 
 // NewTemplateContextFromWorkspace builds a TemplateContext from WorkspaceConfig for template rendering.
-// It reads the user from silo.user.toml to determine the BaseImage and ContainerArgs.
+// It reads the user from silo.user.toml to determine the ContainerArgs.
 func NewTemplateContextFromWorkspace(cfg WorkspaceConfig) (TemplateContext, error) {
 	containerName := WorkspaceContainerName(cfg.General.ID)
 	sharedVolumeNameValue := ""
@@ -193,7 +185,6 @@ func NewTemplateContextFromWorkspace(cfg WorkspaceConfig) (TemplateContext, erro
 	return TemplateContext{
 		User:             user,
 		Home:             "/home/" + user,
-		BaseImage:        BaseImageName(user),
 		Image:            WorkspaceImageName(cfg.General.ID),
 		ContainerName:    containerName,
 		SharedVolumeName: sharedVolumeNameValue,

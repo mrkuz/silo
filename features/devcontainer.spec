@@ -61,7 +61,6 @@ Feature: silo devcontainer — Generate a .devcontainer.json for VS Code
 
     Scenario: devcontainer runs volume setup before generating when shared volume is configured
       Given the config has paths ["$HOME/.cache/uv/"]
-      And the user image "silo-alice" exists
       And the workspace image "silo-abc12345" exists
       When I run `silo devcontainer`
       Then shared volume directories should be created before generating .devcontainer.json.

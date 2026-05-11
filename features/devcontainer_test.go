@@ -206,10 +206,9 @@ func TestFeatureDevcontainer(t *testing.T) {
 		t.Run("Scenario: devcontainer runs volume setup before generating when shared volume is configured", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
 			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
-			internal.SubsequentRun(t, cfg, "testuser")
+			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman image exists silo-testuser":     exec.Command("true"),
 				"podman image exists silo-abc12345":     exec.Command("true"),
 				"podman container exists silo-abc12345": exec.Command("false"),
 				"podman run --rm <...>":                 exec.Command("true"),
@@ -221,7 +220,7 @@ func TestFeatureDevcontainer(t *testing.T) {
 			// Then shared volume directories should be created before generating .devcontainer.json.
 			record := mock.AssertExec("podman", "run", "--rm", "<...>")
 			cmdStr := strings.Join(record.Args, " ")
-			expectedPath := "/silo/shared/home/testuser/.cache/uv"
+			expectedPath := "/silo/shared/home/alice/.cache/uv"
 			if !strings.Contains(cmdStr, "mkdir -p "+expectedPath) {
 				t.Errorf("expected volume setup with 'mkdir -p %s', got: %s", expectedPath, cmdStr)
 			}

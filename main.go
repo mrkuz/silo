@@ -19,8 +19,6 @@ var commands = map[string]func([]string) error{
 	"rm":                   cmd.NoArgs(cmd.Remove),
 	"status":               cmd.NoArgs(cmd.Status),
 	"user init":            cmd.UserInit,
-	"user build":           cmd.UserBuild,
-	"user rm":              cmd.NoArgs(cmd.UserRm),
 	"devcontainer":         cmd.DevcontainerGenerate,
 	"devcontainer connect": cmd.NoArgs(cmd.DevcontainerConnect),
 	"devcontainer stop":    cmd.NoArgs(cmd.DevcontainerStop),

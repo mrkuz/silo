@@ -3,9 +3,7 @@ Feature: silo rm — Remove the workspace image
 
   `silo rm` removes the workspace image. If the container exists and is stopped,
   it is removed first. If the container is running, an error is returned and
-  neither the container nor the image is touched. Unlike `silo user rm`, this
-  removes the per-workspace image (`silo-<id>`), not the shared user image
-  (`silo-<user>`).
+  neither the container nor the image is touched.
 
   Background:
     Given a workspace with silo config "abc12345"
@@ -57,15 +55,6 @@ Feature: silo rm — Remove the workspace image
       When I run `silo rm`
       Then the exit code should not be 0
       And the error should indicate ".silo/silo.toml" is missing
-
-  Rule: rm does not remove the user image
-
-    Scenario: rm only removes the workspace image, not the user image
-      Given the workspace image "silo-abc12345" exists
-      And the user image "silo-alice" exists
-      When I run `silo rm`
-      Then podman should run "rmi" on "silo-abc12345"
-      But podman should not run "rmi" on "silo-alice"
 
   Rule: Unknown flags show error and help
 

@@ -21,13 +21,11 @@ func TestFeatureConnect(t *testing.T) {
 	t.Run("Rule: Connects to the running container", func(t *testing.T) {
 		t.Run("Scenario: connect opens an interactive shell", func(t *testing.T) {
 			// Given the container "silo-abc12345" is running
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
@@ -49,13 +47,11 @@ func TestFeatureConnect(t *testing.T) {
 
 		t.Run("Scenario: connect prints a message before opening shell", func(t *testing.T) {
 			// Given the container "silo-abc12345" is running
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
@@ -74,13 +70,11 @@ func TestFeatureConnect(t *testing.T) {
 	t.Run("Rule: Requires container to be running", func(t *testing.T) {
 		t.Run("Scenario: connect fails if container is not running", func(t *testing.T) {
 			// Given the container "silo-abc12345" exists but is stopped
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
@@ -100,13 +94,11 @@ func TestFeatureConnect(t *testing.T) {
 	t.Run("Rule: Requires container to exist", func(t *testing.T) {
 		t.Run("Scenario: connect fails if container does not exist", func(t *testing.T) {
 			// Given no container exists
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman image exists silo-alice":        exec.Command("true"),
 				"podman image exists silo-abc12345":     exec.Command("true"),
 				"podman container exists silo-abc12345": exec.Command("false"),
 			})
@@ -125,13 +117,11 @@ func TestFeatureConnect(t *testing.T) {
 	t.Run("Rule: Exiting the shell leaves the container running", func(t *testing.T) {
 		t.Run("Scenario: exiting the connect shell does not stop the container", func(t *testing.T) {
 			// Given the container "silo-abc12345" is running
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
@@ -154,13 +144,11 @@ func TestFeatureConnect(t *testing.T) {
 	t.Run("Rule: Multiple sessions can be connected simultaneously", func(t *testing.T) {
 		t.Run("Scenario: two parallel connect calls create two independent shells in the same container", func(t *testing.T) {
 			// Given the container "silo-abc12345" is running
-			// And the user image "silo-alice" exists
 			// And the workspace image "silo-abc12345" exists
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
@@ -179,7 +167,6 @@ func TestFeatureConnect(t *testing.T) {
 
 			mock.Reset()
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman image exists silo-alice":                                     exec.Command("true"),
 				"podman image exists silo-abc12345":                                  exec.Command("true"),
 				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),

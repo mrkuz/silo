@@ -154,7 +154,7 @@ type Mock struct {
 	execCalls  []ExecRecord
 	readCalls  []ReadRecord
 	writeCalls []WriteRecord
-	execReturn map[string]*exec.Cmd
+	execReturn map[string]func() *exec.Cmd
 	readReturn map[string][]byte
 }
 
@@ -162,7 +162,7 @@ type Mock struct {
 func NewMock(t *testing.T) *Mock {
 	return &Mock{
 		t:          t,
-		execReturn: make(map[string]*exec.Cmd),
+		execReturn: make(map[string]func() *exec.Cmd),
 		readReturn: make(map[string][]byte),
 	}
 }
@@ -181,8 +181,14 @@ func (m *Mock) Reset() {
 
 // MockExec installs mock execCommand.responses maps full command string to *exec.Cmd.
 // Patterns use glob-style matching: <any>, <any?>, <...>, <...? >
+// Each call to ExecCommand matching a pattern invokes the factory to get a fresh *exec.Cmd.
 func (m *Mock) MockExec(responses map[string]*exec.Cmd) {
-	m.execReturn = responses
+	m.execReturn = make(map[string]func() *exec.Cmd, len(responses))
+	for k, v := range responses {
+		name := v.Path
+		args := v.Args[1:] // v.Args[0] is cmd.Path itself
+		m.execReturn[k] = func() *exec.Cmd { return exec.Command(name, args...) }
+	}
 	orig := ExecCommand
 	ExecCommand = func(name string, args ...string) *exec.Cmd {
 		record := ExecRecord{
@@ -191,14 +197,13 @@ func (m *Mock) MockExec(responses map[string]*exec.Cmd) {
 			Args: args,
 		}
 		m.execCalls = append(m.execCalls, record)
-
 		key := execKey(name, args)
-		if cmd, ok := m.execReturn[key]; ok {
-			return cmd
+		if factory, ok := m.execReturn[key]; ok {
+			return factory()
 		}
-		for pattern, cmd := range m.execReturn {
-			if matchPattern(key, pattern) {
-				return cmd
+		for k, factory := range m.execReturn {
+			if matchPattern(key, k) {
+				return factory()
 			}
 		}
 		return exec.Command("true")

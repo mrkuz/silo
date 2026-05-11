@@ -43,49 +43,21 @@ func TestRenderFlakeNixAarch64(t *testing.T) {
 
 func TestRenderContainerfileWorkspace(t *testing.T) {
 	out, err := RenderTemplate("Containerfile.tmpl", struct {
-		BaseImage string
-		User      string
-		Home      string
-	}{"silo-alice", "alice", "/home/alice"})
+		User string
+		Home string
+	}{"alice", "/home/alice"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	s := string(out)
-	if !strings.Contains(s, "FROM silo-alice") {
-		t.Errorf("expected FROM silo-alice in Containerfile output:\n%s", s)
+	if !strings.Contains(s, "FROM fedora:latest") {
+		t.Errorf("expected FROM fedora:latest in Containerfile output:\n%s", s)
 	}
 	if !strings.Contains(s, "home-manager switch") {
 		t.Errorf("expected home-manager switch in Containerfile output:\n%s", s)
 	}
 	if strings.Contains(s, "setup.sh") {
 		t.Errorf("did not expect setup.sh in Containerfile output:\n%s", s)
-	}
-}
-
-func TestRenderContainerfileUser(t *testing.T) {
-	out, err := RenderTemplate("Containerfile.user.tmpl", struct {
-		User              string
-		Home              string
-		SharedVolumeMount string
-	}{"alice", "/home/alice", "/silo/shared"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := string(out)
-	if !strings.Contains(s, "FROM fedora") {
-		t.Error("expected FROM fedora in Containerfile.user output")
-	}
-	if !strings.Contains(s, "alice") {
-		t.Error("expected user alice in Containerfile.user output")
-	}
-	if !strings.Contains(s, "/home/alice") {
-		t.Error("expected home /home/alice in Containerfile.user output")
-	}
-	if !strings.Contains(s, "mkdir -p /silo/shared") {
-		t.Error("expected shared volume mount path in Containerfile.user output")
-	}
-	if strings.Contains(s, "ARG USER") {
-		t.Error("Containerfile.user should not contain ARG USER")
 	}
 }
 

@@ -31,7 +31,7 @@ Per-directory developer containers, powered by Podman, Nix, and home-manager.
 silo
 ```
 
-On first run, silo initializes workspace files, builds the user image and workspace image, starts the container, and connects to it. Subsequent runs skip steps that are already complete and connect directly.
+On first run, silo initializes workspace files, builds the workspace image, starts the container, and connects to it. Subsequent runs skip steps that are already complete and connect directly.
 
 See [Build and Install](#build-and-install) for installation instructions. See [Configuration](#configuration) to customize your workspace.
 
@@ -65,7 +65,7 @@ init → build → create → volume setup → start → connect
 | Step | Description | Output | Idempotency |
 |---|---|---|---|
 | **init** | Creates `.silo/silo.toml`, `.silo/home.nix`; runs `silo user init` to create user files | Workspace + user files | Writes config only on first run |
-| **build** | Ensures user image exists, then builds workspace image if needed | Container image | Images are cached; only missing ones are built |
+| **build** | Builds the workspace image if it does not exist | Container image | Images are cached; only missing ones are built |
 | **create** | Creates the container if it doesn't exist | Container (stopped) | Skipped if container already exists |
 | **volume setup** | Creates directories on the shared volume | Configured container | Safe to re-run |
 | **start** | Starts the container if not running | Running container | Skipped if container is already running |
@@ -96,9 +96,7 @@ silo stop
 silo rm
 silo status
 silo user init
-silo user build [-f|--force]
-silo user rm
-silo devcontainer
+silo devcontainer [-f|--force]
 silo devcontainer connect
 silo devcontainer stop
 silo devcontainer status
@@ -124,7 +122,7 @@ Initialize workspace files. Creates `.silo/silo.toml` and `.silo/home.nix`, then
 
 ### `silo build`
 
-Ensure the user image exists, then build the workspace image if it does not exist yet.
+Build the workspace image if it does not exist yet.
 
 | Flag | Description |
 |---|---|
@@ -136,7 +134,7 @@ Start the container and run post-start setup. Creates the container if it doesn'
 
 ### `silo volume setup`
 
-Creates directories on the shared volume for paths configured in `[shared_volume]`. Runs a temporary container with the user image — the workspace container does not need to be running. This step runs automatically after every start.
+Creates directories on the shared volume for paths configured in `[shared_volume]`. Runs a temporary container with the workspace image — the workspace container does not need to be running. This step runs automatically after every start.
 
 ### `silo connect`
 
@@ -154,21 +152,9 @@ Remove the workspace image. If the container exists and is stopped, it is remove
 
 Create user starter files under `$XDG_CONFIG_HOME/silo/` if they do not exist:
 
-- `home.user.nix` — user home-manager config baked into the user image
+- `home.user.nix` — user home-manager config baked into the workspace image
 - `silo.user.toml` — default values for new workspaces
 - `devcontainer.user.json` — merged into every generated `.devcontainer.json`
-
-### `silo user build`
-
-Build the user image if it does not exist yet. The user image is shared across all workspaces.
-
-| Flag | Description |
-|---|---|
-| `-f`, `--force` | Force rebuild user image |
-
-### `silo user rm`
-
-Remove the user image.
 
 ### `silo status`
 
@@ -274,7 +260,7 @@ create_args = [
 
 ### Workspace config: `.silo/home.nix`
 
-Home-manager config applied only to this workspace's image. Created as an empty module on first run.
+Home-manager config applied to the workspace image. Created as an empty module on first run.
 
 ```nix
 { config, pkgs, ... }:
@@ -291,7 +277,7 @@ Home-manager config applied only to this workspace's image. Created as an empty 
 | File | Description |
 |---|---|
 | `silo.user.toml` | Default values for new workspaces |
-| `home.user.nix` | User home-manager config baked into the user image |
+| `home.user.nix` | User home-manager config baked into the workspace image |
 | `devcontainer.user.json` | Merged into every generated `.devcontainer.json` |
 
 See `examples/` for reference configs.
@@ -300,12 +286,11 @@ See `examples/` for reference configs.
 
 ## How It Works
 
-### Two-stage image build
+### Image build
 
-silo builds two OCI images using Podman:
+silo builds a single OCI image using Podman:
 
-1. **User image** (`silo-<user>`) — shared across all workspaces. Fedora with Nix and home-manager installed. The user `home.user.nix` is baked in here.
-2. **Workspace image** (`silo-<id>`) — per-workspace, layered on top of the user image. The workspace `home.nix` is applied here.
+- **Workspace image** (`silo-<id>`) — Fedora with Nix and home-manager. Both the user `home.user.nix` and workspace `.silo/home.nix` are baked in here.
 
 Build context files are written to a temporary directory on the host and passed to `podman build`. No persistent build context is kept on disk.
 
@@ -329,7 +314,7 @@ The `silo.podman.enable = true` option is set in `.silo/home.nix` when `--podman
 
 ### Nix + home-manager
 
-Each image build generates a Nix flake in a temporary directory on the host and passes it to `podman build`. The flake wires together `nixos-unstable`, home-manager, `home.user.nix` (user image), and `.silo/home.nix` (workspace image).
+Each image build generates a Nix flake in a temporary directory on the host and passes it to `podman build`. The flake wires together `nixos-unstable`, home-manager, `home.user.nix`, and `.silo/home.nix`.
 
 ### VS Code devcontainer
 

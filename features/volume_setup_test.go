@@ -12,7 +12,7 @@ import (
 
 // Feature: silo volume setup — Create directories on the shared volume
 // `silo volume setup` creates directories on the shared volume so they can be mounted
-// as subpath volumes inside containers. It runs a temporary container with the user
+// as subpath volumes inside containers. It runs a temporary container with the workspace
 // image — the workspace container does not need to be running. It is also run
 // automatically after every `silo start`.
 func TestFeatureVolumeSetup(t *testing.T) {
@@ -26,7 +26,7 @@ func TestFeatureVolumeSetup(t *testing.T) {
 			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman image exists silo-alice": exec.Command("true"),
+				"podman image exists silo-abc12345": exec.Command("true"),
 			})
 
 			// When I run `silo volume setup`
@@ -59,7 +59,7 @@ func TestFeatureVolumeSetup(t *testing.T) {
 			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman image exists silo-alice": exec.Command("true"),
+				"podman image exists silo-abc12345": exec.Command("true"),
 			})
 
 			// When I run `silo volume setup`
@@ -92,32 +92,7 @@ func TestFeatureVolumeSetup(t *testing.T) {
 		})
 	})
 
-	t.Run("Rule: No-op when shared volume is not configured", func(t *testing.T) {
-		t.Run("Scenario: disabled shared volume is a no-op", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			cfg.SharedVolume.Paths = []string{}
-			internal.SubsequentRun(t, cfg, "alice")
-			mock := internal.NewMock(t)
-			mock.MockExec(map[string]*exec.Cmd{})
-
-			// When I run `silo volume setup`
-			var err error
-			output := internal.CaptureStdout(func() {
-				err = cmd.VolumeSetup()
-			})
-
-			// Then no podman run should be called
-			mock.AssertNoExec("podman", "run", "<...>")
-			// And the output should not contain "Volume setup complete"
-			if strings.Contains(output, "Volume setup complete") {
-				t.Errorf("expected no output for no-op, got: %s", output)
-			}
-			// And the exit code should be 0
-			if err != nil {
-				t.Errorf("expected exit code 0, got error: %v", err)
-			}
-		})
-
+	t.Run("Rule: No-op when shared volume paths is empty", func(t *testing.T) {
 		t.Run("Scenario: empty paths list is a no-op", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
 			cfg.SharedVolume.Paths = []string{}
@@ -144,14 +119,14 @@ func TestFeatureVolumeSetup(t *testing.T) {
 		})
 	})
 
-	t.Run("Rule: Uses a temporary container, not the workspace container", func(t *testing.T) {
-		t.Run("Scenario: volume setup does not require workspace container to exist", func(t *testing.T) {
+	t.Run("Rule: Uses workspace image for temporary container", func(t *testing.T) {
+		t.Run("Scenario: volume setup uses workspace image and does not require workspace container to exist", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
 			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
 			internal.SubsequentRun(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman image exists silo-alice":        exec.Command("true"),
+				"podman image exists silo-abc12345":     exec.Command("true"),
 				"podman container exists silo-abc12345": exec.Command("false"),
 			})
 
@@ -166,37 +141,6 @@ func TestFeatureVolumeSetup(t *testing.T) {
 				t.Errorf("expected 'Volume setup complete' in output, got: %s", output)
 			}
 			// And the exit code should be 0
-			if err != nil {
-				t.Errorf("expected exit code 0, got error: %v", err)
-			}
-		})
-	})
-
-	t.Run("Rule: Builds user image if missing before running temporary container", func(t *testing.T) {
-		t.Run("Scenario: missing user image triggers build", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			cfg.SharedVolume.Paths = []string{"$HOME/.cache/uv/"}
-			internal.SubsequentRun(t, cfg, "alice")
-			mock := internal.NewMock(t)
-			mock.MockExec(map[string]*exec.Cmd{
-				"podman image exists silo-alice": exec.Command("false"),
-				"podman build <...>":             exec.Command("true"),
-			})
-
-			// When I run `silo volume setup`
-			var err error
-			output := internal.CaptureStdout(func() {
-				err = cmd.VolumeSetup()
-			})
-
-			// Then the user image "silo-alice" should be built
-			mock.AssertExec("podman", "build", "<...>")
-			// And directories should be created on the shared volume
-			mock.AssertExec("podman", "run", "--rm", "<...>")
-			// And the output should contain "Volume setup complete"
-			if !strings.Contains(output, "Volume setup complete") {
-				t.Errorf("expected 'Volume setup complete' in output, got: %s", output)
-			}
 			if err != nil {
 				t.Errorf("expected exit code 0, got error: %v", err)
 			}

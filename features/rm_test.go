@@ -13,9 +13,7 @@ import (
 // Feature: silo rm — Remove the workspace image
 // `silo rm` removes the workspace image. If the container exists and is stopped,
 // it is removed first. If the container is running, an error is returned and
-// neither the container nor the image is touched. Unlike `silo user rm`, this
-// removes the per-workspace image (`silo-<id>`), not the shared user image
-// (`silo-<user>`).
+// neither the container nor the image is touched.
 func TestFeatureRm(t *testing.T) {
 	// Background: a workspace with silo config "abc12345"
 	// and the user's XDG_CONFIG_HOME points to a fresh directory
@@ -158,29 +156,5 @@ func TestFeatureRm(t *testing.T) {
 		})
 	})
 
-	t.Run("Rule: rm does not remove the user image", func(t *testing.T) {
-		t.Run("Scenario: rm only removes the workspace image, not the user image", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
-			mock := internal.NewMock(t)
-			mock.MockExec(map[string]*exec.Cmd{
-				"podman container exists silo-abc12345": exec.Command("false"),
-				"podman image exists silo-abc12345":     exec.Command("true"),
-				"podman image exists silo-alice":        exec.Command("true"),
-				"podman rmi silo-abc12345":              exec.Command("true"),
-			})
 
-			// When I run `silo rm`
-			err := cmd.Remove()
-
-			// Then podman should run "rmi" on "silo-abc12345"
-			mock.AssertExec("podman", "rmi", "silo-abc12345")
-			// But podman should not run "rmi" on "silo-alice"
-			mock.AssertNoExec("podman", "rmi", "silo-alice")
-			// And the exit code should be 0
-			if err != nil {
-				t.Errorf("expected exit code 0, got error: %v", err)
-			}
-		})
-	})
 }
