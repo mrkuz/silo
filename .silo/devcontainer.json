@@ -1,0 +1,10 @@
+{
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "alexkrechik.cucumberautocomplete"
+      ]
+    }
+  }
+}

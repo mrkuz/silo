@@ -333,17 +333,23 @@ Each image build generates a Nix flake in a temporary directory on the host and 
 
 ### VS Code devcontainer
 
-`silo devcontainer` generates a `.devcontainer.json` on the host, pointing at the workspace image. The generated container name is `<workspace-container-name>-dev`. The user `$XDG_CONFIG_HOME/silo/devcontainer.user.json` is merged with the generated file:
+`silo devcontainer` generates a `.devcontainer.json` on the host by merging three sources in priority order (highest wins):
 
+1. **Template** — `devcontainer.json.tmpl` (provides workspace image, container name, mounts)
+2. **Project** — `.silo/devcontainer.json` (project-specific, can be committed to version control)
+3. **User** — `$XDG_CONFIG_HOME/silo/devcontainer.user.json` (personal defaults)
+
+Merge behavior:
 - Objects merge recursively (key-by-key)
-- Arrays concatenate (base array first, then input array)
-- Scalars from input override base values
+- Arrays concatenate (in order: user first, then project, then template)
+- Scalars from higher-priority sources override lower-priority ones
 
-**Important**
+The `.silo/devcontainer.json` is created automatically if it doesn't exist.
 
+**Important:**
 - The `silo` container is independent from the devcontainer.
 - Lifecycle is managed by VS Code/devcontainers, not by `silo`.
-- `silo` commands (`start`/`stop`/`status`/`connect`/`rm`) target the regular workspace container.
+- `silo` commands target the regular workspace container.
 
 Example `$XDG_CONFIG_HOME/silo/devcontainer.user.json`:
 
