@@ -77,9 +77,9 @@ func BuildUserImage(tag string, tc TemplateContext, noCache bool) error {
 
 // BuildWorkspaceImage builds the workspace image layered on top of the user image.
 func BuildWorkspaceImage(tag string, tc TemplateContext, noCache bool) error {
-	containerfile, err := RenderTemplate("Containerfile.workspace.tmpl", tc)
+	containerfile, err := RenderTemplate("Containerfile.tmpl", tc)
 	if err != nil {
-		return fmt.Errorf("render Containerfile.workspace template: %w", err)
+		return fmt.Errorf("render Containerfile template: %w", err)
 	}
 
 	homeWorkspaceNix, err := ReadFile(filepath.Join(SiloDir(), "home.nix"))

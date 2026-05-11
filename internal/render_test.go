@@ -42,7 +42,7 @@ func TestRenderFlakeNixAarch64(t *testing.T) {
 }
 
 func TestRenderContainerfileWorkspace(t *testing.T) {
-	out, err := RenderTemplate("Containerfile.workspace.tmpl", struct {
+	out, err := RenderTemplate("Containerfile.tmpl", struct {
 		BaseImage string
 		User      string
 		Home      string
@@ -52,13 +52,13 @@ func TestRenderContainerfileWorkspace(t *testing.T) {
 	}
 	s := string(out)
 	if !strings.Contains(s, "FROM silo-alice") {
-		t.Errorf("expected FROM silo-alice in Containerfile.workspace output:\n%s", s)
+		t.Errorf("expected FROM silo-alice in Containerfile output:\n%s", s)
 	}
 	if !strings.Contains(s, "home-manager switch") {
-		t.Errorf("expected home-manager switch in Containerfile.workspace output:\n%s", s)
+		t.Errorf("expected home-manager switch in Containerfile output:\n%s", s)
 	}
 	if strings.Contains(s, "setup.sh") {
-		t.Errorf("did not expect setup.sh in Containerfile.workspace output:\n%s", s)
+		t.Errorf("did not expect setup.sh in Containerfile output:\n%s", s)
 	}
 }
 
