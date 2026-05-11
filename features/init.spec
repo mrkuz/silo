@@ -19,7 +19,7 @@ Feature: silo init — Initialize workspace
     Scenario: init creates user starter files
       When I run `silo init`
       Then a file "home.user.nix" should be created in the user's silo config directory
-      And a file "devcontainer.in.json" should be created in the user's silo config directory
+      And a file "devcontainer.user.json" should be created in the user's silo config directory
       And a file "silo.user.toml" should be created in the user's silo config directory
       And the exit code should be 0
 

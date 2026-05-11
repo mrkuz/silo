@@ -37,7 +37,7 @@ Feature: silo user build — Build the shared user image
     Scenario: missing user files triggers automatic user init
       Given the user image "silo-alice" does not exist
       But the user's silo config directory is missing "home.user.nix"
-      And the user's silo config directory is missing "devcontainer.in.json"
+      And the user's silo config directory is missing "devcontainer.user.json"
       And the user's silo config directory is missing "silo.user.toml"
       When I run `silo user build`
       Then the user files should be created

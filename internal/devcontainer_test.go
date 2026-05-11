@@ -117,7 +117,7 @@ func TestLoadDevcontainerInJSONMalformed(t *testing.T) {
 		if err := os.MkdirAll(siloDir, 0755); err != nil {
 			t.Fatal(err)
 		}
-		path := filepath.Join(siloDir, "devcontainer.in.json")
+		path := filepath.Join(siloDir, "devcontainer.user.json")
 		if err := os.WriteFile(path, []byte("{invalid json"), 0644); err != nil {
 			t.Fatal(err)
 		}

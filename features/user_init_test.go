@@ -28,10 +28,10 @@ func TestFeatureUserInit(t *testing.T) {
 			err := cmd.UserInit([]string{})
 
 			// Then a file "home.user.nix" should be created in the user's silo config directory
-			// And a file "devcontainer.in.json" should be created in the user's silo config directory
+			// And a file "devcontainer.user.json" should be created in the user's silo config directory
 			// And a file "silo.user.toml" should be created in the user's silo config directory
 			siloDir := filepath.Join(base, "silo")
-			for _, name := range []string{"home.user.nix", "devcontainer.in.json", "silo.user.toml"} {
+			for _, name := range []string{"home.user.nix", "devcontainer.user.json", "silo.user.toml"} {
 				if _, err := os.Stat(filepath.Join(siloDir, name)); os.IsNotExist(err) {
 					t.Errorf("expected %s to be created in user's silo config directory", name)
 				}
@@ -98,7 +98,7 @@ func TestFeatureUserInit(t *testing.T) {
 		t.Run("Scenario: all existing user files are preserved", func(t *testing.T) {
 			internal.FirstRunWith(t, func(siloUser string) {
 				internal.WriteUserFile(t, siloUser, "home.user.nix", "# custom content")
-				internal.WriteUserFile(t, siloUser, "devcontainer.in.json", `{ "custom": true }`)
+				internal.WriteUserFile(t, siloUser, "devcontainer.user.json", `{ "custom": true }`)
 				internal.WriteUserFile(t, siloUser, "silo.user.toml", `[general]
 user = "testuser"
 
@@ -111,7 +111,7 @@ paths = []
 			err := cmd.UserInit([]string{})
 
 			// Then the file "home.user.nix" in the user's silo config directory should contain "# custom content"
-			// And the file "devcontainer.in.json" in the user's silo config directory should contain "{ \"custom\": true }"
+			// And the file "devcontainer.user.json" in the user's silo config directory should contain "{ \"custom\": true }"
 			// And the file "silo.user.toml" in the user's silo config directory should contain "[general]"
 			xdgConfigHome := os.Getenv("XDG_CONFIG_HOME")
 			siloDir := filepath.Join(xdgConfigHome, "silo")
@@ -120,7 +120,7 @@ paths = []
 				partial string
 			}{
 				{"home.user.nix", "# custom content"},
-				{"devcontainer.in.json", `{ "custom": true }`},
+				{"devcontainer.user.json", `{ "custom": true }`},
 				{"silo.user.toml", "[general]"},
 			} {
 				data, err := os.ReadFile(filepath.Join(siloDir, tc.name))
@@ -150,11 +150,11 @@ paths = []
 			})
 
 			// Then the output should contain "Creating <XDG_CONFIG_HOME>/silo/home.user.nix"
-			// And the output should contain "Creating <XDG_CONFIG_HOME>/silo/devcontainer.in.json"
+			// And the output should contain "Creating <XDG_CONFIG_HOME>/silo/devcontainer.user.json"
 			// And the output should contain "Creating <XDG_CONFIG_HOME>/silo/silo.user.toml"
 			expectedMsgs := []string{
 				"Creating " + filepath.Join(base, "silo", "home.user.nix"),
-				"Creating " + filepath.Join(base, "silo", "devcontainer.in.json"),
+				"Creating " + filepath.Join(base, "silo", "devcontainer.user.json"),
 				"Creating " + filepath.Join(base, "silo", "silo.user.toml"),
 			}
 			for _, msg := range expectedMsgs {
@@ -167,7 +167,7 @@ paths = []
 		t.Run("Scenario: user init shows already exists message for existing files", func(t *testing.T) {
 			internal.FirstRunWith(t, func(siloUser string) {
 				internal.WriteUserFile(t, siloUser, "home.user.nix", "{ config, pkgs, ... }:\n{\n}\n")
-				internal.WriteUserFile(t, siloUser, "devcontainer.in.json", "{}\n")
+				internal.WriteUserFile(t, siloUser, "devcontainer.user.json", "{}\n")
 				internal.WriteUserFile(t, siloUser, "silo.user.toml", "")
 			})
 
@@ -177,13 +177,13 @@ paths = []
 			})
 
 			// Then the output should contain "'<XDG_CONFIG_HOME>/silo/home.user.nix' already exists"
-			// And the output should contain "'<XDG_CONFIG_HOME>/silo/devcontainer.in.json' already exists"
+			// And the output should contain "'<XDG_CONFIG_HOME>/silo/devcontainer.user.json' already exists"
 			// And the output should contain "'<XDG_CONFIG_HOME>/silo/silo.user.toml' already exists"
 			xdgConfigHome := os.Getenv("XDG_CONFIG_HOME")
 			siloDir := filepath.Join(xdgConfigHome, "silo")
 			expectedMsgs := []string{
 				"'" + filepath.Join(siloDir, "home.user.nix") + "' already exists",
-				"'" + filepath.Join(siloDir, "devcontainer.in.json") + "' already exists",
+				"'" + filepath.Join(siloDir, "devcontainer.user.json") + "' already exists",
 				"'" + filepath.Join(siloDir, "silo.user.toml") + "' already exists",
 			}
 			for _, msg := range expectedMsgs {

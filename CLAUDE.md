@@ -72,7 +72,7 @@ Note: `start` internally calls `EnsureCreated` (which creates the container if n
 
 **Shared volume:** The `silo-shared` named volume is mounted as subpath volumes at container paths (e.g., `/home/<user>/.cache/uv`). Paths in `[shared_volume]` are created on the volume before container start via `VolumeSetup`.
 
-**Devcontainer merge:** `silo devcontainer` recursively merges `$XDG_CONFIG_HOME/silo/devcontainer.in.json` into generated `.devcontainer.json`.
+**Devcontainer merge:** `silo devcontainer` recursively merges `$XDG_CONFIG_HOME/silo/devcontainer.user.json` into generated `.devcontainer.json`.
 
 **Only external dependency:** `github.com/BurntSushi/toml`
 

@@ -77,7 +77,7 @@ func LoadDevcontainerInJSON() (map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get user config directory: %w", err)
 	}
-	path := filepath.Join(dir, "devcontainer.in.json")
+	path := filepath.Join(dir, "devcontainer.user.json")
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return map[string]any{}, nil

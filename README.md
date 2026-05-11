@@ -156,7 +156,7 @@ Create user starter files under `$XDG_CONFIG_HOME/silo/` if they do not exist:
 
 - `home.user.nix` — user home-manager config baked into the user image
 - `silo.user.toml` — default values for new workspaces
-- `devcontainer.in.json` — merged into every generated `.devcontainer.json`
+- `devcontainer.user.json` — merged into every generated `.devcontainer.json`
 
 ### `silo user build`
 
@@ -292,7 +292,7 @@ Home-manager config applied only to this workspace's image. Created as an empty 
 |---|---|
 | `silo.user.toml` | Default values for new workspaces |
 | `home.user.nix` | User home-manager config baked into the user image |
-| `devcontainer.in.json` | Merged into every generated `.devcontainer.json` |
+| `devcontainer.user.json` | Merged into every generated `.devcontainer.json` |
 
 See `examples/` for reference configs.
 
@@ -333,7 +333,7 @@ Each image build generates a Nix flake in a temporary directory on the host and 
 
 ### VS Code devcontainer
 
-`silo devcontainer` generates a `.devcontainer.json` on the host, pointing at the workspace image. The generated container name is `<workspace-container-name>-dev`. The user `$XDG_CONFIG_HOME/silo/devcontainer.in.json` is merged with the generated file:
+`silo devcontainer` generates a `.devcontainer.json` on the host, pointing at the workspace image. The generated container name is `<workspace-container-name>-dev`. The user `$XDG_CONFIG_HOME/silo/devcontainer.user.json` is merged with the generated file:
 
 - Objects merge recursively (key-by-key)
 - Arrays concatenate (base array first, then input array)
@@ -345,7 +345,7 @@ Each image build generates a Nix flake in a temporary directory on the host and 
 - Lifecycle is managed by VS Code/devcontainers, not by `silo`.
 - `silo` commands (`start`/`stop`/`status`/`connect`/`rm`) target the regular workspace container.
 
-Example `$XDG_CONFIG_HOME/silo/devcontainer.in.json`:
+Example `$XDG_CONFIG_HOME/silo/devcontainer.user.json`:
 
 ```json
 {

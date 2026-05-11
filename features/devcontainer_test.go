@@ -195,12 +195,12 @@ func TestFeatureDevcontainer(t *testing.T) {
 	})
 
 	t.Run("Rule: User config is merged into generated .devcontainer.json", func(t *testing.T) {
-		t.Run("Scenario: user devcontainer.in.json merges into generated .devcontainer.json", func(t *testing.T) {
+		t.Run("Scenario: user devcontainer.user.json merges into generated .devcontainer.json", func(t *testing.T) {
 			internal.FirstRunWith(t, func(siloUser string) {
 				internal.WriteUserFile(t, siloUser, "silo.user.toml", `[general]
 user = "alice"
 `)
-				internal.WriteUserFile(t, siloUser, "devcontainer.in.json", `{"customizations": {"vscode": {"extensions": ["ms-python.python"]}}}`)
+				internal.WriteUserFile(t, siloUser, "devcontainer.user.json", `{"customizations": {"vscode": {"extensions": ["ms-python.python"]}}}`)
 			})
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SetupWorkspace(t, cfg)
@@ -237,7 +237,7 @@ user = "alice"
 				internal.WriteUserFile(t, siloUser, "silo.user.toml", `[general]
 user = "alice"
 `)
-				internal.WriteUserFile(t, siloUser, "devcontainer.in.json", `{"features": ["c"]}`)
+				internal.WriteUserFile(t, siloUser, "devcontainer.user.json", `{"features": ["c"]}`)
 			})
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SetupWorkspace(t, cfg)
@@ -271,7 +271,7 @@ user = "alice"
 				internal.WriteUserFile(t, siloUser, "silo.user.toml", `[general]
 user = "alice"
 `)
-				internal.WriteUserFile(t, siloUser, "devcontainer.in.json", `{"name": "my-devcontainer"}`)
+				internal.WriteUserFile(t, siloUser, "devcontainer.user.json", `{"name": "my-devcontainer"}`)
 			})
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SetupWorkspace(t, cfg)

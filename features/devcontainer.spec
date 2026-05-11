@@ -61,20 +61,20 @@ Feature: silo devcontainer — Generate a .devcontainer.json for VS Code
 
   Rule: User config is merged into generated .devcontainer.json
 
-    Scenario: user devcontainer.in.json merges into generated .devcontainer.json
-      Given the user's silo config directory has "devcontainer.in.json" with content '{"customizations": {"vscode": {"extensions": ["ms-python.python"]}}}'
+    Scenario: user devcontainer.user.json merges into generated .devcontainer.json
+      Given the user's silo config directory has "devcontainer.user.json" with content '{"customizations": {"vscode": {"extensions": ["ms-python.python"]}}}'
       And the workspace image "silo-abc12345" exists
       When I run `silo devcontainer`
       Then the .devcontainer.json should contain the user's "customizations"
 
     Scenario: arrays are concatenated on merge
       Given the generated .devcontainer.json has "features": ["a", "b"]
-      And the user's silo config directory has "devcontainer.in.json" with content '{"features": ["c"]}'
+      And the user's silo config directory has "devcontainer.user.json" with content '{"features": ["c"]}'
       When I run `silo devcontainer`
       Then the .devcontainer.json should have "features" with all elements "a", "b", "c" in order
 
     Scenario: scalars from user config override generated values
-      Given the user's silo config directory has "devcontainer.in.json" with content '{"name": "my-devcontainer"}'
+      Given the user's silo config directory has "devcontainer.user.json" with content '{"name": "my-devcontainer"}'
       And the workspace image "silo-abc12345" exists
       When I run `silo devcontainer`
       Then the .devcontainer.json should have "name" set to "my-devcontainer"

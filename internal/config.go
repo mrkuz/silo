@@ -242,13 +242,13 @@ func EnsureWorkspaceHomeNix(podman bool, force bool) error {
 	return EnsureFile(path, []byte(content))
 }
 
-// EnsureDevcontainerInJSON creates $XDG_CONFIG_HOME/silo/devcontainer.in.json if it does not exist.
+// EnsureDevcontainerInJSON creates $XDG_CONFIG_HOME/silo/devcontainer.user.json if it does not exist.
 func EnsureDevcontainerInJSON() error {
 	dir, err := UserConfigDir()
 	if err != nil {
-		return fmt.Errorf("create devcontainer.in.json in config directory: %w", err)
+		return fmt.Errorf("create devcontainer.user.json in config directory: %w", err)
 	}
-	return EnsureFile(filepath.Join(dir, "devcontainer.in.json"), []byte(emptyJSON))
+	return EnsureFile(filepath.Join(dir, "devcontainer.user.json"), []byte(emptyJSON))
 }
 
 // LoadSiloUserTOML parses $XDG_CONFIG_HOME/silo/silo.user.toml.
@@ -298,7 +298,7 @@ user = %q
 `, u.Username)
 	return []UserStarterFile{
 		{filepath.Join(dir, "home.user.nix"), []byte(HomeUserNix)},
-		{filepath.Join(dir, "devcontainer.in.json"), []byte(emptyJSON)},
+		{filepath.Join(dir, "devcontainer.user.json"), []byte(emptyJSON)},
 		{filepath.Join(dir, "silo.user.toml"), []byte(userTomlContent)},
 	}, nil
 }

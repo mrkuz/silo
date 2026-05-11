@@ -50,10 +50,10 @@ func TestFeatureInit(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			// Then a file "home.user.nix" should be created in the user's silo config directory
-			// And a file "devcontainer.in.json" should be created in the user's silo config directory
+			// And a file "devcontainer.user.json" should be created in the user's silo config directory
 			// And a file "silo.user.toml" should be created in the user's silo config directory
 			userDir := filepath.Join(base, "silo")
-			for _, name := range []string{"home.user.nix", "devcontainer.in.json", "silo.user.toml"} {
+			for _, name := range []string{"home.user.nix", "devcontainer.user.json", "silo.user.toml"} {
 				if _, err := os.Stat(filepath.Join(userDir, name)); os.IsNotExist(err) {
 					t.Errorf("expected %s to be created in user's silo config directory", name)
 				}

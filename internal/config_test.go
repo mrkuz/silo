@@ -325,7 +325,7 @@ func TestEnsureUserFiles(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		dir := filepath.Join(base, "silo")
-		for _, name := range []string{"home.user.nix", "devcontainer.in.json", "silo.user.toml"} {
+		for _, name := range []string{"home.user.nix", "devcontainer.user.json", "silo.user.toml"} {
 			if _, err := os.Stat(filepath.Join(dir, name)); os.IsNotExist(err) {
 				t.Errorf("expected %s to be created", name)
 			}
