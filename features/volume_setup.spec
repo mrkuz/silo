@@ -56,3 +56,36 @@ Feature: silo volume setup — Create directories on the persistence volume
       When I run `silo volume setup`
       Then the exit code should not be 0
       And the error should indicate ".silo/silo.toml" is missing
+
+  Rule: Creates private paths for the silo
+
+    Scenario: volume setup creates private paths under silo-specific directory
+      Given the config has private_paths ["$HOME/.cache/uv/"]
+      And the workspace image "silo-abc12345" exists
+      When I run `silo volume setup`
+      Then podman should run "run" with "--rm" and volume "silo:/silo/persistence:z"
+      And the run command should create "/silo/persistence/abc12345/home/alice/.cache/uv" as a directory with mode 755
+      And the output should contain "volume setup complete"
+      And the exit code should be 0
+
+    Scenario: volume setup creates both shared and private paths
+      Given the config has shared_paths ["$HOME/.local/share/fish/"]
+      And the config has private_paths ["$HOME/.cache/uv/"]
+      And the workspace image "silo-abc12345" exists
+      When I run `silo volume setup`
+      Then podman should run "run" with "--rm" and volume "silo:/silo/persistence:z"
+      And the run command should create "/silo/persistence/shared/home/alice/.local/share/fish" as a directory with mode 755
+      And the run command should create "/silo/persistence/abc12345/home/alice/.cache/uv" as a directory with mode 755
+      And the output should contain "volume setup complete"
+      And the exit code should be 0
+
+    Scenario: empty private_paths list does not create private directories
+      Given the config has shared_paths ["$HOME/.cache/uv/"]
+      And the config has private_paths []
+      And the workspace image "silo-abc12345" exists
+      When I run `silo volume setup`
+      Then podman should run "run" with "--rm" and volume "silo:/silo/persistence:z"
+      And the run command should create "/silo/persistence/shared/home/alice/.cache/uv" as a directory with mode 755
+      And no private path directory should be created under "/silo/persistence/abc12345/"
+      And the output should contain "volume setup complete"
+      And the exit code should be 0

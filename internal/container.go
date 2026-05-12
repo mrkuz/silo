@@ -41,7 +41,7 @@ func ResolveContainerPath(path string, user string) string {
 // by running a temporary container with the workspace image, ensuring directories exist
 // before they are mounted as subpath volumes. Returns true if directories were created.
 func VolumeSetup(cfg MergedConfig) (bool, error) {
-	if len(cfg.Persistence.SharedPaths) == 0 {
+	if len(cfg.Persistence.SharedPaths) == 0 && len(cfg.Persistence.PrivatePaths) == 0 {
 		return false, nil
 	}
 
@@ -61,6 +61,23 @@ func VolumeSetup(cfg MergedConfig) (bool, error) {
 		}
 		isDir := strings.HasSuffix(path, "/")
 		volPath := volumeMountPath + "/shared" + containerPath
+		if isDir {
+			mkdirCmd.WriteString("mkdir -p " + volPath + " && chmod 755 " + volPath)
+		} else {
+			mkdirCmd.WriteString("mkdir -p $(dirname " + volPath + ") && touch " + volPath + " && chmod 644 " + volPath)
+		}
+	}
+
+	for i, path := range cfg.Persistence.PrivatePaths {
+		containerPath := ResolveContainerPath(path, cfg.User)
+		if containerPath == "" {
+			continue
+		}
+		if len(cfg.Persistence.SharedPaths) > 0 || i > 0 {
+			mkdirCmd.WriteString(" && ")
+		}
+		isDir := strings.HasSuffix(path, "/")
+		volPath := volumeMountPath + "/" + cfg.ID + containerPath
 		if isDir {
 			mkdirCmd.WriteString("mkdir -p " + volPath + " && chmod 755 " + volPath)
 		} else {
@@ -171,6 +188,19 @@ func BuildContainerArgs(cfg WorkspaceConfig, user string) ([]string, error) {
 		// subpath is the path within the volume (without leading /)
 		// paths now reside under /silo/persistence/shared
 		subpath := "shared/" + strings.TrimPrefix(containerPath, "/")
+		args = append(args, "--mount", fmt.Sprintf("type=volume,source=%s,target=%s,subpath=%s,z", "silo", containerPath, subpath))
+	}
+
+	// Private volume - mount each path as a subpath of the named volume
+	for _, path := range cfg.Persistence.PrivatePaths {
+		if user == "" {
+			continue
+		}
+		containerPath := ResolveContainerPath(path, user)
+		if containerPath == "" {
+			continue
+		}
+		subpath := cfg.General.ID + "/" + strings.TrimPrefix(containerPath, "/")
 		args = append(args, "--mount", fmt.Sprintf("type=volume,source=%s,target=%s,subpath=%s,z", "silo", containerPath, subpath))
 	}
 

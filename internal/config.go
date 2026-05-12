@@ -54,7 +54,8 @@ type FeaturesConfig struct {
 }
 
 type PersistenceConfig struct {
-	SharedPaths []string `toml:"shared_paths"`
+	SharedPaths   []string `toml:"shared_paths"`
+	PrivatePaths []string `toml:"private_paths"`
 }
 
 type PodmanConfig struct {
@@ -94,7 +95,8 @@ func DefaultWorkspaceConfig() (WorkspaceConfig, error) {
 			Podman: false,
 		},
 		Persistence: PersistenceConfig{
-			SharedPaths: []string{},
+			SharedPaths:   []string{},
+			PrivatePaths: []string{},
 		},
 		Podman: PodmanConfig{CreateArgs: []string{}},
 	}, nil
@@ -181,6 +183,9 @@ func (c WorkspaceConfig) SaveWorkspaceConfig() error {
 	defer f.Close()
 	if c.Persistence.SharedPaths == nil {
 		c.Persistence.SharedPaths = []string{}
+	}
+	if c.Persistence.PrivatePaths == nil {
+		c.Persistence.PrivatePaths = []string{}
 	}
 	if c.Podman.CreateArgs == nil {
 		c.Podman.CreateArgs = []string{}
@@ -319,6 +324,9 @@ func MergeUserInto(workspace WorkspaceConfig, user UserConfig) MergedConfig {
 	}
 	if len(user.Persistence.SharedPaths) > 0 {
 		result.Persistence.SharedPaths = append(user.Persistence.SharedPaths, workspace.Persistence.SharedPaths...)
+	}
+	if len(user.Persistence.PrivatePaths) > 0 {
+		result.Persistence.PrivatePaths = append(user.Persistence.PrivatePaths, workspace.Persistence.PrivatePaths...)
 	}
 	return result
 }

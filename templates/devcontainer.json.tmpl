@@ -12,6 +12,10 @@
     {{- if $i}},{{- end}}
     "type=volume,source={{$.PersistenceVolumeName}},target={{$path}},subpath=shared/{{trimPrefix $path "/"}},z"
     {{- end}}
+    {{- range $i, $path := .PersistencePrivatePaths}}
+    {{- if or $i (len $.PersistenceSharedPaths)}},{{- end}}
+    "type=volume,source={{$.PersistenceVolumeName}},target={{$path}},subpath={{$.SiloID}}/{{trimPrefix $path "/"}},z"
+    {{- end}}
   ],
   {{- end}}
   "customizations": {

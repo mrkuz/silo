@@ -2,8 +2,10 @@
 user = "markus"
 
 [persistence]
-shared_paths = [
+private_paths = [
   "$HOME/.local/share/fish/fish_history",
+]
+shared_paths = [
   "$HOME/.claude.json",
   "$HOME/.claude/",
   "$HOME/.cache/opencode/",

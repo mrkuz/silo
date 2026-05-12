@@ -203,7 +203,7 @@ The two config files serve different purposes:
 | **Purpose** | Defaults for new workspaces; shared across all workspaces | Per-workspace runtime config |
 | **`[general]`** | `user` — your username | `id` — workspace ID (8-char random) |
 | **`[features]`** | — | `podman` — enable nested Podman |
-| **`[persistence]`** | `shared_paths` — default paths | `shared_paths` — additional paths (merged) |
+| **`[persistence]`** | `shared_paths` — default paths<br>`private_paths` — default private paths | `shared_paths` — additional paths (merged)<br>`private_paths` — additional private paths (merged) |
 | **`[podman]`** | `create_args` — prepended | `create_args` — base args |
 
 ### Merge behavior
@@ -212,6 +212,7 @@ The two config files serve different purposes:
 - **`[general].id`** — from workspace config only; set once on first run
 - **`[features].podman`** — from workspace config only; set by `silo init --[no-]podman`
 - **`[persistence].shared_paths`** — merged: user paths first, then workspace paths
+- **`[persistence].private_paths`** — merged: user paths first, then workspace paths
 - **`[podman].create_args`** — merged: user args prepended to workspace args
 
 ### User config: `$XDG_CONFIG_HOME/silo/silo.user.toml`
@@ -227,6 +228,7 @@ shared_paths = [
     "$HOME/.cache/uv/",                      # persist and share directory (trailing /)
     "$HOME/.local/share/fish/fish_history",  # persist and share file
 ]
+private_paths = []   # persist privately per silo
 
 [podman]
 create_args = []
@@ -248,6 +250,7 @@ shared_paths = [
     "$HOME/.local/share/fish/fish_history",  # persist and share file
     "$HOME/.cache/uv/",                      # persist and share directory (trailing /)
 ]
+private_paths = []   # persist privately per silo
 
 [podman]
 create_args = [
@@ -300,11 +303,15 @@ The host directory is mounted into the container at `/workspace/<id>/<dirname>`,
 
 ### Persistence volume
 
-The named Podman volume (`silo`) is mounted at `/silo/persistence` inside every container. Data stored there — such as package caches — is shared across all workspaces and survives container restarts and image rebuilds.
+The named Podman volume (`silo`) is mounted at `/silo/persistence` inside every container. Data stored there survives container restarts and image rebuilds.
 
-For paths listed in `[persistence]`, a subpath mount is created inside the container at `/silo/persistence/shared/<path>`. A trailing slash marks a directory; no trailing slash marks a file. `$HOME` is expanded inside the container.
+**Shared paths** (`shared_paths`): Files persisted at `/silo/persistence/shared/<path>` — shared across all workspaces. A trailing slash marks a directory; no trailing slash marks a file. `$HOME` is expanded inside the container.
 
-Example: `$HOME/.cache/uv/` creates a volume mount with `target=/silo/persistence/shared/home/alice/.cache/uv` and `subpath=shared/home/alice/.cache/uv`.
+**Private paths** (`private_paths`): Files persisted at `/silo/persistence/<SILO_ID>/<path>` — isolated per workspace. Uses the same directory/file convention as shared paths.
+
+Example shared: `$HOME/.cache/uv/` creates a volume mount with `target=/silo/persistence/shared/home/alice/.cache/uv` and `subpath=shared/home/alice/.cache/uv`.
+
+Example private: `private_paths = ["/data"]` in workspace `abc12345` creates `/silo/persistence/abc12345/data` on the volume, mounted at `/data` inside the container.
 
 ### Nested Podman
 

@@ -167,4 +167,117 @@ func TestFeatureVolumeSetup(t *testing.T) {
 			}
 		})
 	})
+
+	t.Run("Rule: Creates private paths for the silo", func(t *testing.T) {
+		t.Run("Scenario: volume setup creates private paths under silo-specific directory", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.Persistence.PrivatePaths = []string{"$HOME/.cache/uv/"}
+			internal.SubsequentRun(t, cfg, "alice")
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman image exists silo-abc12345": exec.Command("true"),
+			})
+
+			// When I run `silo volume setup`
+			var err error
+			output := internal.CaptureStdout(func() {
+				err = cmd.VolumeSetup()
+			})
+
+			// Then podman should run "run" with "--rm" and volume "silo:/silo/persistence:z"
+			record := mock.AssertExec("podman", "run", "--rm", "<...>")
+			cmdStr := strings.Join(record.Args, " ")
+			// And the run command should create "/silo/persistence/abc12345/home/alice/.cache/uv" as a directory with mode 755
+			expectedPath := "/silo/persistence/abc12345/home/alice/.cache/uv"
+			if !strings.Contains(cmdStr, "mkdir -p "+expectedPath) {
+				t.Errorf("expected mkdir -p %s, got: %s", expectedPath, cmdStr)
+			}
+			// And the output should contain "volume setup complete"
+			if !strings.Contains(output, "Volume setup complete") {
+				t.Errorf("expected 'volume setup complete' in output, got: %s", output)
+			}
+			// And the exit code should be 0
+			if err != nil {
+				t.Errorf("expected exit code 0, got error: %v", err)
+			}
+		})
+
+		t.Run("Scenario: volume setup creates both shared and private paths", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.Persistence.SharedPaths = []string{"$HOME/.local/share/fish/"}
+			cfg.Persistence.PrivatePaths = []string{"$HOME/.cache/uv/"}
+			internal.SubsequentRun(t, cfg, "alice")
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman image exists silo-abc12345": exec.Command("true"),
+			})
+
+			// When I run `silo volume setup`
+			var err error
+			output := internal.CaptureStdout(func() {
+				err = cmd.VolumeSetup()
+			})
+
+			// Then podman should run "run" with "--rm" and volume "silo:/silo/persistence:z"
+			record := mock.AssertExec("podman", "run", "--rm", "<...>")
+			cmdStr := strings.Join(record.Args, " ")
+			// And the run command should create "/silo/persistence/shared/home/alice/.local/share/fish" as a directory with mode 755
+			sharedPath := "/silo/persistence/shared/home/alice/.local/share/fish"
+			if !strings.Contains(cmdStr, "mkdir -p "+sharedPath) {
+				t.Errorf("expected mkdir -p %s, got: %s", sharedPath, cmdStr)
+			}
+			// And the run command should create "/silo/persistence/abc12345/home/alice/.cache/uv" as a directory with mode 755
+			privatePath := "/silo/persistence/abc12345/home/alice/.cache/uv"
+			if !strings.Contains(cmdStr, "mkdir -p "+privatePath) {
+				t.Errorf("expected mkdir -p %s, got: %s", privatePath, cmdStr)
+			}
+			// And the output should contain "volume setup complete"
+			if !strings.Contains(output, "Volume setup complete") {
+				t.Errorf("expected 'volume setup complete' in output, got: %s", output)
+			}
+			// And the exit code should be 0
+			if err != nil {
+				t.Errorf("expected exit code 0, got error: %v", err)
+			}
+		})
+
+		t.Run("Scenario: empty private_paths list does not create private directories", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/"}
+			cfg.Persistence.PrivatePaths = []string{}
+			internal.SubsequentRun(t, cfg, "alice")
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman image exists silo-abc12345": exec.Command("true"),
+			})
+
+			// When I run `silo volume setup`
+			var err error
+			output := internal.CaptureStdout(func() {
+				err = cmd.VolumeSetup()
+			})
+
+			// Then podman should run "run" with "--rm" and volume "silo:/silo/persistence:z"
+			record := mock.AssertExec("podman", "run", "--rm", "<...>")
+			cmdStr := strings.Join(record.Args, " ")
+			// And the run command should create "/silo/persistence/shared/home/alice/.cache/uv" as a directory with mode 755
+			sharedPath := "/silo/persistence/shared/home/alice/.cache/uv"
+			if !strings.Contains(cmdStr, "mkdir -p "+sharedPath) {
+				t.Errorf("expected mkdir -p %s, got: %s", sharedPath, cmdStr)
+			}
+			// And no private path directory should be created under "/silo/persistence/abc12345/"
+			privatePath := "/silo/persistence/abc12345/"
+			if strings.Contains(cmdStr, privatePath) {
+				t.Errorf("expected no reference to %s, got: %s", privatePath, cmdStr)
+			}
+			// And the output should contain "volume setup complete"
+			if !strings.Contains(output, "Volume setup complete") {
+				t.Errorf("expected 'volume setup complete' in output, got: %s", output)
+			}
+			// And the exit code should be 0
+			if err != nil {
+				t.Errorf("expected exit code 0, got error: %v", err)
+			}
+		})
+	})
 }
