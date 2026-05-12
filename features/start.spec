@@ -53,6 +53,34 @@ Feature: silo start — Start the workspace container
       And the container "silo-abc12345" should be running
       And the exit code should be 0
 
+    Scenario: workspace ports are passed to podman create
+      Given a workspace with silo config "abc12345"
+      And the config has network ports ["8080:8080"]
+      And no container exists
+      And the workspace image "silo-abc12345" exists
+      When I run `silo start`
+      Then the container "silo-abc12345" should be created
+      And podman create should include "-p 8080:8080"
+
+    Scenario: multiple ports are all passed to podman create
+      Given a workspace with silo config "abc12345"
+      And the config has network ports ["8080:8080", "3000:3000"]
+      And no container exists
+      And the workspace image "silo-abc12345" exists
+      When I run `silo start`
+      Then the container "silo-abc12345" should be created
+      And podman create should include "-p 8080:8080"
+      And podman create should include "-p 3000:3000"
+
+    Scenario: empty ports array adds no -p arguments
+      Given a workspace with silo config "abc12345"
+      And the config has network ports []
+      And no container exists
+      And the workspace image "silo-abc12345" exists
+      When I run `silo start`
+      Then the container "silo-abc12345" should be created
+      And podman create should not include any "-p" arguments
+
   Rule: Runs volume setup before starting
 
     Scenario: shared volume directories are created before container starts

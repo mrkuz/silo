@@ -135,6 +135,88 @@ func TestFeatureStart(t *testing.T) {
 				t.Errorf("expected exit code 0, got error: %v", err)
 			}
 		})
+
+		t.Run("Scenario: workspace ports are passed to podman create", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.Network.Ports = []string{"8080:8080"}
+			internal.SubsequentRun(t, cfg, "alice")
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman container exists silo-abc12345": exec.Command("false"),
+				"podman image exists silo-abc12345":     exec.Command("true"),
+				"podman create <...>":                   exec.Command("true"),
+				"podman start silo-abc12345":            exec.Command("true"),
+			})
+
+			// When I run `silo start`
+			err := cmd.Start()
+
+			// Then podman create should include "-p 8080:8080"
+			rec := mock.AssertExec("podman", "create", "<...>")
+			if rec != nil {
+				if !strings.Contains(rec.String(), "-p 8080:8080") {
+					t.Errorf("expected -p 8080:8080 in create command, got: %s", rec.String())
+				}
+			}
+			if err != nil {
+				t.Errorf("expected exit code 0, got error: %v", err)
+			}
+		})
+
+		t.Run("Scenario: multiple ports are all passed to podman create", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.Network.Ports = []string{"8080:8080", "3000:3000"}
+			internal.SubsequentRun(t, cfg, "alice")
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman container exists silo-abc12345": exec.Command("false"),
+				"podman image exists silo-abc12345":     exec.Command("true"),
+				"podman create <...>":                   exec.Command("true"),
+				"podman start silo-abc12345":            exec.Command("true"),
+			})
+
+			// When I run `silo start`
+			err := cmd.Start()
+
+			// Then podman create should include both port mappings
+			rec := mock.AssertExec("podman", "create", "<...>")
+			if rec != nil {
+				recStr := rec.String()
+				if !strings.Contains(recStr, "-p 8080:8080") || !strings.Contains(recStr, "-p 3000:3000") {
+					t.Errorf("expected -p 8080:8080 and -p 3000:3000 in create command, got: %s", recStr)
+				}
+			}
+			if err != nil {
+				t.Errorf("expected exit code 0, got error: %v", err)
+			}
+		})
+
+		t.Run("Scenario: empty ports array adds no -p arguments", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.Network.Ports = []string{}
+			internal.SubsequentRun(t, cfg, "alice")
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman container exists silo-abc12345": exec.Command("false"),
+				"podman image exists silo-abc12345":     exec.Command("true"),
+				"podman create <...>":                   exec.Command("true"),
+				"podman start silo-abc12345":            exec.Command("true"),
+			})
+
+			// When I run `silo start`
+			err := cmd.Start()
+
+			// Then podman create should not include any -p arguments
+			rec := mock.AssertExec("podman", "create", "<...>")
+			if rec != nil {
+				if strings.Contains(rec.String(), "-p") {
+					t.Errorf("expected no -p arguments in create command, got: %s", rec.String())
+				}
+			}
+			if err != nil {
+				t.Errorf("expected exit code 0, got error: %v", err)
+			}
+		})
 	})
 
 	t.Run("Rule: Runs volume setup before starting", func(t *testing.T) {

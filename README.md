@@ -20,6 +20,7 @@ Per-directory developer containers, powered by Podman, Nix, and home-manager.
 - **Nix + home-manager** — shared `home.user.nix` and per-workspace `.silo/home.nix`
 - **Workspace mount** — the host directory is mounted inside the container automatically
 - **Shared volume** — persist package caches and other data across containers and rebuilds
+- **Port forwarding** — expose container ports to the host via `network.ports`
 - **VS Code integration** — `silo devcontainer` generates a `.devcontainer.json`
 - **Nested Podman** — optional support for running containers inside the container
 
@@ -205,6 +206,7 @@ The two config files serve different purposes:
 | **`[features]`** | — | `podman` — enable nested Podman |
 | **`[persistence]`** | `shared_paths` — default paths<br>`private_paths` — default private paths | `shared_paths` — additional paths (merged)<br>`private_paths` — additional private paths (merged) |
 | **`[podman]`** | `create_args` — prepended | `create_args` — base args |
+| **`[network]`** | `ports` — default ports | `ports` — additional ports (merged) |
 
 ### Merge behavior
 
@@ -214,6 +216,7 @@ The two config files serve different purposes:
 - **`[persistence].shared_paths`** — merged: user paths first, then workspace paths
 - **`[persistence].private_paths`** — merged: user paths first, then workspace paths
 - **`[podman].create_args`** — merged: user args prepended to workspace args
+- **`[network].ports`** — merged: user ports prepended to workspace ports
 
 ### User config: `$XDG_CONFIG_HOME/silo/silo.user.toml`
 
@@ -232,6 +235,9 @@ private_paths = []   # persist privately per silo
 
 [podman]
 create_args = []
+
+[network]
+ports = []   # port forwarding mappings (e.g., "8080:8080")
 ```
 
 ### Workspace config: `.silo/silo.toml`
@@ -259,6 +265,9 @@ create_args = [
   "--security-opt",
   "no-new-privileges"
 ]
+
+[network]
+ports = []   # port forwarding mappings (e.g., "8080:8080")
 ```
 
 ### Workspace config: `.silo/home.nix`
@@ -337,6 +346,8 @@ Merge behavior:
 - Scalars from higher-priority sources override lower-priority ones
 
 The `.silo/devcontainer.json` is created automatically if it doesn't exist.
+
+**Port forwarding:** When `network.ports` is configured in `silo.user.toml` or `.silo/silo.toml`, the generated `.devcontainer.json` includes `forwardPorts` with the port mappings.
 
 **Important:**
 - The `silo` container is independent from the devcontainer.

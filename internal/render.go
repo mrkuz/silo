@@ -98,18 +98,19 @@ var templateFuncs = template.FuncMap{
 
 // TemplateContext provides data for template rendering across devcontainer, Containerfile, and setup scripts.
 type TemplateContext struct {
-	User                 string
-	Home                 string
-	Image                string
-	ContainerName        string
-	PersistenceVolumeName string
-	WorkspaceMount       string
-SiloID              string
-	System               string
-	ContainerArgs        []string
-	DevcontainerArgs     []string
-	PersistenceSharedPaths  []string // resolved container paths for subpath mounts
-	PersistencePrivatePaths []string // resolved container paths for private subpath mounts
+	User                     string
+	Home                     string
+	Image                    string
+	ContainerName            string
+	PersistenceVolumeName    string
+	WorkspaceMount           string
+	SiloID                  string
+	System                  string
+	ContainerArgs            []string
+	DevcontainerArgs         []string
+	PersistenceSharedPaths   []string // resolved container paths for subpath mounts
+	PersistencePrivatePaths  []string // resolved container paths for private subpath mounts
+	NetworkPorts             []string // port mappings for forwardPorts
 }
 
 // NewTemplateContext builds a TemplateContext from MergedConfig for template rendering.
@@ -152,18 +153,19 @@ func NewTemplateContext(cfg MergedConfig, containerNameSuffix ...string) (Templa
 	}
 
 	return TemplateContext{
-		User:                  cfg.User,
-		Home:                  home,
-		Image:                 WorkspaceImageName(cfg.ID),
-		ContainerName:         containerName,
-		PersistenceVolumeName: sharedVolumeNameValue,
-		WorkspaceMount:        workspaceMount,
-		SiloID:           cfg.ID,
-		System:                DetectNixSystem(),
-		ContainerArgs:         ContainerArgs(WorkspaceConfig{General: WorkspaceGeneralConfig{ID: cfg.ID}}, cfg.User, containerNameSuffix...),
-		DevcontainerArgs:      devcontainerArgs,
-		PersistenceSharedPaths:  sharedPaths,
-		PersistencePrivatePaths: privatePaths,
+		User:                     cfg.User,
+		Home:                     home,
+		Image:                    WorkspaceImageName(cfg.ID),
+		ContainerName:            containerName,
+		PersistenceVolumeName:    sharedVolumeNameValue,
+		WorkspaceMount:           workspaceMount,
+		SiloID:                  cfg.ID,
+		System:                  DetectNixSystem(),
+		ContainerArgs:            ContainerArgs(WorkspaceConfig{General: WorkspaceGeneralConfig{ID: cfg.ID}}, cfg.User, containerNameSuffix...),
+		DevcontainerArgs:         devcontainerArgs,
+		PersistenceSharedPaths:    sharedPaths,
+		PersistencePrivatePaths:   privatePaths,
+		NetworkPorts:             cfg.Network.Ports,
 	}, nil
 }
 
@@ -209,18 +211,19 @@ func NewTemplateContextFromWorkspace(cfg WorkspaceConfig) (TemplateContext, erro
 	}
 
 	return TemplateContext{
-		User:                   user,
-		Home:                   "/home/" + user,
-		Image:                  WorkspaceImageName(cfg.General.ID),
-		ContainerName:          containerName,
-		PersistenceVolumeName:  sharedVolumeNameValue,
-		WorkspaceMount:         workspaceMount,
-		SiloID:            cfg.General.ID,
-		System:                 DetectNixSystem(),
-		ContainerArgs:          ContainerArgs(cfg, user, ""),
-		DevcontainerArgs:       devcontainerArgs,
-		PersistenceSharedPaths:  sharedPaths,
-		PersistencePrivatePaths: privatePaths,
+		User:                     user,
+		Home:                     "/home/" + user,
+		Image:                    WorkspaceImageName(cfg.General.ID),
+		ContainerName:            containerName,
+		PersistenceVolumeName:    sharedVolumeNameValue,
+		WorkspaceMount:           workspaceMount,
+		SiloID:                  cfg.General.ID,
+		System:                  DetectNixSystem(),
+		ContainerArgs:            ContainerArgs(cfg, user, ""),
+		DevcontainerArgs:         devcontainerArgs,
+		PersistenceSharedPaths:    sharedPaths,
+		PersistencePrivatePaths:   privatePaths,
+		NetworkPorts:             cfg.Network.Ports,
 	}, nil
 }
 

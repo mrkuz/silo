@@ -65,6 +65,20 @@ Feature: silo devcontainer — Generate a .devcontainer.json for VS Code
       When I run `silo devcontainer`
       Then shared volume directories should be created before generating .devcontainer.json.
 
+    Scenario: devcontainer includes forwardPorts when network ports are configured
+      Given a workspace with silo config "abc12345"
+      And the config has network ports ["8080:8080", "3000:3000"]
+      And the workspace image "silo-abc12345" exists
+      When I run `silo devcontainer`
+      Then the .devcontainer.json should have "forwardPorts" with all elements "8080:8080", "3000:3000" in order
+
+    Scenario: devcontainer omits forwardPorts when no network ports are configured
+      Given a workspace with silo config "abc12345"
+      And the config has network ports []
+      And the workspace image "silo-abc12345" exists
+      When I run `silo devcontainer`
+      Then the .devcontainer.json should not have "forwardPorts"
+
   Rule: Merge order: template wins > .silo > user
 
     Scenario: template values override user config

@@ -18,6 +18,9 @@
     {{- end}}
   ],
   {{- end}}
+  {{- if .NetworkPorts }}
+  "forwardPorts": {{json .NetworkPorts}},
+  {{- end}}
   "customizations": {
     "vscode": {
       "settings": {

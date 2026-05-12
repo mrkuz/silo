@@ -225,6 +225,63 @@ func TestFeatureDevcontainer(t *testing.T) {
 				t.Errorf("expected volume setup with 'mkdir -p %s', got: %s", expectedPath, cmdStr)
 			}
 		})
+
+		t.Run("Scenario: devcontainer includes forwardPorts when network ports are configured", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.Network.Ports = []string{"8080:8080", "3000:3000"}
+			internal.SetupWorkspace(t, cfg)
+			internal.SetupUserConfig(t, "alice")
+
+			// When I run `silo devcontainer`
+			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			// Then the .devcontainer.json should have "forwardPorts" with all elements "8080:8080", "3000:3000" in order
+			data, err := os.ReadFile(".devcontainer.json")
+			if err != nil {
+				t.Fatalf("read .devcontainer.json: %v", err)
+			}
+			var parsed map[string]any
+			if err := json.Unmarshal(data, &parsed); err != nil {
+				t.Fatalf("expected valid json: %v", err)
+			}
+			forwardPorts, ok := parsed["forwardPorts"].([]any)
+			if !ok {
+				t.Fatalf("expected forwardPorts to be array, got: %v", parsed["forwardPorts"])
+			}
+			if len(forwardPorts) != 2 {
+				t.Errorf("expected 2 forwardPorts, got %d: %v", len(forwardPorts), forwardPorts)
+			}
+			if forwardPorts[0] != "8080:8080" || forwardPorts[1] != "3000:3000" {
+				t.Errorf("expected ['8080:8080', '3000:3000'], got: %v", forwardPorts)
+			}
+		})
+
+		t.Run("Scenario: devcontainer omits forwardPorts when no network ports are configured", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.Network.Ports = []string{}
+			internal.SetupWorkspace(t, cfg)
+			internal.SetupUserConfig(t, "alice")
+
+			// When I run `silo devcontainer`
+			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			// Then the .devcontainer.json should not have "forwardPorts"
+			data, err := os.ReadFile(".devcontainer.json")
+			if err != nil {
+				t.Fatalf("read .devcontainer.json: %v", err)
+			}
+			var parsed map[string]any
+			if err := json.Unmarshal(data, &parsed); err != nil {
+				t.Fatalf("expected valid json: %v", err)
+			}
+			if _, ok := parsed["forwardPorts"]; ok {
+				t.Errorf("expected no forwardPorts in .devcontainer.json, got: %v", parsed["forwardPorts"])
+			}
+		})
 	})
 
 	t.Run("Rule: Merge order: template wins > .silo > user", func(t *testing.T) {

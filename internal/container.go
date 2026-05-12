@@ -204,6 +204,10 @@ func BuildContainerArgs(cfg WorkspaceConfig, user string) ([]string, error) {
 		args = append(args, "--mount", fmt.Sprintf("type=volume,source=%s,target=%s,subpath=%s,z", "silo", containerPath, subpath))
 	}
 
+	for _, port := range cfg.Network.Ports {
+		args = append(args, "-p", port)
+	}
+
 	return args, nil
 }
 
@@ -211,10 +215,11 @@ func BuildContainerArgs(cfg WorkspaceConfig, user string) ([]string, error) {
 // Extra args are forwarded to podman create.
 func CreateContainer(cfg MergedConfig, extra []string) error {
 	podmanArgs, err := BuildContainerArgs(WorkspaceConfig{
-		General:    WorkspaceGeneralConfig{ID: cfg.ID},
-		Features:   cfg.Features,
+		General:     WorkspaceGeneralConfig{ID: cfg.ID},
+		Features:    cfg.Features,
 		Persistence: cfg.Persistence,
-		Podman:    cfg.Podman,
+		Podman:      cfg.Podman,
+		Network:     cfg.Network,
 	}, cfg.User)
 	if err != nil {
 		return fmt.Errorf("build container arguments: %w", err)

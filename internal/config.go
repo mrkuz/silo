@@ -23,7 +23,8 @@ type UserGeneralConfig struct {
 }
 
 type UserPodmanConfig struct {
-	CreateArgs []string `toml:"create_args"`
+	CreateArgs []string    `toml:"create_args"`
+	Network    NetworkConfig `toml:"network"`
 }
 
 // WorkspaceConfig holds workspace-level configuration from .silo/silo.toml
@@ -32,6 +33,7 @@ type WorkspaceConfig struct {
 	Features    FeaturesConfig        `toml:"features"`
 	Persistence PersistenceConfig     `toml:"persistence"`
 	Podman      PodmanConfig          `toml:"podman"`
+	Network     NetworkConfig         `toml:"network"`
 }
 
 type WorkspaceGeneralConfig struct {
@@ -47,6 +49,7 @@ type MergedConfig struct {
 	Features     FeaturesConfig
 	Persistence  PersistenceConfig
 	Podman       PodmanConfig
+	Network      NetworkConfig
 }
 
 type FeaturesConfig struct {
@@ -60,6 +63,10 @@ type PersistenceConfig struct {
 
 type PodmanConfig struct {
 	CreateArgs []string `toml:"create_args"`
+}
+
+type NetworkConfig struct {
+	Ports []string `toml:"ports"`
 }
 
 // WorkspaceContainerName returns container name derived from id.
@@ -99,6 +106,7 @@ func DefaultWorkspaceConfig() (WorkspaceConfig, error) {
 			PrivatePaths: []string{},
 		},
 		Podman: PodmanConfig{CreateArgs: []string{}},
+		Network:     NetworkConfig{Ports: []string{}},
 	}, nil
 }
 
@@ -189,6 +197,9 @@ func (c WorkspaceConfig) SaveWorkspaceConfig() error {
 	}
 	if c.Podman.CreateArgs == nil {
 		c.Podman.CreateArgs = []string{}
+	}
+	if c.Network.Ports == nil {
+		c.Network.Ports = []string{}
 	}
 	enc := toml.NewEncoder(f)
 	enc.Indent = ""
@@ -309,6 +320,7 @@ user = %q
 //   - features.podman:         workspace overrides user config
 //   - podman.create_args:      user values prepended to workspace defaults
 //   - persistence.shared_paths: user values prepended to workspace defaults
+//   - network.ports:           user values prepended to workspace defaults
 //   - id:                       workspace only
 //   - user:                     user only
 func MergeUserInto(workspace WorkspaceConfig, user UserConfig) MergedConfig {
@@ -318,6 +330,7 @@ func MergeUserInto(workspace WorkspaceConfig, user UserConfig) MergedConfig {
 		Features:     workspace.Features,
 		Persistence:  workspace.Persistence,
 		Podman:       workspace.Podman,
+		Network:      workspace.Network,
 	}
 	if len(user.Podman.CreateArgs) > 0 {
 		result.Podman.CreateArgs = append(user.Podman.CreateArgs, workspace.Podman.CreateArgs...)
@@ -327,6 +340,9 @@ func MergeUserInto(workspace WorkspaceConfig, user UserConfig) MergedConfig {
 	}
 	if len(user.Persistence.PrivatePaths) > 0 {
 		result.Persistence.PrivatePaths = append(user.Persistence.PrivatePaths, workspace.Persistence.PrivatePaths...)
+	}
+	if len(user.Podman.Network.Ports) > 0 {
+		result.Network.Ports = append(user.Podman.Network.Ports, workspace.Network.Ports...)
 	}
 	return result
 }
