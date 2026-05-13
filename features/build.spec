@@ -55,31 +55,47 @@ Feature: silo build — Build workspace images
       When I run `silo build`
       Then the workspace image build should include a file "home.nix" containing "nodejs python3"
 
-  Rule: --force forces workspace image rebuild
+  Rule: --rebuild forces workspace image rebuild
 
-    Scenario: build --force rebuilds even when image exists
+    Scenario: build --rebuild rebuilds even when image exists
       Given the workspace image "silo-abc12345" exists
       And the container "silo-abc12345" does not exist
-      When I run `silo build --force`
+      When I run `silo build --rebuild`
       Then the workspace image "silo-abc12345" should be built
-      And podman build should be called with "--no-cache" for the workspace image
 
-    Scenario: build --force aborts if container is running
+    Scenario: build --rebuild aborts if container is running
       Given the workspace image "silo-abc12345" exists
       And the container "silo-abc12345" is running
-      When I run `silo build --force`
+      When I run `silo build --rebuild`
       Then the exit code should not be 0
       And the error should contain "running"
 
-    Scenario: build --force aborts if container exists (stopped)
+    Scenario: build --rebuild aborts if container exists (stopped)
       Given the workspace image "silo-abc12345" exists
       And the container "silo-abc12345" exists but is stopped
-      When I run `silo build --force`
+      When I run `silo build --rebuild`
       Then the exit code should not be 0
       And the error should contain "exists"
 
-    Scenario: unknown flag shows error and help
+  Rule: --no-cache disables build cache
+
+    Scenario: build --no-cache builds without cache
+      Given no workspace image exists
+      When I run `silo build --no-cache`
+      Then the workspace image "silo-abc12345" should be built
+      And podman build should be called with "--no-cache" for the workspace image
+
+    Scenario: build --rebuild --no-cache rebuilds without cache
+      Given the workspace image "silo-abc12345" exists
+      And the container "silo-abc12345" does not exist
+      When I run `silo build --rebuild --no-cache`
+      Then the workspace image "silo-abc12345" should be built
+      And podman build should be called with "--no-cache" for the workspace image
+
+  Rule: unknown flags show error and help
+
+    Scenario: unknown flag is rejected
       When I run `silo build --unknown`
-      Then the stderr should contain "silo: unknown flag \"--unknown\""
+      Then the stderr should contain "silo: unknown flag"
       And the stderr should contain "Usage:"
       And the exit code should be 1

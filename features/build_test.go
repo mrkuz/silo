@@ -172,8 +172,8 @@ user = "alice"
 		})
 	})
 
-	t.Run("Rule: --force forces workspace image rebuild", func(t *testing.T) {
-		t.Run("Scenario: build --force rebuilds even when image exists", func(t *testing.T) {
+	t.Run("Rule: --rebuild forces workspace image rebuild", func(t *testing.T) {
+		t.Run("Scenario: build --rebuild rebuilds even when image exists", func(t *testing.T) {
 			// Given the workspace image "silo-abc12345" exists
 			// And the container "silo-abc12345" does not exist
 			cfg := internal.MinimalConfig("abc12345")
@@ -184,16 +184,16 @@ user = "alice"
 				"podman container exists silo-abc12345": exec.Command("false"),
 			})
 
-			// When I run `silo build --force`
-			if err := cmd.Build([]string{"--force"}); err != nil {
+			// When I run `silo build --rebuild`
+			if err := cmd.Build([]string{"--rebuild"}); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			// Then the workspace image should be built with --no-cache
-			mock.AssertExec("podman", "build", "-t", "silo-abc12345", "--no-cache", "<...>")
+			// Then the workspace image should be built
+			mock.AssertExec("podman", "build", "-t", "silo-abc12345", "<...>")
 		})
 
-		t.Run("Scenario: build --force aborts if container is running", func(t *testing.T) {
+		t.Run("Scenario: build --rebuild aborts if container is running", func(t *testing.T) {
 			// Given the workspace image "silo-abc12345" exists
 			// And the container "silo-abc12345" is running
 			cfg := internal.MinimalConfig("abc12345")
@@ -205,8 +205,8 @@ user = "alice"
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
 			})
 
-			// When I run `silo build --force`
-			err := cmd.Build([]string{"--force"})
+			// When I run `silo build --rebuild`
+			err := cmd.Build([]string{"--rebuild"})
 
 			// Then the exit code should not be 0
 			// And the error should contain "running"
@@ -218,7 +218,7 @@ user = "alice"
 			}
 		})
 
-		t.Run("Scenario: build --force aborts if container exists (stopped)", func(t *testing.T) {
+		t.Run("Scenario: build --rebuild aborts if container exists (stopped)", func(t *testing.T) {
 			// Given the workspace image "silo-abc12345" exists
 			// And the container "silo-abc12345" exists but is stopped
 			cfg := internal.MinimalConfig("abc12345")
@@ -230,8 +230,8 @@ user = "alice"
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
 			})
 
-			// When I run `silo build --force`
-			err := cmd.Build([]string{"--force"})
+			// When I run `silo build --rebuild`
+			err := cmd.Build([]string{"--rebuild"})
 
 			// Then the exit code should not be 0
 			// And the error should contain "exists"

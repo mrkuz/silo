@@ -89,7 +89,7 @@ silo connect       # Connect to container (triggers missing steps automatically)
 ```
 silo [--stop]
 silo init [--podman|--no-podman]
-silo build [-f|--force]
+silo build [--rebuild] [--no-cache]
 silo start
 silo volume setup
 silo connect
@@ -97,7 +97,7 @@ silo stop
 silo rm
 silo status
 silo user init
-silo devcontainer [-f|--force]
+silo devcontainer [--update]
 silo devcontainer connect
 silo devcontainer stop
 silo devcontainer status
@@ -127,7 +127,8 @@ Build the workspace image if it does not exist yet.
 
 | Flag | Description |
 |---|---|
-| `-f`, `--force` | Force rebuild workspace image; aborts if container exists or is running |
+| `--rebuild` | Force rebuild even if image exists; aborts if container exists or is running |
+| `--no-cache` | Disable Docker build cache |
 
 ### `silo start`
 
@@ -167,7 +168,7 @@ Generate a `.devcontainer.json` for VS Code in the current host directory. Does 
 
 | Flag | Description |
 |---|---|
-| `-f`, `--force` | Overwrite existing `.devcontainer.json` |
+| `--update` | Update existing `.devcontainer.json` |
 
 ### `silo devcontainer stop`
 

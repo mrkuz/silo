@@ -103,72 +103,81 @@ func TestParseInitFlags(t *testing.T) {
 	}
 }
 
-func TestParseForceFlag(t *testing.T) {
+func TestParseRebuildAndNoCache(t *testing.T) {
 	tests := []struct {
 		name      string
 		args      []string
-		wantForce bool
+		wantRebuild bool
+		wantNoCache bool
 		wantRest  []string
 		wantErr   bool
 	}{
 		{
 			name:      "no flags",
 			args:      []string{},
-			wantForce: false,
+			wantRebuild: false,
+			wantNoCache: false,
 			wantRest:  nil,
 			wantErr:   false,
 		},
 		{
-			name:      "-f",
-			args:      []string{"-f"},
-			wantForce: true,
+			name:      "--rebuild",
+			args:      []string{"--rebuild"},
+			wantRebuild: true,
+			wantNoCache: false,
 			wantRest:  nil,
 			wantErr:   false,
 		},
 		{
-			name:      "--force",
-			args:      []string{"--force"},
-			wantForce: true,
+			name:      "--no-cache",
+			args:      []string{"--no-cache"},
+			wantRebuild: false,
+			wantNoCache: true,
 			wantRest:  nil,
 			wantErr:   false,
 		},
 		{
-			name:      "-f with remaining non-flag args",
-			args:      []string{"-f", "arg1"},
-			wantForce: false,
+			name:      "--rebuild --no-cache",
+			args:      []string{"--rebuild", "--no-cache"},
+			wantRebuild: true,
+			wantNoCache: true,
 			wantRest:  nil,
-			wantErr:   true,
+			wantErr:   false,
 		},
 		{
 			name:      "unknown flag returns error",
-			args:      []string{"--podman", "--unknown"},
-			wantForce: false,
+			args:      []string{"--unknown"},
+			wantRebuild: false,
+			wantNoCache: false,
 			wantRest:  nil,
 			wantErr:   true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			force, rest, err := cmd.ParseForceFlag("test", tt.args)
+			rebuild, noCache, rest, err := cmd.ParseRebuildAndNoCache("test", tt.args)
 			if tt.wantErr {
 				if err == nil {
-					t.Errorf("ParseForceFlag(%v): expected error", tt.args)
+					t.Errorf("ParseRebuildAndNoCache(%v): expected error", tt.args)
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("ParseForceFlag(%v): unexpected error: %v", tt.args, err)
+				t.Fatalf("ParseRebuildAndNoCache(%v): unexpected error: %v", tt.args, err)
 			}
-			if force != tt.wantForce {
-				t.Errorf("ParseForceFlag(%v): force=%v, want %v", tt.args, force, tt.wantForce)
+			if rebuild != tt.wantRebuild {
+				t.Errorf("ParseRebuildAndNoCache(%v): rebuild=%v, want %v", tt.args, rebuild, tt.wantRebuild)
+			}
+			if noCache != tt.wantNoCache {
+				t.Errorf("ParseRebuildAndNoCache(%v): noCache=%v, want %v", tt.args, noCache, tt.wantNoCache)
 			}
 			if len(rest) != len(tt.wantRest) {
-				t.Errorf("ParseForceFlag(%v): rest=%v, want %v", tt.args, rest, tt.wantRest)
+				t.Errorf("ParseRebuildAndNoCache(%v): rest=%v, want %v", tt.args, rest, tt.wantRest)
 				return
 			}
 			for i := range rest {
 				if rest[i] != tt.wantRest[i] {
-					t.Errorf("ParseForceFlag(%v): rest[%d]=%v, want %v", tt.args, i, rest[i], tt.wantRest[i])
+					t.Errorf("ParseRebuildAndNoCache(%v): rest[%d]=%v, want %v", tt.args, i, rest[i], tt.wantRest[i])
 				}
 			}
 		})

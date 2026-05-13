@@ -69,7 +69,7 @@ func TestFeatureDevcontainer(t *testing.T) {
 			}
 		})
 
-		t.Run("Scenario: --force overwrites existing .devcontainer.json", func(t *testing.T) {
+		t.Run("Scenario: --update overwrites existing .devcontainer.json", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SetupWorkspace(t, cfg)
 			internal.SetupUserConfig(t)
@@ -80,11 +80,11 @@ func TestFeatureDevcontainer(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// When I run `silo devcontainer --force`
-			output := internal.CaptureStdout(func() { cmd.DevcontainerGenerate([]string{"--force"}) })
+			// When I run `silo devcontainer --update`
+			output := internal.CaptureStdout(func() { cmd.DevcontainerGenerate([]string{"--update"}) })
 
 			// Then the output should contain ".devcontainer.json updated"
-			if !strings.Contains(output, "'.devcontainer.json' already exists - overwritten") {
+			if !strings.Contains(output, "'.devcontainer.json' updated") {
 				t.Errorf("expected '.devcontainer.json' updated in output, got: %s", output)
 			}
 
@@ -98,7 +98,7 @@ func TestFeatureDevcontainer(t *testing.T) {
 			}
 		})
 
-		t.Run("Scenario: --force does not affect .silo/devcontainer.json handling", func(t *testing.T) {
+		t.Run("Scenario: --update does not affect .silo/devcontainer.json handling", func(t *testing.T) {
 			cfg := internal.MinimalConfig("abc12345")
 			internal.SetupWorkspace(t, cfg)
 			internal.SetupUserConfig(t)
@@ -112,8 +112,8 @@ func TestFeatureDevcontainer(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			// When I run `silo devcontainer --force`
-			output := internal.CaptureStdout(func() { cmd.DevcontainerGenerate([]string{"--force"}) })
+			// When I run `silo devcontainer --update`
+			output := internal.CaptureStdout(func() { cmd.DevcontainerGenerate([]string{"--update"}) })
 
 			// Then the output should contain "'.silo/devcontainer.json' already exists"
 			if !strings.Contains(output, "'.silo/devcontainer.json' already exists") {

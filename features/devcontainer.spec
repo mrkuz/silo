@@ -28,18 +28,18 @@ Feature: silo devcontainer — Generate a .devcontainer.json for VS Code
       And the output should contain "'.devcontainer.json' already exists"
       And the exit code should be 0
 
-    Scenario: --force overwrites existing .devcontainer.json
+    Scenario: --update overwrites existing .devcontainer.json
       Given the workspace image "silo-abc12345" exists
       And a file ".devcontainer.json" already exists with content '{"name": "custom"}'
-      When I run `silo devcontainer --force`
+      When I run `silo devcontainer --update`
       Then the file ".devcontainer.json" should not contain '{"name": "custom"}'
       And the output should contain "Creating .devcontainer.json"
       And the exit code should be 0
 
-    Scenario: --force does not affect .silo/devcontainer.json handling
+    Scenario: --update does not affect .silo/devcontainer.json handling
       Given the workspace image "silo-abc12345" exists
       And a file ".silo/devcontainer.json" already exists with content '{"custom": true}'
-      When I run `silo devcontainer --force`
+      When I run `silo devcontainer --update`
       Then the output should contain "'.silo/devcontainer.json' already exists"
       And a file ".silo/devcontainer.json" should still contain '{"custom": true}'
 

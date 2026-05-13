@@ -6,7 +6,7 @@ import "fmt"
 const HelpText = `Usage:
   silo [--stop]
   silo init [--podman|--no-podman]
-  silo build [-f|--force]
+  silo build [--rebuild] [--no-cache]
   silo start
   silo volume setup
   silo connect
@@ -14,7 +14,7 @@ const HelpText = `Usage:
   silo rm
   silo status
   silo user init
-  silo devcontainer [-f|--force]
+  silo devcontainer [--update]
   silo devcontainer connect
   silo devcontainer stop
   silo devcontainer status
@@ -27,7 +27,8 @@ Commands:
     --podman              Enable Podman inside the container
     --no-podman           Disable Podman inside the container
   build                 Build the workspace image
-    -f, --force           Force rebuild image; aborts if container exists or is running
+    --rebuild            Force rebuild even if image exists; aborts if container exists or is running
+    --no-cache           Disable Docker build cache
   start                 Start the container
   volume setup          Create directories on the shared volume
   connect               Connect to the silo container
@@ -36,7 +37,7 @@ Commands:
   status                Print container status
   user init             Create user files
   devcontainer          Generate .devcontainer.json
-    -f, --force           Overwrite existing .devcontainer.json
+    --update              Update existing .devcontainer.json
   devcontainer connect  Connect to the devcontainer
   devcontainer stop     Stop and remove the devcontainer
   devcontainer status   Print devcontainer status

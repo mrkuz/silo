@@ -8,11 +8,11 @@ import (
 
 // DevcontainerGenerate generates a .devcontainer.json for VS Code.
 func DevcontainerGenerate(args []string) error {
-	force, _, err := ParseForceFlag("devcontainer", args)
+	update, _, err := ParseUpdateFlag("devcontainer", args)
 	if err != nil {
 		return err
 	}
-	return internal.DevcontainerGenerate(force)
+	return internal.DevcontainerGenerate(update)
 }
 
 // DevcontainerStop implements `silo devcontainer stop`.

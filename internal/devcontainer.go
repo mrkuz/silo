@@ -91,7 +91,7 @@ func DevcontainerGenerate(force bool) error {
 	content = append(content, '\n')
 
 	if fileExisted && force {
-		fmt.Printf("'.devcontainer.json' already exists - overwritten\n")
+		fmt.Printf("'.devcontainer.json' updated\n")
 	} else {
 		PrintInitFileStatus(devcontainerFile)
 	}

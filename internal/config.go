@@ -398,17 +398,24 @@ func EnsureWorkspaceFiles(podman bool) error {
 }
 
 // EnsureImages builds the workspace image if it doesn't yet exist.
-// If force is true, the image is always rebuilt regardless of whether it exists.
-func EnsureImages(cfg WorkspaceConfig, force bool) error {
+// If rebuild is true, the image is always rebuilt regardless of whether it exists.
+// If noCache is true, the build will not use Docker build cache.
+func EnsureImages(cfg WorkspaceConfig, rebuild bool, noCache bool) error {
 	tc, err := NewTemplateContextFromWorkspace(cfg)
 	if err != nil {
 		return fmt.Errorf("build template context: %w", err)
 	}
-	if !force && ImageExists(WorkspaceImageName(cfg.General.ID)) {
+	imageName := WorkspaceImageName(cfg.General.ID)
+	if !rebuild && ImageExists(imageName) {
 		return nil
 	}
-	fmt.Printf("Building workspace image %s...\n", WorkspaceImageName(cfg.General.ID))
-	if err := BuildImage(WorkspaceImageName(cfg.General.ID), tc, force); err != nil {
+	if rebuild && ImageExists(imageName) {
+		if err := ExecCommand("podman", "image", "rm", imageName).Run(); err != nil {
+			return fmt.Errorf("remove existing image: %w", err)
+		}
+	}
+	fmt.Printf("Building workspace image %s...\n", imageName)
+	if err := BuildImage(imageName, tc, noCache); err != nil {
 		return fmt.Errorf("build workspace image: %w", err)
 	}
 	return nil
@@ -455,7 +462,7 @@ func EnsureBuilt() (WorkspaceConfig, error) {
 	if err != nil {
 		return cfg, fmt.Errorf("initialize workspace: %w", err)
 	}
-	if err := EnsureImages(cfg, false); err != nil {
+	if err := EnsureImages(cfg, false, false); err != nil {
 		return cfg, fmt.Errorf("ensure images: %w", err)
 	}
 	return cfg, nil
@@ -477,7 +484,7 @@ func EnsureCreated() (MergedConfig, error) {
 	if err != nil {
 		return mergedCfg, fmt.Errorf("load workspace config: %w", err)
 	}
-	if err := EnsureImages(workspaceCfg, false); err != nil {
+	if err := EnsureImages(workspaceCfg, false, false); err != nil {
 		return mergedCfg, fmt.Errorf("ensure images: %w", err)
 	}
 	if err := CreateContainer(mergedCfg, mergedCfg.Podman.CreateArgs); err != nil {

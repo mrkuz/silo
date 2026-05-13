@@ -41,6 +41,13 @@ in
       CLICOLOR = "1";
       UV_LINK_MODE = "copy";
     };
+
+    sessionPath = [
+      "$HOME/.local/bin"
+      "$HOME/.npm/bin"
+      "$HOME/bin"
+      "$HOME/go/bin"
+    ];
   };
 
   programs = {
@@ -50,6 +57,7 @@ in
     htop.enable = true;
     jq.enable = true;
     less.enable = true;
+    npm.enable = true;
     ripgrep.enable = true;
   };
 
@@ -115,7 +123,6 @@ in
     globalConfig = {
       tools = {
         claude-code = "latest";
-        copilot-cli = "latest";
         opencode = "latest";
       };
     };
@@ -124,6 +131,10 @@ in
   home.activation = {
     mise = lib.hm.dag.entryAfter ["writeBoundary"] ''
       ${pkgs.mise}/bin/mise install
+    '';
+    npm = lib.hm.dag.entryAfter ["writeBoundary"] ''
+      export PATH=''$PATH:${pkgs.nodejs}/bin/
+      ${pkgs.nodejs}/bin/npm install -g @fission-ai/openspec@latest
     '';
   };
 }

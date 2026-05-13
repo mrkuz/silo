@@ -61,11 +61,25 @@ func parseWithInterceptor(fs *flag.FlagSet, args []string) error {
 	return ErroneousCommand()
 }
 
-// ParseForceFlag extracts -f/--force and returns remaining args.
-func ParseForceFlag(cmdName string, args []string) (force bool, remaining []string, err error) {
+// ParseRebuildAndNoCache extracts --rebuild and --no-cache flags and returns remaining args.
+func ParseRebuildAndNoCache(cmdName string, args []string) (rebuild bool, noCache bool, remaining []string, err error) {
 	fs := NewFlagSet(cmdName)
-	forceFlag := fs.Bool("force", false, "")
-	forceShort := fs.Bool("f", false, "")
+	rebuildFlag := fs.Bool("rebuild", false, "")
+	noCacheFlag := fs.Bool("no-cache", false, "")
+	if err := parseWithInterceptor(fs, args); err != nil {
+		return false, false, nil, err
+	}
+	remaining = fs.Args()
+	if len(remaining) > 0 {
+		return false, false, nil, ErroneousCommand()
+	}
+	return *rebuildFlag, *noCacheFlag, remaining, nil
+}
+
+// ParseUpdateFlag extracts --update and returns remaining args.
+func ParseUpdateFlag(cmdName string, args []string) (update bool, remaining []string, err error) {
+	fs := NewFlagSet(cmdName)
+	updateFlag := fs.Bool("update", false, "")
 	if err := parseWithInterceptor(fs, args); err != nil {
 		return false, nil, err
 	}
@@ -73,5 +87,5 @@ func ParseForceFlag(cmdName string, args []string) (force bool, remaining []stri
 	if len(remaining) > 0 {
 		return false, nil, ErroneousCommand()
 	}
-	return *forceFlag || *forceShort, remaining, nil
+	return *updateFlag, remaining, nil
 }
