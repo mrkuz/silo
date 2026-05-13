@@ -132,6 +132,15 @@ func TestDefaultWorkspaceConfig(t *testing.T) {
 	if cfg.Podman.CreateArgs == nil {
 		t.Error("expected non-nil CreateArgs")
 	}
+	if cfg.Limits.CPUs != 0 {
+		t.Errorf("expected default CPUs=0, got %d", cfg.Limits.CPUs)
+	}
+	if cfg.Limits.Memory != 0 {
+		t.Errorf("expected default Memory=0, got %d", cfg.Limits.Memory)
+	}
+	if cfg.Limits.Processes != 1024 {
+		t.Errorf("expected default Processes=1024, got %d", cfg.Limits.Processes)
+	}
 }
 
 func TestLoadSiloUserTOML(t *testing.T) {

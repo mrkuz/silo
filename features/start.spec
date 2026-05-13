@@ -62,6 +62,55 @@ Feature: silo start — Start the workspace container
       Then the container "silo-abc12345" should be created
       And podman create should include "-p 8080:8080"
 
+    Scenario: limits cpus is passed to podman create
+      Given a workspace with silo config "abc12345"
+      And the config has limits with cpus "2"
+      And no container exists
+      And the workspace image "silo-abc12345" exists
+      When I run `silo start`
+      Then the container "silo-abc12345" should be created
+      And podman create should include "--cpus=2"
+
+    Scenario: limits memory is passed to podman create
+      Given a workspace with silo config "abc12345"
+      And the config has limits with memory "4096"
+      And no container exists
+      And the workspace image "silo-abc12345" exists
+      When I run `silo start`
+      Then the container "silo-abc12345" should be created
+      And podman create should include "--memory=4096"
+
+    Scenario: limits processes is passed to podman create
+      Given a workspace with silo config "abc12345"
+      And the config has limits with processes "1024"
+      And no container exists
+      And the workspace image "silo-abc12345" exists
+      When I run `silo start`
+      Then the container "silo-abc12345" should be created
+      And podman create should include "--pids-limit=1024"
+
+    Scenario: zero or negative limits are passed with unlimited values
+      Given a workspace with silo config "abc12345"
+      And the config has limits with cpus "0" and memory "-1" and processes "0"
+      And no container exists
+      And the workspace image "silo-abc12345" exists
+      When I run `silo start`
+      Then the container "silo-abc12345" should be created
+      And podman create should include "--cpus=0"
+      And podman create should include "--memory=0"
+      And podman create should include "--pids-limit=-1"
+
+    Scenario: all limits are passed together
+      Given a workspace with silo config "abc12345"
+      And the config has limits with cpus "4" and memory "8192" and processes "2048"
+      And no container exists
+      And the workspace image "silo-abc12345" exists
+      When I run `silo start`
+      Then the container "silo-abc12345" should be created
+      And podman create should include "--cpus=4"
+      And podman create should include "--memory=8192"
+      And podman create should include "--pids-limit=2048"
+
     Scenario: multiple ports are all passed to podman create
       Given a workspace with silo config "abc12345"
       And the config has network ports ["8080:8080", "3000:3000"]

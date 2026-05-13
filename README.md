@@ -268,6 +268,11 @@ create_args = [
 
 [network]
 ports = []   # port forwarding mappings (e.g., "8080:8080")
+
+[limits]
+cpus = 0       # 0 or negative means unlimited (--cpus=0)
+memory = 0     # 0 or negative means unlimited (--memory=0)
+processes = 0  # 0 or negative means unlimited (--pids-limit=-1)
 ```
 
 ### Workspace config: `.silo/home.nix`

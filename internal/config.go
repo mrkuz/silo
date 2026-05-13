@@ -34,6 +34,7 @@ type WorkspaceConfig struct {
 	Persistence PersistenceConfig     `toml:"persistence"`
 	Podman      PodmanConfig          `toml:"podman"`
 	Network     NetworkConfig         `toml:"network"`
+	Limits      LimitsConfig          `toml:"limits"`
 }
 
 type WorkspaceGeneralConfig struct {
@@ -50,6 +51,7 @@ type MergedConfig struct {
 	Persistence  PersistenceConfig
 	Podman       PodmanConfig
 	Network      NetworkConfig
+	Limits       LimitsConfig
 }
 
 type FeaturesConfig struct {
@@ -67,6 +69,12 @@ type PodmanConfig struct {
 
 type NetworkConfig struct {
 	Ports []string `toml:"ports"`
+}
+
+type LimitsConfig struct {
+	CPUs      int `toml:"cpus"`
+	Memory    int `toml:"memory"`
+	Processes int `toml:"processes"`
 }
 
 // WorkspaceContainerName returns container name derived from id.
@@ -105,8 +113,9 @@ func DefaultWorkspaceConfig() (WorkspaceConfig, error) {
 			SharedPaths:   []string{},
 			PrivatePaths: []string{},
 		},
-		Podman: PodmanConfig{CreateArgs: []string{}},
+		Podman:      PodmanConfig{CreateArgs: []string{}},
 		Network:     NetworkConfig{Ports: []string{}},
+		Limits:      LimitsConfig{CPUs: 0, Memory: 0, Processes: 1024},
 	}, nil
 }
 
@@ -331,6 +340,7 @@ func MergeUserInto(workspace WorkspaceConfig, user UserConfig) MergedConfig {
 		Persistence:  workspace.Persistence,
 		Podman:       workspace.Podman,
 		Network:      workspace.Network,
+		Limits:       workspace.Limits,
 	}
 	if len(user.Podman.CreateArgs) > 0 {
 		result.Podman.CreateArgs = append(user.Podman.CreateArgs, workspace.Podman.CreateArgs...)

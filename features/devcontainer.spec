@@ -79,6 +79,32 @@ Feature: silo devcontainer — Generate a .devcontainer.json for VS Code
       When I run `silo devcontainer`
       Then the .devcontainer.json should not have "forwardPorts"
 
+    Scenario: devcontainer includes limits in runArgs
+      Given a workspace with silo config "abc12345"
+      And the config has limits with cpus "2" and memory "4096" and processes "1024"
+      And the workspace image "silo-abc12345" exists
+      When I run `silo devcontainer`
+      Then the .devcontainer.json should have "runArgs" containing "--cpus=2"
+      And the .devcontainer.json should have "runArgs" containing "--memory=4096"
+      And the .devcontainer.json should have "runArgs" containing "--pids-limit=1024"
+
+    Scenario: devcontainer includes unlimited values for zero or negative limits
+      Given a workspace with silo config "abc12345"
+      And the config has limits with cpus "0" and memory "-1" and processes "0"
+      And the workspace image "silo-abc12345" exists
+      When I run `silo devcontainer`
+      Then the .devcontainer.json should have "runArgs" containing "--cpus=0"
+      And the .devcontainer.json should have "runArgs" containing "--memory=0"
+      And the .devcontainer.json should have "runArgs" containing "--pids-limit=-1"
+
+    Scenario: devcontainer uses workspace limits only
+      Given a workspace with silo config "abc12345"
+      And the config has limits with cpus "4" and memory "8192"
+      And the workspace image "silo-abc12345" exists
+      When I run `silo devcontainer`
+      Then the .devcontainer.json should have "runArgs" containing "--cpus=4"
+      And the .devcontainer.json should have "runArgs" containing "--memory=8192m"
+
   Rule: Merge order: template wins > .silo > user
 
     Scenario: template values override user config

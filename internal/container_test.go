@@ -147,6 +147,96 @@ func TestBuildContainerArgsSharedVolume(t *testing.T) {
 	}
 }
 
+func TestBuildContainerArgsWithLimits(t *testing.T) {
+	t.Run("positive limits add flags", func(t *testing.T) {
+		cfg := WorkspaceConfig{
+			General: WorkspaceGeneralConfig{ID: "abc12345"},
+			Features: FeaturesConfig{Podman: false},
+			Limits: LimitsConfig{CPUs: 2, Memory: 1024, Processes: 512},
+		}
+		args, err := BuildContainerArgs(cfg, "alice")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		joined := strings.Join(args, " ")
+		if !strings.Contains(joined, "--cpus=2") {
+			t.Errorf("expected --cpus=2 in args: %v", args)
+		}
+		if !strings.Contains(joined, "--memory=1024m") {
+			t.Errorf("expected --memory=1024m in args: %v", args)
+		}
+		if !strings.Contains(joined, "--pids-limit=512") {
+			t.Errorf("expected --pids-limit=512 in args: %v", args)
+		}
+	})
+
+	t.Run("zero limits add unlimited flags", func(t *testing.T) {
+		cfg := WorkspaceConfig{
+			General: WorkspaceGeneralConfig{ID: "abc12345"},
+			Features: FeaturesConfig{Podman: false},
+			Limits: LimitsConfig{CPUs: 0, Memory: 0, Processes: 0},
+		}
+		args, err := BuildContainerArgs(cfg, "alice")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		joined := strings.Join(args, " ")
+		if !strings.Contains(joined, "--cpus=0") {
+			t.Errorf("expected --cpus=0 in args: %v", args)
+		}
+		if !strings.Contains(joined, "--memory=0") {
+			t.Errorf("expected --memory=0 in args: %v", args)
+		}
+		if !strings.Contains(joined, "--pids-limit=-1") {
+			t.Errorf("expected --pids-limit=-1 in args: %v", args)
+		}
+	})
+
+	t.Run("negative limits add unlimited flags", func(t *testing.T) {
+		cfg := WorkspaceConfig{
+			General: WorkspaceGeneralConfig{ID: "abc12345"},
+			Features: FeaturesConfig{Podman: false},
+			Limits: LimitsConfig{CPUs: -1, Memory: -1, Processes: -1},
+		}
+		args, err := BuildContainerArgs(cfg, "alice")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		joined := strings.Join(args, " ")
+		if !strings.Contains(joined, "--cpus=0") {
+			t.Errorf("expected --cpus=0 in args: %v", args)
+		}
+		if !strings.Contains(joined, "--memory=0") {
+			t.Errorf("expected --memory=0 in args: %v", args)
+		}
+		if !strings.Contains(joined, "--pids-limit=-1") {
+			t.Errorf("expected --pids-limit=-1 in args: %v", args)
+		}
+	})
+
+	t.Run("partial limits add positive and unlimited flags", func(t *testing.T) {
+		cfg := WorkspaceConfig{
+			General: WorkspaceGeneralConfig{ID: "abc12345"},
+			Features: FeaturesConfig{Podman: false},
+			Limits: LimitsConfig{CPUs: 4, Memory: 0, Processes: 256},
+		}
+		args, err := BuildContainerArgs(cfg, "alice")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		joined := strings.Join(args, " ")
+		if !strings.Contains(joined, "--cpus=4") {
+			t.Errorf("expected --cpus=4 in args: %v", args)
+		}
+		if !strings.Contains(joined, "--memory=0") {
+			t.Errorf("expected --memory=0 in args: %v", args)
+		}
+		if !strings.Contains(joined, "--pids-limit=256") {
+			t.Errorf("expected --pids-limit=256 in args: %v", args)
+		}
+	})
+}
+
 func TestCreateContainerCreateArgs(t *testing.T) {
 	cfg := MinimalMergedConfig("abc12345", "testuser")
 	cfg.Podman.CreateArgs = []string{"--memory", "512m"}

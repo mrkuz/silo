@@ -189,6 +189,16 @@ func TestFeatureInit(t *testing.T) {
 			if len(saved.Podman.CreateArgs) == 0 {
 				t.Error("expected default create_args (not empty)")
 			}
+			// And the workspace config should have default limits (cpus=0, memory=0, processes=1024)
+			if saved.Limits.CPUs != 0 {
+				t.Errorf("expected default CPUs=0, got %d", saved.Limits.CPUs)
+			}
+			if saved.Limits.Memory != 0 {
+				t.Errorf("expected default Memory=0, got %d", saved.Limits.Memory)
+			}
+			if saved.Limits.Processes != 1024 {
+				t.Errorf("expected default Processes=1024, got %d", saved.Limits.Processes)
+			}
 			// And the workspace config should have an 8-character random id
 			if len(saved.General.ID) != 8 {
 				t.Errorf("expected 8-character random id, got %q", saved.General.ID)

@@ -208,6 +208,22 @@ func BuildContainerArgs(cfg WorkspaceConfig, user string) ([]string, error) {
 		args = append(args, "-p", port)
 	}
 
+	if cfg.Limits.CPUs > 0 {
+		args = append(args, fmt.Sprintf("--cpus=%d", cfg.Limits.CPUs))
+	} else {
+		args = append(args, "--cpus=0")
+	}
+	if cfg.Limits.Memory > 0 {
+		args = append(args, fmt.Sprintf("--memory=%dm", cfg.Limits.Memory))
+	} else {
+		args = append(args, "--memory=0")
+	}
+	if cfg.Limits.Processes > 0 {
+		args = append(args, fmt.Sprintf("--pids-limit=%d", cfg.Limits.Processes))
+	} else {
+		args = append(args, "--pids-limit=-1")
+	}
+
 	return args, nil
 }
 
@@ -220,6 +236,7 @@ func CreateContainer(cfg MergedConfig, extra []string) error {
 		Persistence: cfg.Persistence,
 		Podman:      cfg.Podman,
 		Network:     cfg.Network,
+		Limits:      cfg.Limits,
 	}, cfg.User)
 	if err != nil {
 		return fmt.Errorf("build container arguments: %w", err)

@@ -209,8 +209,192 @@ func TestFeatureStart(t *testing.T) {
 			// Then podman create should not include any -p arguments
 			rec := mock.AssertExec("podman", "create", "<...>")
 			if rec != nil {
-				if strings.Contains(rec.String(), "-p") {
-					t.Errorf("expected no -p arguments in create command, got: %s", rec.String())
+				recStr := rec.String()
+				if strings.Contains(recStr, " -p ") || strings.HasSuffix(recStr, " -p") || strings.HasPrefix(recStr, "-p ") {
+					t.Errorf("expected no -p port forwarding arguments in create command, got: %s", recStr)
+				}
+			}
+			if err != nil {
+				t.Errorf("expected exit code 0, got error: %v", err)
+			}
+		})
+
+		t.Run("Scenario: limits cpus is passed to podman create", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.Limits.CPUs = 2
+			internal.SubsequentRun(t, cfg, "alice")
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman container exists silo-abc12345": exec.Command("false"),
+				"podman image exists silo-abc12345":     exec.Command("true"),
+				"podman create <...>":                   exec.Command("true"),
+				"podman start silo-abc12345":            exec.Command("true"),
+			})
+
+			// When I run `silo start`
+			err := cmd.Start()
+
+			// Then podman create should include "--cpus=2"
+			rec := mock.AssertExec("podman", "create", "<...>")
+			if rec != nil {
+				if !strings.Contains(rec.String(), "--cpus=2") {
+					t.Errorf("expected --cpus=2 in create command, got: %s", rec.String())
+				}
+			}
+			if err != nil {
+				t.Errorf("expected exit code 0, got error: %v", err)
+			}
+		})
+
+		t.Run("Scenario: limits memory is passed to podman create", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.Limits.Memory = 4096
+			internal.SubsequentRun(t, cfg, "alice")
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman container exists silo-abc12345": exec.Command("false"),
+				"podman image exists silo-abc12345":     exec.Command("true"),
+				"podman create <...>":                   exec.Command("true"),
+				"podman start silo-abc12345":            exec.Command("true"),
+			})
+
+			// When I run `silo start`
+			err := cmd.Start()
+
+			// Then podman create should include "--memory=4096m"
+			rec := mock.AssertExec("podman", "create", "<...>")
+			if rec != nil {
+				if !strings.Contains(rec.String(), "--memory=4096m") {
+					t.Errorf("expected --memory=4096m in create command, got: %s", rec.String())
+				}
+			}
+			if err != nil {
+				t.Errorf("expected exit code 0, got error: %v", err)
+			}
+		})
+
+		t.Run("Scenario: limits processes is passed to podman create", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.Limits.Processes = 1024
+			internal.SubsequentRun(t, cfg, "alice")
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman container exists silo-abc12345": exec.Command("false"),
+				"podman image exists silo-abc12345":     exec.Command("true"),
+				"podman create <...>":                   exec.Command("true"),
+				"podman start silo-abc12345":            exec.Command("true"),
+			})
+
+			// When I run `silo start`
+			err := cmd.Start()
+
+			// Then podman create should include "--pids-limit=1024"
+			rec := mock.AssertExec("podman", "create", "<...>")
+			if rec != nil {
+				if !strings.Contains(rec.String(), "--pids-limit=1024") {
+					t.Errorf("expected --pids-limit=1024 in create command, got: %s", rec.String())
+				}
+			}
+			if err != nil {
+				t.Errorf("expected exit code 0, got error: %v", err)
+			}
+		})
+
+		t.Run("Scenario: zero or negative limits are passed with unlimited values", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.Limits.CPUs = 0
+			cfg.Limits.Memory = -1
+			cfg.Limits.Processes = 0
+			internal.SubsequentRun(t, cfg, "alice")
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman container exists silo-abc12345": exec.Command("false"),
+				"podman image exists silo-abc12345":     exec.Command("true"),
+				"podman create <...>":                   exec.Command("true"),
+				"podman start silo-abc12345":            exec.Command("true"),
+			})
+
+			// When I run `silo start`
+			err := cmd.Start()
+
+			// Then podman create should include unlimited limit flags
+			rec := mock.AssertExec("podman", "create", "<...>")
+			if rec != nil {
+				recStr := rec.String()
+				if !strings.Contains(recStr, "--cpus=0") {
+					t.Errorf("expected --cpus=0 in create command, got: %s", recStr)
+				}
+				if !strings.Contains(recStr, "--memory=0") {
+					t.Errorf("expected --memory=0 in create command, got: %s", recStr)
+				}
+				if !strings.Contains(recStr, "--pids-limit=-1") {
+					t.Errorf("expected --pids-limit=-1 in create command, got: %s", recStr)
+				}
+			}
+			if err != nil {
+				t.Errorf("expected exit code 0, got error: %v", err)
+			}
+		})
+
+		t.Run("Scenario: all limits are passed together", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.Limits.CPUs = 4
+			cfg.Limits.Memory = 8192
+			cfg.Limits.Processes = 2048
+			internal.SubsequentRun(t, cfg, "alice")
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman container exists silo-abc12345": exec.Command("false"),
+				"podman image exists silo-abc12345":     exec.Command("true"),
+				"podman create <...>":                   exec.Command("true"),
+				"podman start silo-abc12345":            exec.Command("true"),
+			})
+
+			// When I run `silo start`
+			err := cmd.Start()
+
+			// Then podman create should include all limit flags
+			rec := mock.AssertExec("podman", "create", "<...>")
+			if rec != nil {
+				recStr := rec.String()
+				if !strings.Contains(recStr, "--cpus=4") {
+					t.Errorf("expected --cpus=4 in create command, got: %s", recStr)
+				}
+				if !strings.Contains(recStr, "--memory=8192m") {
+					t.Errorf("expected --memory=8192m in create command, got: %s", recStr)
+				}
+				if !strings.Contains(recStr, "--pids-limit=2048") {
+					t.Errorf("expected --pids-limit=2048 in create command, got: %s", recStr)
+				}
+			}
+			if err != nil {
+				t.Errorf("expected exit code 0, got error: %v", err)
+			}
+		})
+
+		t.Run("Scenario: silo.toml limits override user limits", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.Limits.CPUs = 4
+			internal.SubsequentRun(t, cfg, "alice")
+			// User config exists but should be ignored for limits (workspace-only)
+			internal.SetupUserConfig(t, "alice")
+			mock := internal.NewMock(t)
+			mock.MockExec(map[string]*exec.Cmd{
+				"podman container exists silo-abc12345": exec.Command("false"),
+				"podman image exists silo-abc12345":     exec.Command("true"),
+				"podman create <...>":                   exec.Command("true"),
+				"podman start silo-abc12345":            exec.Command("true"),
+			})
+
+			// When I run `silo start`
+			err := cmd.Start()
+
+			// Then podman create should include --cpus=4 from workspace
+			rec := mock.AssertExec("podman", "create", "<...>")
+			if rec != nil {
+				recStr := rec.String()
+				if !strings.Contains(recStr, "--cpus=4") {
+					t.Errorf("expected --cpus=4 in create command, got: %s", recStr)
 				}
 			}
 			if err != nil {

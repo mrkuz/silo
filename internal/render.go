@@ -108,9 +108,11 @@ type TemplateContext struct {
 	System                  string
 	ContainerArgs            []string
 	DevcontainerArgs         []string
-	PersistenceSharedPaths   []string // resolved container paths for subpath mounts
-	PersistencePrivatePaths  []string // resolved container paths for private subpath mounts
-	NetworkPorts             []string // port mappings for forwardPorts
+	PersistenceSharedPaths   []string
+	PersistencePrivatePaths  []string
+	NetworkPorts             []string
+	Limits                   LimitsConfig
+	LimitsArgs               []string
 }
 
 // NewTemplateContext builds a TemplateContext from MergedConfig for template rendering.
@@ -152,6 +154,24 @@ func NewTemplateContext(cfg MergedConfig, containerNameSuffix ...string) (Templa
 		devcontainerArgs = append(devcontainerArgs, "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges")
 	}
 
+	limitsArgs := []string{}
+	if cfg.Limits.CPUs > 0 {
+		limitsArgs = append(limitsArgs, fmt.Sprintf("--cpus=%d", cfg.Limits.CPUs))
+	} else {
+		limitsArgs = append(limitsArgs, "--cpus=0")
+	}
+	if cfg.Limits.Memory > 0 {
+		limitsArgs = append(limitsArgs, fmt.Sprintf("--memory=%dm", cfg.Limits.Memory))
+	} else {
+		limitsArgs = append(limitsArgs, "--memory=0")
+	}
+	if cfg.Limits.Processes > 0 {
+		limitsArgs = append(limitsArgs, fmt.Sprintf("--pids-limit=%d", cfg.Limits.Processes))
+	} else {
+		limitsArgs = append(limitsArgs, "--pids-limit=-1")
+	}
+	devcontainerArgs = append(devcontainerArgs, limitsArgs...)
+
 	return TemplateContext{
 		User:                     cfg.User,
 		Home:                     home,
@@ -166,6 +186,8 @@ func NewTemplateContext(cfg MergedConfig, containerNameSuffix ...string) (Templa
 		PersistenceSharedPaths:    sharedPaths,
 		PersistencePrivatePaths:   privatePaths,
 		NetworkPorts:             cfg.Network.Ports,
+		Limits:                   cfg.Limits,
+		LimitsArgs:               limitsArgs,
 	}, nil
 }
 
@@ -188,6 +210,24 @@ func NewTemplateContextFromWorkspace(cfg WorkspaceConfig) (TemplateContext, erro
 	} else {
 		devcontainerArgs = append(devcontainerArgs, "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges")
 	}
+
+	limitsArgs := []string{}
+	if cfg.Limits.CPUs > 0 {
+		limitsArgs = append(limitsArgs, fmt.Sprintf("--cpus=%d", cfg.Limits.CPUs))
+	} else {
+		limitsArgs = append(limitsArgs, "--cpus=0")
+	}
+	if cfg.Limits.Memory > 0 {
+		limitsArgs = append(limitsArgs, fmt.Sprintf("--memory=%dm", cfg.Limits.Memory))
+	} else {
+		limitsArgs = append(limitsArgs, "--memory=0")
+	}
+	if cfg.Limits.Processes > 0 {
+		limitsArgs = append(limitsArgs, fmt.Sprintf("--pids-limit=%d", cfg.Limits.Processes))
+	} else {
+		limitsArgs = append(limitsArgs, "--pids-limit=-1")
+	}
+	devcontainerArgs = append(devcontainerArgs, limitsArgs...)
 
 	userCfg, err := LoadSiloUserTOML()
 	if err != nil {
@@ -224,6 +264,8 @@ func NewTemplateContextFromWorkspace(cfg WorkspaceConfig) (TemplateContext, erro
 		PersistenceSharedPaths:    sharedPaths,
 		PersistencePrivatePaths:   privatePaths,
 		NetworkPorts:             cfg.Network.Ports,
+		Limits:                   cfg.Limits,
+		LimitsArgs:               limitsArgs,
 	}, nil
 }
 

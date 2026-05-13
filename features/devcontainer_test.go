@@ -282,6 +282,119 @@ func TestFeatureDevcontainer(t *testing.T) {
 				t.Errorf("expected no forwardPorts in .devcontainer.json, got: %v", parsed["forwardPorts"])
 			}
 		})
+
+		t.Run("Scenario: devcontainer includes limits in runArgs", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.Limits.CPUs = 2
+			cfg.Limits.Memory = 4096
+			cfg.Limits.Processes = 1024
+			internal.SetupWorkspace(t, cfg)
+			internal.SetupUserConfig(t, "alice")
+
+			// When I run `silo devcontainer`
+			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			// Then the .devcontainer.json should have limits in runArgs
+			data, err := os.ReadFile(".devcontainer.json")
+			if err != nil {
+				t.Fatalf("read .devcontainer.json: %v", err)
+			}
+			var parsed map[string]any
+			if err := json.Unmarshal(data, &parsed); err != nil {
+				t.Fatalf("expected valid json: %v", err)
+			}
+			runArgs, ok := parsed["runArgs"].([]any)
+			if !ok {
+				t.Fatalf("expected runArgs to be array, got: %v", parsed["runArgs"])
+			}
+			runArgsStr := toStringSlice(runArgs)
+			joined := strings.Join(runArgsStr, " ")
+			if !strings.Contains(joined, "--cpus=2") {
+				t.Errorf("expected --cpus=2 in runArgs, got: %v", runArgs)
+			}
+			if !strings.Contains(joined, "--memory=4096m") {
+				t.Errorf("expected --memory=4096m in runArgs, got: %v", runArgs)
+			}
+			if !strings.Contains(joined, "--pids-limit=1024") {
+				t.Errorf("expected --pids-limit=1024 in runArgs, got: %v", runArgs)
+			}
+		})
+
+		t.Run("Scenario: devcontainer includes unlimited values for zero or negative limits", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.Limits.CPUs = 0
+			cfg.Limits.Memory = -1
+			cfg.Limits.Processes = 0
+			internal.SetupWorkspace(t, cfg)
+			internal.SetupUserConfig(t, "alice")
+
+			// When I run `silo devcontainer`
+			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			// Then the .devcontainer.json should have unlimited limit flags in runArgs
+			data, err := os.ReadFile(".devcontainer.json")
+			if err != nil {
+				t.Fatalf("read .devcontainer.json: %v", err)
+			}
+			var parsed map[string]any
+			if err := json.Unmarshal(data, &parsed); err != nil {
+				t.Fatalf("expected valid json: %v", err)
+			}
+			runArgs, ok := parsed["runArgs"].([]any)
+			if !ok {
+				t.Fatalf("expected runArgs to be array, got: %v", parsed["runArgs"])
+			}
+			runArgsStr := toStringSlice(runArgs)
+			joined := strings.Join(runArgsStr, " ")
+			if !strings.Contains(joined, "--cpus=0") {
+				t.Errorf("expected --cpus=0 in runArgs, got: %v", runArgs)
+			}
+			if !strings.Contains(joined, "--memory=0") {
+				t.Errorf("expected --memory=0 in runArgs, got: %v", runArgs)
+			}
+			if !strings.Contains(joined, "--pids-limit=-1") {
+				t.Errorf("expected --pids-limit=-1 in runArgs, got: %v", runArgs)
+			}
+		})
+
+		t.Run("Scenario: devcontainer uses workspace limits only", func(t *testing.T) {
+			cfg := internal.MinimalConfig("abc12345")
+			cfg.Limits.CPUs = 4
+			cfg.Limits.Memory = 8192
+			internal.SetupWorkspace(t, cfg)
+			internal.SetupUserConfig(t, "alice")
+
+			// When I run `silo devcontainer`
+			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			// Then the .devcontainer.json should have workspace limits
+			data, err := os.ReadFile(".devcontainer.json")
+			if err != nil {
+				t.Fatalf("read .devcontainer.json: %v", err)
+			}
+			var parsed map[string]any
+			if err := json.Unmarshal(data, &parsed); err != nil {
+				t.Fatalf("expected valid json: %v", err)
+			}
+			runArgs, ok := parsed["runArgs"].([]any)
+			if !ok {
+				t.Fatalf("expected runArgs to be array, got: %v", parsed["runArgs"])
+			}
+			runArgsStr := toStringSlice(runArgs)
+			joined := strings.Join(runArgsStr, " ")
+			if !strings.Contains(joined, "--cpus=4") {
+				t.Errorf("expected --cpus=4 in runArgs, got: %v", runArgs)
+			}
+			if !strings.Contains(joined, "--memory=8192m") {
+				t.Errorf("expected --memory=8192m in runArgs, got: %v", runArgs)
+			}
+		})
 	})
 
 	t.Run("Rule: Merge order: template wins > .silo > user", func(t *testing.T) {
@@ -559,4 +672,12 @@ user = "alice"
 			}
 		})
 	})
+}
+
+func toStringSlice(in []any) []string {
+	out := make([]string, len(in))
+	for i, v := range in {
+		out[i] = v.(string)
+	}
+	return out
 }

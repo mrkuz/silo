@@ -21,6 +21,7 @@ in
       iftop
       nano
       ncdu
+      procps
       pstree
       pwgen
       python3

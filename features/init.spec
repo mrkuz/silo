@@ -55,6 +55,7 @@ Feature: silo init — Initialize workspace
       And the workspace config should have podman=false (default)
       And the workspace config should have empty shared_paths (default)
       And the workspace config should have default create arguments
+      And the workspace config should have default limits (cpus=0, memory=0, processes=1024)
       And the workspace config should have no user set
 
     Scenario: feature flags override defaults on first run

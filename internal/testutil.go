@@ -190,6 +190,7 @@ func MinimalMergedConfig(id, user string) MergedConfig {
 		Persistence: PersistenceConfig{SharedPaths: []string{}, PrivatePaths: []string{}},
 		Podman:      PodmanConfig{CreateArgs: []string{}},
 		Network:     NetworkConfig{Ports: []string{}},
+		Limits:      LimitsConfig{},
 	}
 }
 
@@ -201,6 +202,7 @@ func MinimalWorkspaceConfig(id string) WorkspaceConfig {
 		Persistence: PersistenceConfig{SharedPaths: []string{}, PrivatePaths: []string{}},
 		Podman:      PodmanConfig{CreateArgs: []string{}},
 		Network:     NetworkConfig{Ports: []string{}},
+		Limits:      LimitsConfig{},
 	}
 }
 
