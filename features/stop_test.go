@@ -1,7 +1,6 @@
 package features_test
 
 import (
-	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -19,8 +18,7 @@ func TestFeatureStop(t *testing.T) {
 
 	t.Run("Rule: Running container is stopped and removed", func(t *testing.T) {
 		t.Run("Scenario: stop terminates and removes the container", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
@@ -49,8 +47,7 @@ func TestFeatureStop(t *testing.T) {
 
 	t.Run("Rule: Stopped container is removed", func(t *testing.T) {
 		t.Run("Scenario: stopped container prints message and is removed", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
@@ -74,8 +71,7 @@ func TestFeatureStop(t *testing.T) {
 		})
 
 		t.Run("Scenario: absent container prints not found and exits 0", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
@@ -94,10 +90,7 @@ func TestFeatureStop(t *testing.T) {
 	t.Run("Rule: Requires workspace to be initialized", func(t *testing.T) {
 		t.Run("Scenario: stop fails when workspace is not initialized", func(t *testing.T) {
 			// Given a clean workspace with no existing silo files
-			dir := t.TempDir()
-			orig, _ := os.Getwd()
-			t.Cleanup(func() { os.Chdir(orig) })
-			os.Chdir(dir)
+			internal.SetupEmptyWorkspace(t)
 
 			// When I run `silo stop`
 			err := cmd.Stop()

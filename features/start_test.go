@@ -20,8 +20,7 @@ func TestFeatureStart(t *testing.T) {
 
 	t.Run("Rule: Starts the container", func(t *testing.T) {
 		t.Run("Scenario: start runs podman start", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
@@ -42,8 +41,7 @@ func TestFeatureStart(t *testing.T) {
 		})
 
 		t.Run("Scenario: start prints a message when starting", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
@@ -66,8 +64,7 @@ func TestFeatureStart(t *testing.T) {
 
 	t.Run("Rule: Idempotency — already running container is a no-op", func(t *testing.T) {
 		t.Run("Scenario: running container is not restarted", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
@@ -89,8 +86,7 @@ func TestFeatureStart(t *testing.T) {
 
 	t.Run("Rule: Creates container if missing (builds images if needed)", func(t *testing.T) {
 		t.Run("Scenario: missing container triggers full build-and-create chain", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
@@ -113,8 +109,7 @@ func TestFeatureStart(t *testing.T) {
 		})
 
 		t.Run("Scenario: missing image triggers build before container creation", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
@@ -137,9 +132,9 @@ func TestFeatureStart(t *testing.T) {
 		})
 
 		t.Run("Scenario: workspace ports are passed to podman create", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Network.Ports = []string{"8080:8080"}
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
@@ -164,9 +159,9 @@ func TestFeatureStart(t *testing.T) {
 		})
 
 		t.Run("Scenario: multiple ports are all passed to podman create", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Network.Ports = []string{"8080:8080", "3000:3000"}
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
@@ -192,9 +187,9 @@ func TestFeatureStart(t *testing.T) {
 		})
 
 		t.Run("Scenario: empty ports array adds no -p arguments", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Network.Ports = []string{}
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
@@ -220,9 +215,9 @@ func TestFeatureStart(t *testing.T) {
 		})
 
 		t.Run("Scenario: limits cpus is passed to podman create", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Limits.CPUs = 2
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
@@ -247,9 +242,9 @@ func TestFeatureStart(t *testing.T) {
 		})
 
 		t.Run("Scenario: limits memory is passed to podman create", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Limits.Memory = 4096
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
@@ -274,9 +269,9 @@ func TestFeatureStart(t *testing.T) {
 		})
 
 		t.Run("Scenario: limits processes is passed to podman create", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Limits.Processes = 1024
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
@@ -301,11 +296,11 @@ func TestFeatureStart(t *testing.T) {
 		})
 
 		t.Run("Scenario: zero or negative limits are passed with unlimited values", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Limits.CPUs = 0
 			cfg.Limits.Memory = -1
 			cfg.Limits.Processes = 0
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
@@ -337,11 +332,11 @@ func TestFeatureStart(t *testing.T) {
 		})
 
 		t.Run("Scenario: all limits are passed together", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Limits.CPUs = 4
 			cfg.Limits.Memory = 8192
 			cfg.Limits.Processes = 2048
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
@@ -371,43 +366,13 @@ func TestFeatureStart(t *testing.T) {
 				t.Errorf("expected exit code 0, got error: %v", err)
 			}
 		})
-
-		t.Run("Scenario: silo.toml limits override user limits", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			cfg.Limits.CPUs = 4
-			internal.SubsequentRun(t, cfg, "alice")
-			// User config exists but should be ignored for limits (workspace-only)
-			internal.SetupUserConfig(t, "alice")
-			mock := internal.NewMock(t)
-			mock.MockExec(map[string]*exec.Cmd{
-				"podman container exists silo-abc12345": exec.Command("false"),
-				"podman image exists silo-abc12345":     exec.Command("true"),
-				"podman create <...>":                   exec.Command("true"),
-				"podman start silo-abc12345":            exec.Command("true"),
-			})
-
-			// When I run `silo start`
-			err := cmd.Start()
-
-			// Then podman create should include --cpus=4 from workspace
-			rec := mock.AssertExec("podman", "create", "<...>")
-			if rec != nil {
-				recStr := rec.String()
-				if !strings.Contains(recStr, "--cpus=4") {
-					t.Errorf("expected --cpus=4 in create command, got: %s", recStr)
-				}
-			}
-			if err != nil {
-				t.Errorf("expected exit code 0, got error: %v", err)
-			}
-		})
 	})
 
 	t.Run("Rule: Runs volume setup before starting", func(t *testing.T) {
 		t.Run("Scenario: shared volume directories are created before container starts", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/"}
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
@@ -438,8 +403,7 @@ func TestFeatureStart(t *testing.T) {
 
 	t.Run("Rule: Does not connect to the container", func(t *testing.T) {
 		t.Run("Scenario: start does not attach to the container", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),

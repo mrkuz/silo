@@ -9,35 +9,30 @@ import (
 )
 
 func TestRenderFlakeNix(t *testing.T) {
-	out, err := RenderTemplate("flake.nix.tmpl", struct {
-		User   string
-		System string
-	}{"alice", "x86_64-linux"})
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		user   string
+		system string
+	}{
+		{"alice", "x86_64-linux"},
+		{"bob", "aarch64-linux"},
 	}
-	s := string(out)
-	if !strings.Contains(s, `user = "alice"`) {
-		t.Errorf("expected user = alice in flake.nix output:\n%s", s)
-	}
-	if !strings.Contains(s, `system = "x86_64-linux"`) {
-		t.Errorf("expected system = x86_64-linux in flake.nix output:\n%s", s)
-	}
-}
-
-func TestRenderFlakeNixAarch64(t *testing.T) {
-	out, err := RenderTemplate("flake.nix.tmpl", struct {
-		User   string
-		System string
-	}{"bob", "aarch64-linux"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(out), `user = "bob"`) {
-		t.Error("expected user = bob")
-	}
-	if !strings.Contains(string(out), `system = "aarch64-linux"`) {
-		t.Error("expected system = aarch64-linux")
+	for _, tt := range tests {
+		t.Run(tt.user, func(t *testing.T) {
+			out, err := RenderTemplate("flake.nix.tmpl", struct {
+				User   string
+				System string
+			}{tt.user, tt.system})
+			if err != nil {
+				t.Fatal(err)
+			}
+			s := string(out)
+			if !strings.Contains(s, `user = "`+tt.user+`"`) {
+				t.Errorf("expected user = %s in flake.nix output:\n%s", tt.user, s)
+			}
+			if !strings.Contains(s, `system = "`+tt.system+`"`) {
+				t.Errorf("expected system = %s in flake.nix output:\n%s", tt.system, s)
+			}
+		})
 	}
 }
 
@@ -58,15 +53,6 @@ func TestRenderContainerfileWorkspace(t *testing.T) {
 	}
 	if strings.Contains(s, "setup.sh") {
 		t.Errorf("did not expect setup.sh in Containerfile output:\n%s", s)
-	}
-}
-
-func TestHomeEmptyNixConstant(t *testing.T) {
-	if len(WorkspaceHomeNixTmpl) == 0 {
-		t.Error("WorkspaceHomeNixTmpl constant should not be empty")
-	}
-	if !strings.Contains(WorkspaceHomeNixTmpl, "pkgs") {
-		t.Error("WorkspaceHomeNixTmpl should contain pkgs argument")
 	}
 }
 
@@ -129,10 +115,10 @@ func TestRenderDevcontainerJSON(t *testing.T) {
 
 func TestRenderDevcontainerJSONWithSharedVolume(t *testing.T) {
 	tc := TemplateContext{
-		Image:             "silo-abc12345",
-		User:              "alice",
-		ContainerName:     "silo-abc12345-dev",
-		DevcontainerArgs:  []string{"--name", "silo-abc12345-dev", "--hostname", "silo-abc12345-dev", "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"},
+		Image:                  "silo-abc12345",
+		User:                   "alice",
+		ContainerName:          "silo-abc12345-dev",
+		DevcontainerArgs:       []string{"--name", "silo-abc12345-dev", "--hostname", "silo-abc12345-dev", "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"},
 		PersistenceVolumeName:  "silo",
 		PersistenceSharedPaths: []string{"/home/alice/.cache/uv", "/home/alice/.config/nvim"},
 	}
@@ -162,7 +148,8 @@ func TestNewTemplateContextDefaultSuffix(t *testing.T) {
 		User:     "alice",
 		Features: FeaturesConfig{Podman: false},
 		Persistence: PersistenceConfig{
-			SharedPaths: []string{"$HOME/.cache/uv/", "$HOME/.config/nvim/"},
+			SharedPaths:  []string{"$HOME/.cache/uv/", "$HOME/.config/nvim/"},
+			PrivatePaths: []string{"$HOME/.local/share/"},
 		},
 	}
 	tc, err := NewTemplateContext(cfg)
@@ -178,9 +165,8 @@ func TestNewTemplateContextDefaultSuffix(t *testing.T) {
 	if len(tc.PersistenceSharedPaths) != 2 {
 		t.Fatalf("expected 2 persistence shared paths, got %d", len(tc.PersistenceSharedPaths))
 	}
-	joined := strings.Join(tc.ContainerArgs, " ")
-	if !strings.Contains(joined, "--name silo-abc12345") {
-		t.Fatalf("expected --name with default container name, got %v", tc.ContainerArgs)
+	if len(tc.PersistencePrivatePaths) != 1 {
+		t.Fatalf("expected 1 persistence private path, got %d", len(tc.PersistencePrivatePaths))
 	}
 }
 
@@ -196,10 +182,6 @@ func TestNewTemplateContextWithSuffix(t *testing.T) {
 	}
 	if tc.ContainerName != "silo-abc12345-dev" {
 		t.Fatalf("expected suffixed container name, got %q", tc.ContainerName)
-	}
-	joined := strings.Join(tc.ContainerArgs, " ")
-	if !strings.Contains(joined, "--name silo-abc12345-dev") {
-		t.Fatalf("expected --name with suffixed container name, got %v", tc.ContainerArgs)
 	}
 }
 
@@ -260,13 +242,6 @@ func TestRenderDevcontainerJSONWorkspaceMount(t *testing.T) {
 	wantMount := "source=${localWorkspaceFolder},target=/workspace/abc12345/myproject,type=bind,z"
 	if got := parsed["workspaceMount"]; got != wantMount {
 		t.Errorf("workspaceMount = %q, want %q", got, wantMount)
-	}
-}
-
-func TestDetectNixSystem(t *testing.T) {
-	sys := DetectNixSystem()
-	if sys != "x86_64-linux" && sys != "aarch64-linux" {
-		t.Errorf("unexpected nix system %q", sys)
 	}
 }
 

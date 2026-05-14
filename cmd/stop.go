@@ -8,13 +8,13 @@ import (
 
 // Stop implements `silo stop`.
 func Stop() error {
-	cfg, err := internal.RequireWorkspaceConfig()
+	cfg, err := internal.RequireMergedConfig()
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
-	name := internal.WorkspaceContainerName(cfg.General.ID)
+	name := internal.WorkspaceContainerName(cfg.ID)
 	if !internal.ContainerExists(name) {
-		internal.PrintNotFound(name)
+		fmt.Printf("%s not found\n", name)
 		return nil
 	}
 	if internal.ContainerRunning(name) {

@@ -71,28 +71,6 @@ func TestDeepMergeJSON(t *testing.T) {
 		}
 	})
 
-	t.Run("does not mutate base or overlay", func(t *testing.T) {
-		base := map[string]any{"a": 1.0}
-		overlay := map[string]any{"a": 2.0}
-		DeepMergeJSON(base, overlay)
-		if base["a"] != 1.0 {
-			t.Errorf("base was mutated")
-		}
-	})
-}
-
-// TestDeepMergeJSONMalformedInput tests edge cases of DeepMergeJSON.
-// Core merge logic tested here; integration covered by features/devcontainer_test.go.
-func TestDeepMergeJSONMalformedInput(t *testing.T) {
-	t.Run("scalar replaces object", func(t *testing.T) {
-		base := map[string]any{"k": map[string]any{"x": 1.0}}
-		overlay := map[string]any{"k": "string"}
-		got := DeepMergeJSON(base, overlay)
-		if got["k"] != "string" {
-			t.Errorf("expected overlay scalar to win, got %v", got["k"])
-		}
-	})
-
 	t.Run("object replaces scalar", func(t *testing.T) {
 		base := map[string]any{"k": "string"}
 		overlay := map[string]any{"k": map[string]any{"x": 1.0}}
@@ -105,11 +83,20 @@ func TestDeepMergeJSONMalformedInput(t *testing.T) {
 			t.Errorf("expected x=1, got %v", obj["x"])
 		}
 	})
+
+	t.Run("does not mutate base or overlay", func(t *testing.T) {
+		base := map[string]any{"a": 1.0}
+		overlay := map[string]any{"a": 2.0}
+		DeepMergeJSON(base, overlay)
+		if base["a"] != 1.0 {
+			t.Errorf("base was mutated")
+		}
+	})
 }
 
-// TestLoadDevcontainerInJSONMalformed tests edge case of loading malformed JSON.
+// TestLoadDevcontainerUserJSONMalformed tests edge case of loading malformed JSON.
 // Integration covered by features/devcontainer_test.go.
-func TestLoadDevcontainerInJSONMalformed(t *testing.T) {
+func TestLoadDevcontainerUserJSONMalformed(t *testing.T) {
 	t.Run("malformed JSON returns error", func(t *testing.T) {
 		base := t.TempDir()
 		t.Setenv("XDG_CONFIG_HOME", base)
@@ -121,7 +108,7 @@ func TestLoadDevcontainerInJSONMalformed(t *testing.T) {
 		if err := os.WriteFile(path, []byte("{invalid json"), 0644); err != nil {
 			t.Fatal(err)
 		}
-		_, err := LoadDevcontainerInJSON()
+		_, err := LoadDevcontainerUserJSON()
 		if err == nil {
 			t.Error("expected error for malformed JSON")
 		}

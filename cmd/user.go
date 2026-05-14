@@ -10,7 +10,7 @@ import (
 // (for existing and new files) and delegates the actual
 // file creation to EnsureUserFiles.
 func UserInit(args []string) error {
-	files, err := internal.UserStarterFiles()
+	files, err := internal.UserFiles()
 	if err != nil {
 		return fmt.Errorf("list user starter files: %w", err)
 	}

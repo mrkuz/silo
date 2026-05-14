@@ -11,15 +11,6 @@ import (
 const devContainerSuffix = "-dev"
 const devcontainerFileMode = 0644
 
-const siloDevcontainerBoilerplate = `{
-  "customizations": {
-    "vscode": {
-      "extensions": []
-    }
-  }
-}
-`
-
 // DevContainerName returns the devcontainer name for the given merged config.
 func DevContainerName(cfg MergedConfig) string {
 	return containerNameWithSuffix(WorkspaceContainerName(cfg.ID), devContainerSuffix)
@@ -33,15 +24,11 @@ func DevcontainerGenerate(force bool) error {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
 
-	// Ensure volume directories exist before generating devcontainer.json
-	if len(cfg.Persistence.SharedPaths) > 0 {
-		if _, err := VolumeSetup(cfg); err != nil {
-			return fmt.Errorf("volume setup: %w", err)
-		}
+	if _, err := VolumeSetup(cfg); err != nil {
+		return fmt.Errorf("volume setup: %w", err)
 	}
 
-	const siloDevcontainerFile = ".silo/devcontainer.json"
-	if err := ensureSiloDevcontainerJSON(siloDevcontainerFile); err != nil {
+	if err := ensureSiloDevcontainerJSON(); err != nil {
 		return fmt.Errorf("ensure project devcontainer json: %w", err)
 	}
 
@@ -55,18 +42,17 @@ func DevcontainerGenerate(force bool) error {
 	}
 
 	const devcontainerFile = ".devcontainer.json"
-
 	var fileExisted bool
 	if _, statErr := os.Stat(devcontainerFile); statErr == nil {
 		fileExisted = true
 	}
 
 	if _, statErr := os.Stat(devcontainerFile); statErr == nil && !force {
-		PrintInitFileStatus(devcontainerFile)
+		fmt.Printf(".devcontainer.json already exists\n")
 		return nil
 	}
 
-	userDC, err := LoadDevcontainerInJSON()
+	userDC, err := LoadDevcontainerUserJSON()
 	if err != nil {
 		return fmt.Errorf("load devcontainer user file: %w", err)
 	}
@@ -91,9 +77,9 @@ func DevcontainerGenerate(force bool) error {
 	content = append(content, '\n')
 
 	if fileExisted && force {
-		fmt.Printf("'.devcontainer.json' updated\n")
+		fmt.Printf(".devcontainer.json updated\n")
 	} else {
-		PrintInitFileStatus(devcontainerFile)
+		fmt.Printf("Creating .devcontainer.json...\n")
 	}
 	if err := os.WriteFile(devcontainerFile, content, devcontainerFileMode); err != nil {
 		return fmt.Errorf("write devcontainer.json: %w", err)
@@ -101,9 +87,9 @@ func DevcontainerGenerate(force bool) error {
 	return nil
 }
 
-// LoadDevcontainerInJSON reads the user devcontainer input file.
+// LoadDevcontainerUserJSON reads the user devcontainer input file.
 // Returns an empty map if the file does not exist.
-func LoadDevcontainerInJSON() (map[string]any, error) {
+func LoadDevcontainerUserJSON() (map[string]any, error) {
 	dir, err := UserConfigDir()
 	if err != nil {
 		return nil, fmt.Errorf("get user config directory: %w", err)
@@ -166,19 +152,20 @@ func DeepMergeJSON(base, input map[string]any) map[string]any {
 }
 
 // ensureSiloDevcontainerJSON creates .silo/devcontainer.json with boilerplate content
-// if it does not exist. Uses PrintInitFileStatus to print info messages.
-func ensureSiloDevcontainerJSON(path string) error {
+// if it does not exist.
+func ensureSiloDevcontainerJSON() error {
+	path := ".silo/devcontainer.json"
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return fmt.Errorf("create .silo directory: %w", err)
 	}
 	if _, statErr := os.Stat(path); statErr == nil {
-		PrintInitFileStatus(path)
+		fmt.Printf(".silo/devcontainer.json already exists\n")
 		return nil
 	} else if !os.IsNotExist(statErr) {
 		return fmt.Errorf("stat %s: %w", path, statErr)
 	}
-	PrintInitFileStatus(path)
-	if err := os.WriteFile(path, []byte(siloDevcontainerBoilerplate), devcontainerFileMode); err != nil {
+	fmt.Printf("Creating .silo/devcontainer.json...\n")
+	if err := os.WriteFile(path, []byte(SiloDevcontainerJSON), devcontainerFileMode); err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil

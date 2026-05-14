@@ -149,13 +149,13 @@ shared_paths = []
 				cmd.UserInit([]string{})
 			})
 
-			// Then the output should contain "Creating <XDG_CONFIG_HOME>/silo/home.user.nix"
-			// And the output should contain "Creating <XDG_CONFIG_HOME>/silo/devcontainer.user.json"
-			// And the output should contain "Creating <XDG_CONFIG_HOME>/silo/silo.user.toml"
+			// Then the output should contain "Creating <XDG_CONFIG_HOME>/silo/home.user.nix..."
+			// And the output should contain "Creating <XDG_CONFIG_HOME>/silo/devcontainer.user.json..."
+			// And the output should contain "Creating <XDG_CONFIG_HOME>/silo/silo.user.toml..."
 			expectedMsgs := []string{
-				"Creating " + filepath.Join(base, "silo", "home.user.nix"),
-				"Creating " + filepath.Join(base, "silo", "devcontainer.user.json"),
-				"Creating " + filepath.Join(base, "silo", "silo.user.toml"),
+				"Creating " + filepath.Join(base, "silo", "home.user.nix") + "...",
+				"Creating " + filepath.Join(base, "silo", "devcontainer.user.json") + "...",
+				"Creating " + filepath.Join(base, "silo", "silo.user.toml") + "...",
 			}
 			for _, msg := range expectedMsgs {
 				if !strings.Contains(output, msg) {
@@ -176,15 +176,15 @@ shared_paths = []
 				cmd.UserInit([]string{})
 			})
 
-			// Then the output should contain "'<XDG_CONFIG_HOME>/silo/home.user.nix' already exists"
-			// And the output should contain "'<XDG_CONFIG_HOME>/silo/devcontainer.user.json' already exists"
-			// And the output should contain "'<XDG_CONFIG_HOME>/silo/silo.user.toml' already exists"
+			// Then the output should contain "<XDG_CONFIG_HOME>/silo/home.user.nix already exists"
+			// And the output should contain "<XDG_CONFIG_HOME>/silo/devcontainer.user.json already exists"
+			// And the output should contain "<XDG_CONFIG_HOME>/silo/silo.user.toml already exists"
 			xdgConfigHome := os.Getenv("XDG_CONFIG_HOME")
 			siloDir := filepath.Join(xdgConfigHome, "silo")
 			expectedMsgs := []string{
-				"'" + filepath.Join(siloDir, "home.user.nix") + "' already exists",
-				"'" + filepath.Join(siloDir, "devcontainer.user.json") + "' already exists",
-				"'" + filepath.Join(siloDir, "silo.user.toml") + "' already exists",
+				filepath.Join(siloDir, "home.user.nix") + " already exists",
+				filepath.Join(siloDir, "devcontainer.user.json") + " already exists",
+				filepath.Join(siloDir, "silo.user.toml") + " already exists",
 			}
 			for _, msg := range expectedMsgs {
 				if !strings.Contains(output, msg) {

@@ -8,11 +8,11 @@ import (
 
 // DevcontainerGenerate generates a .devcontainer.json for VS Code.
 func DevcontainerGenerate(args []string) error {
-	update, _, err := ParseUpdateFlag("devcontainer", args)
+	flags, err := ParseUpdateFlags(args)
 	if err != nil {
 		return err
 	}
-	return internal.DevcontainerGenerate(update)
+	return internal.DevcontainerGenerate(flags.Update)
 }
 
 // DevcontainerStop implements `silo devcontainer stop`.
@@ -23,7 +23,7 @@ func DevcontainerStop() error {
 	}
 	name := internal.DevContainerName(cfg)
 	if !internal.ContainerExists(name) {
-		internal.PrintNotFound(name)
+		fmt.Printf("%s not found\n", name)
 		return nil
 	}
 	if internal.ContainerRunning(name) {
@@ -69,4 +69,22 @@ func DevcontainerConnect() error {
 		return fmt.Errorf("connect to container: %w", err)
 	}
 	return nil
+}
+
+// UpdateFlags holds parsed flags for devcontainer commands.
+type UpdateFlags struct {
+	Update bool
+}
+
+// ParseUpdateFlags parses --update flag.
+func ParseUpdateFlags(args []string) (UpdateFlags, error) {
+	fs := NewFlagSet("silo devcontainer")
+	updateFlag := fs.Bool("update", false, "")
+	if err := parseWithInterceptor(fs, args); err != nil {
+		return UpdateFlags{}, err
+	}
+	if len(fs.Args()) > 0 {
+		return UpdateFlags{}, ErroneousCommand()
+	}
+	return UpdateFlags{Update: *updateFlag}, nil
 }

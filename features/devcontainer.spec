@@ -25,7 +25,7 @@ Feature: silo devcontainer — Generate a .devcontainer.json for VS Code
       And a file ".devcontainer.json" already exists with content '{"name": "custom"}'
       When I run `silo devcontainer`
       Then the file ".devcontainer.json" should still contain '{"name": "custom"}'
-      And the output should contain "'.devcontainer.json' already exists"
+      And the output should contain ".devcontainer.json already exists"
       And the exit code should be 0
 
     Scenario: --update overwrites existing .devcontainer.json
@@ -40,7 +40,7 @@ Feature: silo devcontainer — Generate a .devcontainer.json for VS Code
       Given the workspace image "silo-abc12345" exists
       And a file ".silo/devcontainer.json" already exists with content '{"custom": true}'
       When I run `silo devcontainer --update`
-      Then the output should contain "'.silo/devcontainer.json' already exists"
+      Then the output should contain ".silo/devcontainer.json already exists"
       And a file ".silo/devcontainer.json" should still contain '{"custom": true}'
 
     Scenario: unknown flag shows error and help
@@ -66,22 +66,19 @@ Feature: silo devcontainer — Generate a .devcontainer.json for VS Code
       Then shared volume directories should be created before generating .devcontainer.json.
 
     Scenario: devcontainer includes forwardPorts when network ports are configured
-      Given a workspace with silo config "abc12345"
-      And the config has network ports ["8080:8080", "3000:3000"]
+      Given the config has network ports ["8080:8080", "3000:3000"]
       And the workspace image "silo-abc12345" exists
       When I run `silo devcontainer`
       Then the .devcontainer.json should have "forwardPorts" with all elements "8080:8080", "3000:3000" in order
 
     Scenario: devcontainer omits forwardPorts when no network ports are configured
-      Given a workspace with silo config "abc12345"
-      And the config has network ports []
+      Given the config has network ports []
       And the workspace image "silo-abc12345" exists
       When I run `silo devcontainer`
       Then the .devcontainer.json should not have "forwardPorts"
 
     Scenario: devcontainer includes limits in runArgs
-      Given a workspace with silo config "abc12345"
-      And the config has limits with cpus "2" and memory "4096" and processes "1024"
+      Given the config has limits with cpus "2" and memory "4096" and processes "1024"
       And the workspace image "silo-abc12345" exists
       When I run `silo devcontainer`
       Then the .devcontainer.json should have "runArgs" containing "--cpus=2"
@@ -89,21 +86,12 @@ Feature: silo devcontainer — Generate a .devcontainer.json for VS Code
       And the .devcontainer.json should have "runArgs" containing "--pids-limit=1024"
 
     Scenario: devcontainer includes unlimited values for zero or negative limits
-      Given a workspace with silo config "abc12345"
-      And the config has limits with cpus "0" and memory "-1" and processes "0"
+      Given the config has limits with cpus "0" and memory "-1" and processes "0"
       And the workspace image "silo-abc12345" exists
       When I run `silo devcontainer`
       Then the .devcontainer.json should have "runArgs" containing "--cpus=0"
       And the .devcontainer.json should have "runArgs" containing "--memory=0"
       And the .devcontainer.json should have "runArgs" containing "--pids-limit=-1"
-
-    Scenario: devcontainer uses workspace limits only
-      Given a workspace with silo config "abc12345"
-      And the config has limits with cpus "4" and memory "8192"
-      And the workspace image "silo-abc12345" exists
-      When I run `silo devcontainer`
-      Then the .devcontainer.json should have "runArgs" containing "--cpus=4"
-      And the .devcontainer.json should have "runArgs" containing "--memory=8192m"
 
   Rule: Merge order: template wins > .silo > user
 
@@ -122,11 +110,11 @@ Feature: silo devcontainer — Generate a .devcontainer.json for VS Code
       And the .devcontainer.json should have "custom" set to "silo-value"
 
     Scenario: arrays from all sources are concatenated in order
-      Given the workspace has ".silo/devcontainer.json" with content '{"features": ["silo-feat"]}'
-      And the user's silo config directory has "devcontainer.user.json" with content '{"features": ["user-feat"]}'
+      Given the workspace has ".silo/devcontainer.json" with content '{"forwardPorts": ["8080:8080"]}'
+      And the user's silo config directory has "devcontainer.user.json" with content '{"forwardPorts": ["3000:3000"]}'
       And the workspace image "silo-abc12345" exists
       When I run `silo devcontainer`
-      Then the .devcontainer.json should have "features" with all elements "user-feat", "silo-feat" in order
+      Then the .devcontainer.json should have "forwardPorts" with all elements "3000:3000", "8080:8080" in order
 
     Scenario: user extensions are merged into template customizations
       Given the user's silo config directory has "devcontainer.user.json" with content '{"customizations": {"vscode": {"extensions": ["ms-python.python"]}}}'
@@ -142,14 +130,6 @@ Feature: silo devcontainer — Generate a .devcontainer.json for VS Code
       Then the exit code should not be 0
       And the error should indicate ".silo/silo.toml" is missing
 
-  Rule: devcontainer is independent from workspace container
-
-    Scenario: devcontainer command does not create the workspace container
-      Given the workspace image "silo-abc12345" exists
-      And no container exists
-      When I run `silo devcontainer`
-      Then no workspace container should be created
-
   Rule: Creates .silo/devcontainer.json boilerplate for project-specific customization
 
     Scenario: .silo/devcontainer.json is created when not present
@@ -162,7 +142,7 @@ Feature: silo devcontainer — Generate a .devcontainer.json for VS Code
       Given the workspace image "silo-abc12345" exists
       And a file ".silo/devcontainer.json" already exists
       When I run `silo devcontainer`
-      Then the output should contain "'.silo/devcontainer.json' already exists"
+      Then the output should contain ".silo/devcontainer.json already exists"
       And a file ".silo/devcontainer.json" should not be modified
 
     Scenario: .silo/devcontainer.json is created even when .devcontainer.json is skipped

@@ -21,8 +21,7 @@ func TestFeatureBuild(t *testing.T) {
 
 	t.Run("Rule: Builds workspace image when missing", func(t *testing.T) {
 		t.Run("Scenario: build creates workspace image", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 
 			// And no workspace image exists
 			mock := internal.NewMock(t)
@@ -49,8 +48,7 @@ func TestFeatureBuild(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			// And the user's XDG_CONFIG_HOME points to a fresh directory
 			// And the user's silo config directory has all starter files
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 
 			// And no workspace image exists
 			mock := internal.NewMock(t)
@@ -75,8 +73,7 @@ func TestFeatureBuild(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			// And the user's XDG_CONFIG_HOME points to a fresh directory
 			// And the user's silo config directory has all starter files
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 
 			// And the workspace image "silo-abc12345" exists
 			mock := internal.NewMock(t)
@@ -101,14 +98,13 @@ func TestFeatureBuild(t *testing.T) {
 	t.Run("Rule: Init on demand — build initializes workspace if not initialized", func(t *testing.T) {
 		t.Run("Scenario: build creates workspace config if missing", func(t *testing.T) {
 			// Given a clean workspace with no existing silo files
-			// And the user's XDG_CONFIG_HOME points to a fresh directory
 			// And the user's silo config directory has all starter files
 			internal.FirstRunWithFiles(t, map[string]string{
 				"home.user.nix": internal.HomeUserNix,
-				"silo.user.toml": `[general]
-user = "alice"
-`,
-			})
+				"silo.user.toml": `
+				[general]
+				user = "alice"
+			`})
 
 			// Control the generated ID so we can verify exact names
 			internal.SetGeneratedIDFunc(t, func() string { return "abc12345" })
@@ -140,8 +136,7 @@ user = "alice"
 	t.Run("Rule: home.nix is baked into the workspace image", func(t *testing.T) {
 		t.Run("Scenario: workspace home.nix content is included in the built image", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 
 			// And the workspace has "home.nix" with content:
 			homeNix := filepath.Join(internal.SiloDir(), "home.nix")
@@ -176,8 +171,7 @@ user = "alice"
 		t.Run("Scenario: build --rebuild rebuilds even when image exists", func(t *testing.T) {
 			// Given the workspace image "silo-abc12345" exists
 			// And the container "silo-abc12345" does not exist
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-abc12345":     exec.Command("true"),
@@ -196,12 +190,11 @@ user = "alice"
 		t.Run("Scenario: build --rebuild aborts if container is running", func(t *testing.T) {
 			// Given the workspace image "silo-abc12345" exists
 			// And the container "silo-abc12345" is running
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
-				"podman image exists silo-abc12345":                              exec.Command("true"),
-				"podman container exists silo-abc12345":                         exec.Command("true"),
+				"podman image exists silo-abc12345":                                  exec.Command("true"),
+				"podman container exists silo-abc12345":                              exec.Command("true"),
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
 			})
 
@@ -221,8 +214,7 @@ user = "alice"
 		t.Run("Scenario: build --rebuild aborts if container exists (stopped)", func(t *testing.T) {
 			// Given the workspace image "silo-abc12345" exists
 			// And the container "silo-abc12345" exists but is stopped
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-abc12345":                                  exec.Command("true"),

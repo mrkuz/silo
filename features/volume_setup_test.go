@@ -1,7 +1,6 @@
 package features_test
 
 import (
-	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -21,9 +20,9 @@ func TestFeatureVolumeSetup(t *testing.T) {
 
 	t.Run("Rule: Creates directories on the persistence volume", func(t *testing.T) {
 		t.Run("Scenario: volume setup creates directories on the persistence volume", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/"}
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-abc12345": exec.Command("true"),
@@ -54,9 +53,9 @@ func TestFeatureVolumeSetup(t *testing.T) {
 		})
 
 		t.Run("Scenario: volume setup creates both files and directories", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/", "$HOME/.local/share/fish/fish_history"}
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-abc12345": exec.Command("true"),
@@ -94,9 +93,9 @@ func TestFeatureVolumeSetup(t *testing.T) {
 
 	t.Run("Rule: No-op when shared paths is empty", func(t *testing.T) {
 		t.Run("Scenario: empty shared_paths list is a no-op", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Persistence.SharedPaths = []string{}
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{})
 
@@ -121,9 +120,9 @@ func TestFeatureVolumeSetup(t *testing.T) {
 
 	t.Run("Rule: Uses workspace image for temporary container", func(t *testing.T) {
 		t.Run("Scenario: volume setup uses workspace image and does not require workspace container to exist", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/"}
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-abc12345":     exec.Command("true"),
@@ -152,10 +151,7 @@ func TestFeatureVolumeSetup(t *testing.T) {
 			// Given a clean workspace with no existing silo files
 			base := t.TempDir()
 			t.Setenv("XDG_CONFIG_HOME", base)
-			dir := t.TempDir()
-			orig, _ := os.Getwd()
-			t.Cleanup(func() { os.Chdir(orig) })
-			os.Chdir(dir)
+			internal.SetupEmptyWorkspace(t)
 
 			// When I run `silo volume setup`
 			err := cmd.VolumeSetup()
@@ -170,9 +166,9 @@ func TestFeatureVolumeSetup(t *testing.T) {
 
 	t.Run("Rule: Creates private paths for the silo", func(t *testing.T) {
 		t.Run("Scenario: volume setup creates private paths under silo-specific directory", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Persistence.PrivatePaths = []string{"$HOME/.cache/uv/"}
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-abc12345": exec.Command("true"),
@@ -203,10 +199,10 @@ func TestFeatureVolumeSetup(t *testing.T) {
 		})
 
 		t.Run("Scenario: volume setup creates both shared and private paths", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Persistence.SharedPaths = []string{"$HOME/.local/share/fish/"}
 			cfg.Persistence.PrivatePaths = []string{"$HOME/.cache/uv/"}
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-abc12345": exec.Command("true"),
@@ -242,10 +238,10 @@ func TestFeatureVolumeSetup(t *testing.T) {
 		})
 
 		t.Run("Scenario: empty private_paths list does not create private directories", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/"}
 			cfg.Persistence.PrivatePaths = []string{}
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-abc12345": exec.Command("true"),

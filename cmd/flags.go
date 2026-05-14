@@ -61,31 +61,11 @@ func parseWithInterceptor(fs *flag.FlagSet, args []string) error {
 	return ErroneousCommand()
 }
 
-// ParseRebuildAndNoCache extracts --rebuild and --no-cache flags and returns remaining args.
-func ParseRebuildAndNoCache(cmdName string, args []string) (rebuild bool, noCache bool, remaining []string, err error) {
-	fs := NewFlagSet(cmdName)
-	rebuildFlag := fs.Bool("rebuild", false, "")
-	noCacheFlag := fs.Bool("no-cache", false, "")
-	if err := parseWithInterceptor(fs, args); err != nil {
-		return false, false, nil, err
+func DetectConflictingFlags(fs *flag.FlagSet, flag1, flag2 string) error {
+	f1 := fs.Lookup(flag1)
+	f2 := fs.Lookup(flag2)
+	if f1 != nil && f2 != nil && f1.Value.String() == "true" && f2.Value.String() == "true" {
+		return fmt.Errorf("conflicting flags: --%s and --%s", flag1, flag2)
 	}
-	remaining = fs.Args()
-	if len(remaining) > 0 {
-		return false, false, nil, ErroneousCommand()
-	}
-	return *rebuildFlag, *noCacheFlag, remaining, nil
-}
-
-// ParseUpdateFlag extracts --update and returns remaining args.
-func ParseUpdateFlag(cmdName string, args []string) (update bool, remaining []string, err error) {
-	fs := NewFlagSet(cmdName)
-	updateFlag := fs.Bool("update", false, "")
-	if err := parseWithInterceptor(fs, args); err != nil {
-		return false, nil, err
-	}
-	remaining = fs.Args()
-	if len(remaining) > 0 {
-		return false, nil, ErroneousCommand()
-	}
-	return *updateFlag, remaining, nil
+	return nil
 }

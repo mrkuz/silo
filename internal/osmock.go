@@ -19,7 +19,7 @@ var (
 //   <any>   - matches exactly one token
 //   <any?>  - matches zero or one token
 //   <...>   - matches one or more tokens
-//   <...? >  - matches zero or more tokens
+//   <...?>  - matches zero or more tokens
 // Tokens are separated by whitespace.
 
 // matchPattern matches key against pattern using glob-style placeholders.
@@ -140,12 +140,6 @@ func (r *WriteRecord) String() string {
 	return "write(" + r.Path + ", " + string(r.Content) + ")"
 }
 
-// execKey builds the command key from name and args.
-func execKey(name string, args []string) string {
-	all := append([]string{name}, args...)
-	return strings.Join(all, " ")
-}
-
 // Mock provides mocking for exec, read, and write operations.
 type Mock struct {
 	t *testing.T
@@ -197,7 +191,7 @@ func (m *Mock) MockExec(responses map[string]*exec.Cmd) {
 			Args: args,
 		}
 		m.execCalls = append(m.execCalls, record)
-		key := execKey(name, args)
+		key := name + " " + strings.Join(args, " ")
 		if factory, ok := m.execReturn[key]; ok {
 			return factory()
 		}

@@ -4,7 +4,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -36,21 +35,7 @@ func TestMatchPattern(t *testing.T) {
 		// Additional cases
 		{"podman build silo-abc", "podman build <any>", true},
 		{"podman build foo", "podman <...>", true},
-	}
-
-	for _, tt := range tests {
-		if got := matchPattern(tt.key, tt.pattern); got != tt.want {
-			t.Errorf("matchPattern(%q, %q) = %v, want %v", tt.key, tt.pattern, got, tt.want)
-		}
-	}
-}
-
-func TestMatchPatternEdgeCases(t *testing.T) {
-	tests := []struct {
-		key     string
-		pattern string
-		want    bool
-	}{
+		// Edge cases
 		{"", "", true},
 		{"", "<...?>", true},
 		{"", "<any?>", true},
@@ -64,59 +49,15 @@ func TestMatchPatternEdgeCases(t *testing.T) {
 		{"a b", "<any> <any?>", true},
 	}
 	for _, tt := range tests {
-		if got := matchPattern(tt.key, tt.pattern); got != tt.want {
-			t.Errorf("matchPattern(%q, %q) = %v, want %v", tt.key, tt.pattern, got, tt.want)
-		}
-	}
-}
-
-func TestPatternVariants(t *testing.T) {
-	tests := []struct {
-		key     string
-		pattern string
-		want    bool
-	}{
-		{"podman build", "podman <any>", true},
-		{"podman build foo", "podman <any>", false},
-		{"podman build foo bar", "podman <any>", false},
-		{"podman", "podman <any?>", true},
-		{"podman build", "podman <any?>", true},
-		{"podman build foo", "podman <any?>", false},
-		{"podman build", "podman <...>", true},
-		{"podman build foo", "podman <...>", true},
-		{"podman", "podman <...>", false},
-		{"podman", "podman <...?>", true},
-		{"podman build", "podman <...?>", true},
-		{"podman build foo", "podman <...?>", true},
-	}
-
-	for _, tt := range tests {
-		r := ExecRecord{Name: "podman", Args: strings.Fields(tt.key)[1:]}
-		if got := r.Match(tt.pattern); got != tt.want {
-			t.Errorf("ExecRecord{Args:%v}.Match(%q) = %v, want %v", r.Args, tt.pattern, got, tt.want)
-		}
+		t.Run(tt.key+" / "+tt.pattern, func(t *testing.T) {
+			if got := matchPattern(tt.key, tt.pattern); got != tt.want {
+				t.Errorf("matchPattern(%q, %q) = %v, want %v", tt.key, tt.pattern, got, tt.want)
+			}
+		})
 	}
 }
 
 // Record String() tests
-
-func TestExecKey(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-		want string
-	}{
-		{"podman", []string{"build", "foo"}, "podman build foo"},
-		{"ls", []string{"-la"}, "ls -la"},
-		{"echo", []string{}, "echo"},
-	}
-
-	for _, tt := range tests {
-		if got := execKey(tt.name, tt.args); got != tt.want {
-			t.Errorf("execKey(%q, %v) = %q, want %q", tt.name, tt.args, got, tt.want)
-		}
-	}
-}
 
 func TestRecordString(t *testing.T) {
 	t.Run("ExecRecord", func(t *testing.T) {
@@ -207,7 +148,7 @@ func TestMockExec(t *testing.T) {
 
 	responses := map[string]*exec.Cmd{
 		"podman build silo-abc12345": exec.Command("true"),
-		"podman image exists <any>": exec.Command("false"),
+		"podman image exists <any>":  exec.Command("false"),
 	}
 	mock.MockExec(responses)
 
@@ -451,7 +392,7 @@ func TestSeqOrdering(t *testing.T) {
 	os.WriteFile(path, []byte("data"), 0644)
 
 	ExecCommand("podman", "build", "user")
-	firstSeq := mock.execCalls[0].Seq
+	execSeq := mock.execCalls[0].Seq
 
 	ReadFile(path)
 	readSeq := mock.readCalls[0].Seq
@@ -459,7 +400,7 @@ func TestSeqOrdering(t *testing.T) {
 	WriteFile(path, []byte("output"))
 	writeSeq := mock.writeCalls[0].Seq
 
-	if readSeq <= firstSeq {
+	if readSeq <= execSeq {
 		t.Error("read seq should be after exec seq")
 	}
 
@@ -536,23 +477,5 @@ func TestEllipsisOneOrMore(t *testing.T) {
 	rec2 := mock.AssertExec("podman", "build", "silo-xyz789")
 	if rec2 == nil {
 		t.Fatal("expected record for silo-xyz789")
-	}
-}
-
-// Seams override test
-
-func TestSeamsOverrideable(t *testing.T) {
-	orig := ExecCommand
-	defer func() { ExecCommand = orig }()
-
-	customCalled := false
-	ExecCommand = func(name string, args ...string) *exec.Cmd {
-		customCalled = true
-		return exec.Command("true")
-	}
-
-	ExecCommand("test", "arg")
-	if !customCalled {
-		t.Error("expected custom ExecCommand to be called")
 	}
 }

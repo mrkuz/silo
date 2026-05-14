@@ -54,8 +54,7 @@ Feature: silo start — Start the workspace container
       And the exit code should be 0
 
     Scenario: workspace ports are passed to podman create
-      Given a workspace with silo config "abc12345"
-      And the config has network ports ["8080:8080"]
+      Given the config has network ports ["8080:8080"]
       And no container exists
       And the workspace image "silo-abc12345" exists
       When I run `silo start`
@@ -63,8 +62,7 @@ Feature: silo start — Start the workspace container
       And podman create should include "-p 8080:8080"
 
     Scenario: limits cpus is passed to podman create
-      Given a workspace with silo config "abc12345"
-      And the config has limits with cpus "2"
+      Given the config has limits with cpus "2"
       And no container exists
       And the workspace image "silo-abc12345" exists
       When I run `silo start`
@@ -72,8 +70,7 @@ Feature: silo start — Start the workspace container
       And podman create should include "--cpus=2"
 
     Scenario: limits memory is passed to podman create
-      Given a workspace with silo config "abc12345"
-      And the config has limits with memory "4096"
+      Given the config has limits with memory "4096"
       And no container exists
       And the workspace image "silo-abc12345" exists
       When I run `silo start`
@@ -81,8 +78,7 @@ Feature: silo start — Start the workspace container
       And podman create should include "--memory=4096"
 
     Scenario: limits processes is passed to podman create
-      Given a workspace with silo config "abc12345"
-      And the config has limits with processes "1024"
+      Given the config has limits with processes "1024"
       And no container exists
       And the workspace image "silo-abc12345" exists
       When I run `silo start`
@@ -90,8 +86,7 @@ Feature: silo start — Start the workspace container
       And podman create should include "--pids-limit=1024"
 
     Scenario: zero or negative limits are passed with unlimited values
-      Given a workspace with silo config "abc12345"
-      And the config has limits with cpus "0" and memory "-1" and processes "0"
+      Given the config has limits with cpus "0" and memory "-1" and processes "0"
       And no container exists
       And the workspace image "silo-abc12345" exists
       When I run `silo start`
@@ -101,8 +96,7 @@ Feature: silo start — Start the workspace container
       And podman create should include "--pids-limit=-1"
 
     Scenario: all limits are passed together
-      Given a workspace with silo config "abc12345"
-      And the config has limits with cpus "4" and memory "8192" and processes "2048"
+      Given the config has limits with cpus "4" and memory "8192" and processes "2048"
       And no container exists
       And the workspace image "silo-abc12345" exists
       When I run `silo start`
@@ -112,8 +106,7 @@ Feature: silo start — Start the workspace container
       And podman create should include "--pids-limit=2048"
 
     Scenario: multiple ports are all passed to podman create
-      Given a workspace with silo config "abc12345"
-      And the config has network ports ["8080:8080", "3000:3000"]
+      Given the config has network ports ["8080:8080", "3000:3000"]
       And no container exists
       And the workspace image "silo-abc12345" exists
       When I run `silo start`
@@ -122,8 +115,7 @@ Feature: silo start — Start the workspace container
       And podman create should include "-p 3000:3000"
 
     Scenario: empty ports array adds no -p arguments
-      Given a workspace with silo config "abc12345"
-      And the config has network ports []
+      Given the config has network ports []
       And no container exists
       And the workspace image "silo-abc12345" exists
       When I run `silo start`
@@ -133,8 +125,7 @@ Feature: silo start — Start the workspace container
   Rule: Runs volume setup before starting
 
     Scenario: shared volume directories are created before container starts
-      Given a workspace with silo config "abc12345"
-      And the config has paths ["$HOME/.cache/uv/"]
+      Given the config has paths ["$HOME/.cache/uv/"]
       And the container "silo-abc12345" exists but is stopped
       And the workspace image "silo-abc12345" exists
       When I run `silo start`

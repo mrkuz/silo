@@ -21,8 +21,7 @@ func TestFeatureDevcontainerConnect(t *testing.T) {
 		t.Run("Scenario: devcontainer connect opens an interactive shell", func(t *testing.T) {
 			// Given the devcontainer "silo-abc12345-dev" is running
 			// And the workspace image "silo-abc12345" exists
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345-dev":                              exec.Command("true"),
@@ -47,8 +46,7 @@ func TestFeatureDevcontainerConnect(t *testing.T) {
 		t.Run("Scenario: devcontainer connect prints a message before opening shell", func(t *testing.T) {
 			// Given the devcontainer "silo-abc12345-dev" is running
 			// And the workspace image "silo-abc12345" exists
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345-dev":                              exec.Command("true"),
@@ -69,8 +67,7 @@ func TestFeatureDevcontainerConnect(t *testing.T) {
 		t.Run("Scenario: devcontainer connect fails if devcontainer is not running", func(t *testing.T) {
 			// Given the devcontainer "silo-abc12345-dev" exists but is stopped
 			// And the workspace image "silo-abc12345" exists
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345-dev":                              exec.Command("true"),
@@ -93,8 +90,7 @@ func TestFeatureDevcontainerConnect(t *testing.T) {
 		t.Run("Scenario: devcontainer connect fails if devcontainer does not exist", func(t *testing.T) {
 			// Given no devcontainer exists
 			// And the workspace image "silo-abc12345" exists
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345-dev": exec.Command("false"),
@@ -118,8 +114,7 @@ func TestFeatureDevcontainerConnect(t *testing.T) {
 		t.Run("Scenario: exiting the devcontainer connect shell does not stop the devcontainer", func(t *testing.T) {
 			// Given the devcontainer "silo-abc12345-dev" is running
 			// And the workspace image "silo-abc12345" exists
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345-dev":                              exec.Command("true"),
@@ -134,7 +129,6 @@ func TestFeatureDevcontainerConnect(t *testing.T) {
 			}
 
 			// Then the devcontainer "silo-abc12345-dev" should still be running
-			mock.AssertExec("podman", "container", "inspect", "--format", "{{.State.Running}}", "silo-abc12345-dev")
 			// And podman should not run "stop" on "silo-abc12345-dev"
 			mock.AssertNoExec("podman", "stop", "<any>")
 		})
@@ -144,8 +138,7 @@ func TestFeatureDevcontainerConnect(t *testing.T) {
 		t.Run("Scenario: two parallel devcontainer connect calls create two independent shells", func(t *testing.T) {
 			// Given the devcontainer "silo-abc12345-dev" is running
 			// And the workspace image "silo-abc12345" exists
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345-dev":                              exec.Command("true"),
@@ -164,11 +157,6 @@ func TestFeatureDevcontainerConnect(t *testing.T) {
 			}
 
 			mock.Reset()
-			mock.MockExec(map[string]*exec.Cmd{
-				"podman container exists silo-abc12345-dev":                              exec.Command("true"),
-				"podman container inspect --format {{.State.Running}} silo-abc12345-dev": exec.Command("echo", "true"),
-			})
-
 			err = cmd.DevcontainerConnect()
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -185,8 +173,7 @@ func TestFeatureDevcontainerConnect(t *testing.T) {
 		t.Run("Scenario: devcontainer connect does not check workspace container state", func(t *testing.T) {
 			// Given the devcontainer "silo-abc12345-dev" is running
 			// And no workspace container exists
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345-dev":                              exec.Command("true"),

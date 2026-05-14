@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What is Silo
 
-Silo is a Go CLI tool for creating per-directory developer containers powered by Podman, Nix, and home-manager. It provides isolated development environments with persistent shared storage across workspaces.
+Silo is a Go CLI tool for creating per-workspace development containers powered by Podman, Nix, and home-manager. It provides isolated development environments with persistent shared storage across workspaces.
 
 Requires Go 1.23+ and Podman.
 
@@ -64,7 +64,7 @@ Note: `start` internally calls `EnsureCreated` (which creates the container if n
 3. Workspace config at `.silo/silo.toml`
 4. Runtime flags
 
-**Templates** in `templates/` are rendered using `text/template`. Path resolution uses `runtime.Caller(0)` to find the module root for both development and test execution.
+**Templates** in `internal/templates/` are embedded via go:embed for both development and installed binaries.
 
 **Two-stage image build:**
 1. User image (`silo-<user>`): Fedora + Nix + home-manager, shared across workspaces

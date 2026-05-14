@@ -25,9 +25,7 @@ Feature: silo connect — Open an interactive shell in the workspace container
       When I run `silo connect`
       Then the output should contain "Connecting to silo-abc12345..."
 
-
   Rule: Requires container to be running
-
 
     Scenario: connect fails if container is not running
       Given the container "silo-abc12345" exists but is stopped
@@ -36,13 +34,12 @@ Feature: silo connect — Open an interactive shell in the workspace container
       Then the exit code should not be 0
       And the error should contain "not running"
 
-
     Scenario: connect fails if container does not exist
       Given no container exists
       And the workspace image "silo-abc12345" exists
       When I run `silo connect`
       Then the exit code should not be 0
-      And the error should contain "not found" or "does not exist"
+      And the error should contain "does not exist"
 
   Rule: Exiting the shell leaves the container running
 

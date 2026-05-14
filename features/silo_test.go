@@ -23,8 +23,7 @@ func TestFeatureSilo(t *testing.T) {
 		t.Run("Scenario: default silo connects to the container", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			// And the user's XDG_CONFIG_HOME points to a fresh directory
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 
 			// And the container "silo-abc12345" is running
 			// And the workspace image "silo-abc12345" exists
@@ -47,8 +46,7 @@ func TestFeatureSilo(t *testing.T) {
 
 		t.Run("Scenario: without cleanup flags, container keeps running after session ends", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 
 			// And the container "silo-abc12345" is running
 			// And the workspace image "silo-abc12345" exists
@@ -85,8 +83,7 @@ func TestFeatureSilo(t *testing.T) {
 	t.Run("Rule: --stop stops the container after the session exits", func(t *testing.T) {
 		t.Run("Scenario: container is stopped and removed after shell exits", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 
 			// And the container "silo-abc12345" is running
 			// And the workspace image "silo-abc12345" exists
@@ -110,8 +107,7 @@ func TestFeatureSilo(t *testing.T) {
 
 		t.Run("Scenario: --stop does not remove the image", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 
 			// And the container "silo-abc12345" is running
 			// And the workspace image "silo-abc12345" exists
@@ -141,8 +137,7 @@ func TestFeatureSilo(t *testing.T) {
 	t.Run("Rule: Runs the full lifecycle chain if needed", func(t *testing.T) {
 		t.Run("Scenario: stopped container triggers start", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 
 			// And the container "silo-abc12345" exists but is stopped
 			// And the workspace image "silo-abc12345" exists
@@ -167,8 +162,7 @@ func TestFeatureSilo(t *testing.T) {
 
 		t.Run("Scenario: missing container triggers full build-and-create chain", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 
 			// And no container exists
 			// And the workspace image "silo-abc12345" exists
@@ -198,9 +192,10 @@ func TestFeatureSilo(t *testing.T) {
 			// And the user's silo config directory has all starter files
 			internal.FirstRunWithFiles(t, map[string]string{
 				"home.user.nix": internal.HomeUserNix,
-				"silo.user.toml": `[general]
-user = "alice"
-`,
+				"silo.user.toml": `
+				[general]
+				user = "alice"
+				`,
 			})
 
 			// Control the generated ID so we can verify exact names
@@ -250,8 +245,7 @@ user = "alice"
 
 		t.Run("Scenario: missing workspace image triggers image build", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 
 			// And no workspace image exists
 			// And no container exists
@@ -278,37 +272,10 @@ user = "alice"
 			}
 		})
 
-		t.Run("Scenario: missing workspace image triggers workspace image build", func(t *testing.T) {
-			// Given a workspace with silo config "abc12345"
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
-
-			// And no workspace image exists
-			// And no container exists
-			mock := internal.NewMock(t)
-			mock.MockExec(map[string]*exec.Cmd{
-				"podman container exists silo-abc12345": exec.Command("false"),
-				"podman image exists silo-abc12345":     exec.Command("false"),
-			})
-
-			// When I run `silo`
-			err := cmd.Run([]string{})
-
-			// Then the workspace image "silo-abc12345" should be built
-			mock.AssertExec("podman", "build", "-t", "silo-abc12345", "<...>")
-			// And the container "silo-abc12345" should be created
-			mock.AssertExec("podman", "create", "<...>")
-			// And podman should run "exec" with "-ti" on "silo-abc12345"
-			mock.AssertExec("podman", "exec", "-ti", "silo-abc12345", "<...>")
-			if err != nil {
-				t.Errorf("expected exit code 0, got error: %v", err)
-			}
-		})
-
 		t.Run("Scenario: volume setup runs before container start when shared volume is configured", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/"}
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 
 			// And the container "silo-abc12345" exists but is stopped
 			// And the workspace image "silo-abc12345" exists
@@ -343,8 +310,7 @@ user = "alice"
 
 	t.Run("Rule: unknown command and flags show error and help", func(t *testing.T) {
 		t.Run("Scenario: unknown command shows error and help", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 
 			// When I run `silo nonsense`
 			err := cmd.Run([]string{"nonsense"})
@@ -360,8 +326,7 @@ user = "alice"
 		})
 
 		t.Run("Scenario: unknown flag shows error and help", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 
 			// When I run `silo --unknown`
 			err := cmd.Run([]string{"--unknown"})

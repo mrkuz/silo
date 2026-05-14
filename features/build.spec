@@ -35,7 +35,6 @@ Feature: silo build — Build workspace images
 
     Scenario: build creates workspace config if missing
       Given a clean workspace with no existing silo files
-      And the user's XDG_CONFIG_HOME points to a fresh directory
       And the user's silo config directory has all starter files
       And no workspace image exists
       When I run `silo build`
@@ -46,8 +45,7 @@ Feature: silo build — Build workspace images
   Rule: home.nix is baked into the workspace image
 
     Scenario: workspace home.nix content is included in the built image
-      Given a workspace with silo config "abc12345"
-      And the workspace has "home.nix" with content:
+      Given the workspace has "home.nix" with content:
         """
         home.packages = with pkgs; [ nodejs python3 ];
         """

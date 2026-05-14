@@ -2,60 +2,47 @@ package internal
 
 import (
 	"bytes"
+	"embed"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"text/template"
 )
 
-// templatesPath returns the absolute path to the templates directory.
-// For development (source tree), templates are at the module root.
-// For installed binaries, templates are at PREFIX/share/silo/templates.
-func templatesPath() string {
-	// Use runtime.Caller to find source file location, then walk up to module root.
-	// This works for both development and test execution.
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if ok {
-		moduleRoot := filepath.Dir(filepath.Dir(sourceFile))
-		templates := filepath.Join(moduleRoot, "templates")
-		if _, err := os.Stat(templates); err == nil {
-			return templates
-		}
-	}
+//go:embed templates/*
+var templatesFS embed.FS
 
-	// Fall back: walk up from CWD looking for go.mod and templates/
-	dir, err := os.Getwd()
-	if err == nil {
-		for {
-			if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-				templates := filepath.Join(dir, "templates")
-				if _, err := os.Stat(templates); err == nil {
-					return templates
-				}
-			}
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break
-			}
-			dir = parent
-		}
-	}
-
-	// Last resort: use executable location
-	exe, err := os.Executable()
-	if err != nil {
-		return "/usr/local/share/silo/templates"
-	}
-	return filepath.Join(filepath.Dir(exe), "..", "share", "silo", "templates")
-}
-
-// ReadTemplate reads a template file from the templates directory.
+// ReadTemplate reads a template file from the embedded templates.
 func ReadTemplate(name string) ([]byte, error) {
-	return os.ReadFile(filepath.Join(templatesPath(), name))
+	return templatesFS.ReadFile("templates/" + name)
 }
+
+// DetectNixSystem returns the Nix system identifier for the current machine architecture.
+func DetectNixSystem() string {
+	out, err := ExecCommand("uname", "-m").Output()
+	if err != nil {
+		return "x86_64-linux"
+	}
+
+	switch strings.TrimSpace(string(out)) {
+	case "aarch64", "arm64":
+		return "aarch64-linux"
+	default:
+		return "x86_64-linux"
+	}
+}
+
+const EmptyDevcontainerUserJSON = "{}\n"
+
+// SiloDevcontainerJSON is the base .devcontainer/devcontainer.json content.
+const SiloDevcontainerJSON = `{
+  "customizations": {
+    "vscode": {
+      "extensions": []
+    }
+  }
+}
+`
 
 // EmptyHomeNix is the empty home-manager module used in the build context.
 const EmptyHomeNix = `{ config, pkgs, ... }:
@@ -112,13 +99,10 @@ type TemplateContext struct {
 	WorkspaceMount          string
 	SiloID                  string
 	System                  string
-	ContainerArgs           []string
 	DevcontainerArgs        []string
 	PersistenceSharedPaths  []string
 	PersistencePrivatePaths []string
 	NetworkPorts            []string
-	Limits                  LimitsConfig
-	LimitsArgs              []string
 }
 
 // NewTemplateContext builds a TemplateContext from MergedConfig for template rendering.
@@ -130,12 +114,13 @@ func NewTemplateContext(cfg MergedConfig, containerNameSuffix ...string) (Templa
 	}
 	containerName := containerNameWithSuffix(WorkspaceContainerName(cfg.ID), suffix)
 	sharedVolumeNameValue := ""
-	if len(cfg.Persistence.SharedPaths) > 0 {
+	if len(cfg.Persistence.SharedPaths) > 0 || len(cfg.Persistence.PrivatePaths) > 0 {
 		sharedVolumeNameValue = "silo"
 	}
 
 	home := "/home/" + cfg.User
-	workspaceMount, err := WorkspaceMountPath(WorkspaceConfig{General: WorkspaceGeneralConfig{ID: cfg.ID}})
+	workspaceConfig := WorkspaceConfig{General: WorkspaceGeneralConfig{ID: cfg.ID}}
+	workspaceMount, err := WorkspaceMountPath(workspaceConfig)
 	if err != nil {
 		return TemplateContext{}, fmt.Errorf("resolve workspace mount path: %w", err)
 	}
@@ -153,30 +138,9 @@ func NewTemplateContext(cfg MergedConfig, containerNameSuffix ...string) (Templa
 			privatePaths[i] = ResolveContainerPath(path, cfg.User)
 		}
 	}
-	devcontainerArgs := []string{"--name", containerName, "--hostname", containerName}
-	if cfg.Features.Podman {
-		devcontainerArgs = append(devcontainerArgs, "--security-opt", "label=disable", "--device", "/dev/fuse")
-	} else {
-		devcontainerArgs = append(devcontainerArgs, "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges")
-	}
-
-	limitsArgs := []string{}
-	if cfg.Limits.CPUs > 0 {
-		limitsArgs = append(limitsArgs, fmt.Sprintf("--cpus=%d", cfg.Limits.CPUs))
-	} else {
-		limitsArgs = append(limitsArgs, "--cpus=0")
-	}
-	if cfg.Limits.Memory > 0 {
-		limitsArgs = append(limitsArgs, fmt.Sprintf("--memory=%dm", cfg.Limits.Memory))
-	} else {
-		limitsArgs = append(limitsArgs, "--memory=0")
-	}
-	if cfg.Limits.Processes > 0 {
-		limitsArgs = append(limitsArgs, fmt.Sprintf("--pids-limit=%d", cfg.Limits.Processes))
-	} else {
-		limitsArgs = append(limitsArgs, "--pids-limit=-1")
-	}
-	devcontainerArgs = append(devcontainerArgs, limitsArgs...)
+	devcontainerArgs := append([]string{}, ContainerArgs(workspaceConfig, suffix)...)
+	devcontainerArgs = append(devcontainerArgs, DefaultCreateArgs(cfg.Features.Podman)...)
+	devcontainerArgs = append(devcontainerArgs, LimitsArgs(cfg.Limits)...)
 
 	return TemplateContext{
 		User:                    cfg.User,
@@ -187,91 +151,10 @@ func NewTemplateContext(cfg MergedConfig, containerNameSuffix ...string) (Templa
 		WorkspaceMount:          workspaceMount,
 		SiloID:                  cfg.ID,
 		System:                  DetectNixSystem(),
-		ContainerArgs:           ContainerArgs(WorkspaceConfig{General: WorkspaceGeneralConfig{ID: cfg.ID}}, cfg.User, containerNameSuffix...),
 		DevcontainerArgs:        devcontainerArgs,
 		PersistenceSharedPaths:  sharedPaths,
 		PersistencePrivatePaths: privatePaths,
 		NetworkPorts:            cfg.Network.Ports,
-		Limits:                  cfg.Limits,
-		LimitsArgs:              limitsArgs,
-	}, nil
-}
-
-// NewTemplateContextFromWorkspace builds a TemplateContext from WorkspaceConfig for template rendering.
-// It reads the user from silo.user.toml to determine the ContainerArgs.
-func NewTemplateContextFromWorkspace(cfg WorkspaceConfig) (TemplateContext, error) {
-	containerName := WorkspaceContainerName(cfg.General.ID)
-	sharedVolumeNameValue := ""
-	if len(cfg.Persistence.SharedPaths) > 0 || len(cfg.Persistence.PrivatePaths) > 0 {
-		sharedVolumeNameValue = "silo"
-	}
-
-	workspaceMount, err := WorkspaceMountPath(cfg)
-	if err != nil {
-		return TemplateContext{}, fmt.Errorf("resolve workspace mount path: %w", err)
-	}
-	devcontainerArgs := []string{"--name", containerName, "--hostname", containerName}
-	if cfg.Features.Podman {
-		devcontainerArgs = append(devcontainerArgs, "--security-opt", "label=disable", "--device", "/dev/fuse")
-	} else {
-		devcontainerArgs = append(devcontainerArgs, "--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges")
-	}
-
-	limitsArgs := []string{}
-	if cfg.Limits.CPUs > 0 {
-		limitsArgs = append(limitsArgs, fmt.Sprintf("--cpus=%d", cfg.Limits.CPUs))
-	} else {
-		limitsArgs = append(limitsArgs, "--cpus=0")
-	}
-	if cfg.Limits.Memory > 0 {
-		limitsArgs = append(limitsArgs, fmt.Sprintf("--memory=%dm", cfg.Limits.Memory))
-	} else {
-		limitsArgs = append(limitsArgs, "--memory=0")
-	}
-	if cfg.Limits.Processes > 0 {
-		limitsArgs = append(limitsArgs, fmt.Sprintf("--pids-limit=%d", cfg.Limits.Processes))
-	} else {
-		limitsArgs = append(limitsArgs, "--pids-limit=-1")
-	}
-	devcontainerArgs = append(devcontainerArgs, limitsArgs...)
-
-	userCfg, err := LoadSiloUserTOML()
-	if err != nil {
-		return TemplateContext{}, fmt.Errorf("load user configuration: %w", err)
-	}
-	user := userCfg.General.User
-
-	var sharedPaths []string
-	if len(cfg.Persistence.SharedPaths) > 0 {
-		sharedPaths = make([]string, len(cfg.Persistence.SharedPaths))
-		for i, path := range cfg.Persistence.SharedPaths {
-			sharedPaths[i] = ResolveContainerPath(path, user)
-		}
-	}
-	var privatePaths []string
-	if len(cfg.Persistence.PrivatePaths) > 0 {
-		privatePaths = make([]string, len(cfg.Persistence.PrivatePaths))
-		for i, path := range cfg.Persistence.PrivatePaths {
-			privatePaths[i] = ResolveContainerPath(path, user)
-		}
-	}
-
-	return TemplateContext{
-		User:                    user,
-		Home:                    "/home/" + user,
-		Image:                   WorkspaceImageName(cfg.General.ID),
-		ContainerName:           containerName,
-		PersistenceVolumeName:   sharedVolumeNameValue,
-		WorkspaceMount:          workspaceMount,
-		SiloID:                  cfg.General.ID,
-		System:                  DetectNixSystem(),
-		ContainerArgs:           ContainerArgs(cfg, user, ""),
-		DevcontainerArgs:        devcontainerArgs,
-		PersistenceSharedPaths:  sharedPaths,
-		PersistencePrivatePaths: privatePaths,
-		NetworkPorts:            cfg.Network.Ports,
-		Limits:                  cfg.Limits,
-		LimitsArgs:              limitsArgs,
 	}, nil
 }
 

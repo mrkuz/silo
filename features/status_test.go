@@ -1,7 +1,6 @@
 package features_test
 
 import (
-	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -19,8 +18,7 @@ func TestFeatureStatus(t *testing.T) {
 
 	t.Run("Rule: Reports container running state", func(t *testing.T) {
 		t.Run("Scenario: status shows Running when container is up", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "true"),
@@ -36,8 +34,7 @@ func TestFeatureStatus(t *testing.T) {
 		})
 
 		t.Run("Scenario: status shows Stopped when container is not running", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container inspect --format {{.State.Running}} silo-abc12345": exec.Command("echo", "false"),
@@ -56,10 +53,7 @@ func TestFeatureStatus(t *testing.T) {
 	t.Run("Rule: Requires workspace to be initialized", func(t *testing.T) {
 		t.Run("Scenario: status fails when workspace is not initialized", func(t *testing.T) {
 			// Given a clean workspace with no existing silo files
-			dir := t.TempDir()
-			orig, _ := os.Getwd()
-			t.Cleanup(func() { os.Chdir(orig) })
-			os.Chdir(dir)
+			internal.SetupEmptyWorkspace(t)
 
 			// When I run `silo status`
 			err := cmd.Status()

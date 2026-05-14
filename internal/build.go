@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 const (
@@ -17,19 +16,12 @@ func ImageExists(name string) bool {
 	return ExecCommand("podman", "image", "exists", name).Run() == nil
 }
 
-// DetectNixSystem returns the Nix system identifier for the current machine architecture.
-func DetectNixSystem() string {
-	out, err := ExecCommand("uname", "-m").Output()
-	if err != nil {
-		return "x86_64-linux"
+// RemoveImage removes the named image.
+func RemoveImage(name string) error {
+	if err := RunVisible("podman", "rmi", name); err != nil {
+		return fmt.Errorf("remove image: %w", err)
 	}
-
-	switch strings.TrimSpace(string(out)) {
-	case "aarch64", "arm64":
-		return "aarch64-linux"
-	default:
-		return "x86_64-linux"
-	}
+	return nil
 }
 
 // BuildImage builds the workspace image with user and workspace config baked in.
@@ -63,11 +55,7 @@ func BuildImage(tag string, tc TemplateContext, noCache bool) error {
 
 	homeWorkspaceNix, err := ReadFile(filepath.Join(SiloDir(), "home.nix"))
 	if err != nil {
-		fallback, renderErr := RenderWorkspaceHomeNix(false)
-		if renderErr != nil {
-			return fmt.Errorf("render workspace home.nix: %w", renderErr)
-		}
-		homeWorkspaceNix = []byte(fallback)
+		return fmt.Errorf("read home.nix: %w", err)
 	}
 
 	files := map[string][]byte{

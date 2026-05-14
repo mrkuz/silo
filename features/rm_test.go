@@ -1,7 +1,6 @@
 package features_test
 
 import (
-	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -20,8 +19,7 @@ func TestFeatureRm(t *testing.T) {
 
 	t.Run("Rule: Removes the workspace image", func(t *testing.T) {
 		t.Run("Scenario: rm removes the workspace image when no container exists", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
@@ -48,8 +46,7 @@ func TestFeatureRm(t *testing.T) {
 		})
 
 		t.Run("Scenario: missing image prints not found", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345": exec.Command("false"),
@@ -75,8 +72,7 @@ func TestFeatureRm(t *testing.T) {
 
 	t.Run("Rule: Running container blocks removal", func(t *testing.T) {
 		t.Run("Scenario: running container returns error without modifying state", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
@@ -109,8 +105,7 @@ func TestFeatureRm(t *testing.T) {
 
 	t.Run("Rule: Stopped container is removed before image removal", func(t *testing.T) {
 		t.Run("Scenario: stopped container is removed before image removal", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman container exists silo-abc12345":                              exec.Command("true"),
@@ -140,10 +135,7 @@ func TestFeatureRm(t *testing.T) {
 			// Given a clean workspace with no existing silo files
 			base := t.TempDir()
 			t.Setenv("XDG_CONFIG_HOME", base)
-			dir := t.TempDir()
-			orig, _ := os.Getwd()
-			t.Cleanup(func() { os.Chdir(orig) })
-			os.Chdir(dir)
+			internal.SetupEmptyWorkspace(t)
 
 			// When I run `silo rm`
 			err := cmd.Remove()

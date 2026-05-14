@@ -46,7 +46,7 @@ Feature: silo init — Initialize workspace
       Then the config should still have podman=true
       And the exit code should be 0
 
-  Rule: silo.init creates workspace config from defaults only
+  Rule: silo.init creates workspace config from defaults
 
     Scenario: init creates workspace config with defaults on first run
       Given a clean workspace with no existing silo files
@@ -57,12 +57,6 @@ Feature: silo init — Initialize workspace
       And the workspace config should have default create arguments
       And the workspace config should have default limits (cpus=0, memory=0, processes=1024)
       And the workspace config should have no user set
-
-    Scenario: feature flags override defaults on first run
-      Given a clean workspace with no existing silo files
-      When I run `silo init --podman`
-      Then the workspace config should have podman=true
-      And the file ".silo/home.nix" should contain "silo.podman.enable = true"
 
     Scenario: silo init does not read silo.user.toml on first run
       Given the user's silo config directory has "silo.user.toml" with content:
@@ -90,6 +84,18 @@ Feature: silo init — Initialize workspace
       When I run `silo init --no-podman`
       Then the file ".silo/home.nix" should contain "silo.podman.enable = false"
 
+  Rule: Conflicting boolean flags are rejected
+
+    Scenario: --podman --no-podman errors
+      When I run `silo init --podman --no-podman`
+      Then the stderr should contain "conflicting flags"
+      And the exit code should be 1
+
+    Scenario: --no-podman --podman errors
+      When I run `silo init --no-podman --podman`
+      Then the stderr should contain "conflicting flags"
+      And the exit code should be 1
+
   Rule: unknown flags show error and help
 
     Scenario: unknown flag is rejected
@@ -106,3 +112,9 @@ Feature: silo init — Initialize workspace
       When I run `silo init`
       Then the exit code should not be 0
       And the error should indicate ".silo/silo.toml" is missing required field
+
+    Scenario: missing user in silo.user.toml returns error
+      Given the user's silo config directory has "silo.user.toml" with content "[features]"
+      When I run `silo init`
+      Then the exit code should not be 0
+      And the error should indicate "[general].user is required"

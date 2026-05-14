@@ -1,9 +1,7 @@
 package features_test
 
 import (
-	"bytes"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -66,7 +64,7 @@ func TestFeatureInit(t *testing.T) {
 		t.Run("Scenario: existing config is not overwritten", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			// And the config has id "abc12345"
-			internal.SubsequentRun(t, internal.MinimalConfig("abc12345"), "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 
 			// When I run `silo init`
 			if err := cmd.Init([]string{}); err != nil {
@@ -107,10 +105,10 @@ func TestFeatureInit(t *testing.T) {
 		t.Run("Scenario: existing shared-volume and podman settings are preserved when flags not provided", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
 			// And the config has shared_paths set and podman=true
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/"}
 			cfg.Features.Podman = true
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 
 			// When I run `silo init`
 			if err := cmd.Init([]string{}); err != nil {
@@ -132,9 +130,9 @@ func TestFeatureInit(t *testing.T) {
 		})
 
 		t.Run("Scenario: existing podman setting is preserved when flag provided", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Features.Podman = true
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 
 			if err := cmd.Init([]string{"--no-podman"}); err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -150,8 +148,11 @@ func TestFeatureInit(t *testing.T) {
 	})
 
 	t.Run("Rule: silo.init creates workspace config with defaults", func(t *testing.T) {
-		t.Run("Scenario: init creates workspace config with defaults", func(t *testing.T) {
-			// Given the user's silo config directory has "silo.user.toml" with:
+		t.Run("Scenario: init creates workspace config with defaults on first run", func(t *testing.T) {
+			// Given a clean workspace with no existing silo files
+			// When I run `silo init`
+			// Then the workspace config should have default limits (cpus=0, memory=0, processes=1024)
+			// And the workspace config should have no user set
 			internal.FirstRunWith(t, func(siloUser string) {
 				internal.WriteUserFile(t, siloUser, "silo.user.toml", `
 					[general]
@@ -202,34 +203,6 @@ func TestFeatureInit(t *testing.T) {
 			// And the workspace config should have an 8-character random id
 			if len(saved.General.ID) != 8 {
 				t.Errorf("expected 8-character random id, got %q", saved.General.ID)
-			}
-		})
-
-		t.Run("Scenario: silo.user.toml is created if it does not exist", func(t *testing.T) {
-			// Given the user's silo config directory exists but "silo.user.toml" is absent
-			base := internal.FirstRunWith(t, nil) // nil configFunc = don't write silo.user.toml
-			u, _ := user.Current()
-
-			// When I run `silo init`
-			if err := cmd.Init([]string{}); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			userTomlPath := filepath.Join(base, "silo", "silo.user.toml")
-			// Then a file "silo.user.toml" should be created in the user's silo config directory
-			if _, err := os.Stat(userTomlPath); os.IsNotExist(err) {
-				t.Error("expected silo.user.toml to be created in user's config directory")
-			}
-			content, err := os.ReadFile(userTomlPath)
-			if err != nil {
-				t.Fatalf("failed to read silo.user.toml: %v", err)
-			}
-			// And the file "silo.user.toml" in the user's silo config directory should contain `[general]`
-			if !bytes.Contains(content, []byte("[general]")) {
-				t.Errorf("expected silo.user.toml to contain [general], got %q", string(content))
-			}
-			// And the file "silo.user.toml" in the user's silo config directory should contain the current username
-			if !bytes.Contains(content, []byte(u.Username)) {
-				t.Errorf("expected silo.user.toml to contain username %q, got %q", u.Username, string(content))
 			}
 		})
 	})
@@ -288,24 +261,39 @@ func TestFeatureInit(t *testing.T) {
 		})
 	})
 
-	t.Run("Rule: Conflicting flags use last value", func(t *testing.T) {
-		t.Run("Scenario: both --podman and --no-podman uses last flag", func(t *testing.T) {
+	t.Run("Rule: Conflicting boolean flags are rejected", func(t *testing.T) {
+		t.Run("Scenario: --podman --no-podman errors", func(t *testing.T) {
 			// Given a clean workspace with no existing silo files
 			internal.FirstRun(t)
 
 			// When I run `silo init --podman --no-podman`
-			if err := cmd.Init([]string{"--podman", "--no-podman"}); err != nil {
-				t.Fatalf("unexpected error: %v", err)
+			err := cmd.Init([]string{"--podman", "--no-podman"})
+
+			// Then the stderr should contain "conflicting flags"
+			if err == nil {
+				t.Fatal("expected error for conflicting flags")
 			}
-			// Then the config should have podman=false
-			var saved internal.WorkspaceConfig
-			if err := internal.ParseTOML(internal.SiloToml(), &saved); err != nil {
-				t.Fatalf("parse error: %v", err)
+			if !strings.Contains(err.Error(), "conflicting flags") {
+				t.Errorf("expected 'conflicting flags' error, got: %v", err)
 			}
-			if saved.Features.Podman {
-				t.Error("expected Features.Podman=false when both --podman and --no-podman passed")
+			// And the exit code should be 1 (implicit)
+		})
+
+		t.Run("Scenario: --no-podman --podman errors", func(t *testing.T) {
+			// Given a clean workspace with no existing silo files
+			internal.FirstRun(t)
+
+			// When I run `silo init --no-podman --podman`
+			err := cmd.Init([]string{"--no-podman", "--podman"})
+
+			// Then the stderr should contain "conflicting flags"
+			if err == nil {
+				t.Fatal("expected error for conflicting flags")
 			}
-			// And the exit code should be 0 (implicit)
+			if !strings.Contains(err.Error(), "conflicting flags") {
+				t.Errorf("expected 'conflicting flags' error, got: %v", err)
+			}
+			// And the exit code should be 1 (implicit)
 		})
 	})
 
@@ -317,24 +305,24 @@ func TestFeatureInit(t *testing.T) {
 			// When I run `silo init`
 			output := internal.CaptureStdout(func() { cmd.Init([]string{}) })
 
-			// Then the output should contain "Creating .silo/silo.toml"
-			if !strings.Contains(output, "Creating .silo/silo.toml") {
-				t.Errorf("expected output to contain 'Creating .silo/silo.toml', got: %s", output)
+			// Then the output should contain "Creating .silo/silo.toml..."
+			if !strings.Contains(output, "Creating .silo/silo.toml...") {
+				t.Errorf("expected output to contain 'Creating .silo/silo.toml...', got: %s", output)
 			}
-			// And the output should contain "Creating .silo/home.nix"
-			if !strings.Contains(output, "Creating .silo/home.nix") {
-				t.Errorf("expected output to contain 'Creating .silo/home.nix', got: %s", output)
+			// And the output should contain "Creating .silo/home.nix..."
+			if !strings.Contains(output, "Creating .silo/home.nix...") {
+				t.Errorf("expected output to contain 'Creating .silo/home.nix...', got: %s", output)
 			}
 		})
 
 		t.Run("Scenario: init shows already exists message for existing files", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
-			internal.SubsequentRun(t, internal.MinimalConfig("abc12345"), "alice")
+			internal.SetupMinimalWorkspace(t, "abc12345", "alice")
 
 			// When I run `silo init`
 			output := internal.CaptureStdout(func() { cmd.Init([]string{}) })
 
-			// Then the output should contain "'/path/to/workspace/.silo/silo.toml' already exists"
+			// Then the output should contain "/path/to/workspace/.silo/silo.toml already exists"
 			if !strings.Contains(output, "already exists") {
 				t.Errorf("expected output to contain 'already exists' message, got: %s", output)
 			}
@@ -344,9 +332,9 @@ func TestFeatureInit(t *testing.T) {
 	t.Run("Rule: Requires workspace config to be valid", func(t *testing.T) {
 		t.Run("Scenario: missing id in .silo/silo.toml returns error", func(t *testing.T) {
 			// Given a workspace with silo config "abc12345"
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.General.ID = ""
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 
 			// When I run `silo init`
 			err := cmd.Init([]string{})
@@ -358,6 +346,26 @@ func TestFeatureInit(t *testing.T) {
 			// And the error should indicate ".silo/silo.toml" is missing required field
 			if !strings.Contains(err.Error(), ".silo/silo.toml") {
 				t.Errorf("expected error to mention '.silo/silo.toml', got: %v", err)
+			}
+		})
+	})
+
+	t.Run("Rule: Requires valid user config", func(t *testing.T) {
+		t.Run("Scenario: missing user in silo.user.toml returns error", func(t *testing.T) {
+			internal.FirstRunWith(t, func(siloUser string) {
+				internal.WriteUserFile(t, siloUser, "silo.user.toml", "[general]\n")
+			})
+
+			// When I run `silo init`
+			err := cmd.Init([]string{})
+
+			// Then the exit code should not be 0
+			if err == nil {
+				t.Fatal("expected error when user is missing")
+			}
+			// And the error should indicate "[general].user is required"
+			if !strings.Contains(err.Error(), "[general].user is required") {
+				t.Errorf("expected error to mention '[general].user is required', got: %v", err)
 			}
 		})
 	})

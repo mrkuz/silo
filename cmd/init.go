@@ -30,13 +30,7 @@ func Init(args []string) error {
 		return fmt.Errorf("load user configuration: %w", err)
 	}
 
-	// On first run, apply feature flags to initial config.
-	// On subsequent runs, feature flags are ignored.
-	_, _, err = internal.InitWorkspaceConfig()
-	if err != nil {
-		return fmt.Errorf("initialize workspace: %w", err)
-	}
-	if _, _, err = internal.EnsureInit(flags.Podman); err != nil {
+	if _, err = internal.EnsureInit(flags.Podman); err != nil {
 		return fmt.Errorf("initialize workspace: %w", err)
 	}
 
@@ -54,6 +48,9 @@ func ParseInitFlags(args []string) (InitFlags, error) {
 	podman := fs.Bool("podman", false, "Enable Podman inside the container")
 	noPodman := fs.Bool("no-podman", false, "Disable Podman inside the container")
 	if err := parseWithInterceptor(fs, args); err != nil {
+		return InitFlags{}, err
+	}
+	if err := DetectConflictingFlags(fs, "podman", "no-podman"); err != nil {
 		return InitFlags{}, err
 	}
 	if len(fs.Args()) > 0 {

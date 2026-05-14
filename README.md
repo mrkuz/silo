@@ -1,6 +1,6 @@
 # silo
 
-Per-directory developer containers, powered by Podman, Nix, and home-manager.
+Per-workspace development containers, powered by Podman, Nix, and home-manager.
 
 ## Goals
 
@@ -16,7 +16,7 @@ Per-directory developer containers, powered by Podman, Nix, and home-manager.
 
 ## Features
 
-- **Per-directory isolation** — each workspace gets its own container with a unique ID
+- **Per-workspace isolation** — each workspace gets its own container with a unique ID
 - **Nix + home-manager** — shared `home.user.nix` and per-workspace `.silo/home.nix`
 - **Workspace mount** — the host directory is mounted inside the container automatically
 - **Shared volume** — persist package caches and other data across containers and rebuilds

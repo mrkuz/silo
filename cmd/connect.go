@@ -8,11 +8,11 @@ import (
 
 // Connect opens an interactive shell in the running container.
 func Connect() error {
-	cfg, err := internal.RequireWorkspaceConfig()
+	cfg, err := internal.RequireMergedConfig()
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
-	containerName := internal.WorkspaceContainerName(cfg.General.ID)
+	containerName := internal.WorkspaceContainerName(cfg.ID)
 	if !internal.ContainerExists(containerName) {
 		return fmt.Errorf("container %s does not exist", containerName)
 	}

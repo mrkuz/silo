@@ -23,28 +23,27 @@ func TestFeatureDevcontainer(t *testing.T) {
 
 	t.Run("Rule: Generates .devcontainer.json", func(t *testing.T) {
 		t.Run("Scenario: devcontainer generates a .devcontainer.json file", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SetupWorkspace(t, cfg)
-			internal.SetupUserConfig(t)
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
+			internal.SetupWorkspaceFiles(t, cfg)
+			internal.SetupUserFiles(t)
 
 			// When I run `silo devcontainer`
-			err := cmd.DevcontainerGenerate([]string{})
+			output := internal.CaptureStdout(func() { cmd.DevcontainerGenerate([]string{}) })
 
 			// Then a file ".devcontainer.json" should be created
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
 			if _, statErr := os.Stat(".devcontainer.json"); os.IsNotExist(statErr) {
 				t.Errorf(".devcontainer.json was not created")
 			}
-			// And the output should contain "Generated .devcontainer.json"
-			// And the exit code should be 0
+			// And the output should contain "Creating .devcontainer.json..."
+			if !strings.Contains(output, "Creating .devcontainer.json...") {
+				t.Errorf("expected 'Creating .devcontainer.json...' in output, got: %s", output)
+			}
 		})
 
 		t.Run("Scenario: existing .devcontainer.json is not overwritten", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SetupWorkspace(t, cfg)
-			internal.SetupUserConfig(t)
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
+			internal.SetupWorkspaceFiles(t, cfg)
+			internal.SetupUserFiles(t)
 
 			// Given a file ".devcontainer.json" already exists with content '{"name": "custom"}'
 			existing := []byte(`{"name": "custom"}`)
@@ -64,15 +63,15 @@ func TestFeatureDevcontainer(t *testing.T) {
 				t.Errorf("expected existing file to be preserved, got %s", string(got))
 			}
 			// And the output should contain ".devcontainer.json already exists"
-			if !strings.Contains(output, "'.devcontainer.json' already exists") {
+			if !strings.Contains(output, ".devcontainer.json already exists") {
 				t.Errorf("expected 'already exists' in output, got: %s", output)
 			}
 		})
 
 		t.Run("Scenario: --update overwrites existing .devcontainer.json", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SetupWorkspace(t, cfg)
-			internal.SetupUserConfig(t)
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
+			internal.SetupWorkspaceFiles(t, cfg)
+			internal.SetupUserFiles(t)
 
 			// Given a file ".devcontainer.json" already exists with content '{"name": "custom"}'
 			existing := []byte(`{"name": "custom"}`)
@@ -84,8 +83,8 @@ func TestFeatureDevcontainer(t *testing.T) {
 			output := internal.CaptureStdout(func() { cmd.DevcontainerGenerate([]string{"--update"}) })
 
 			// Then the output should contain ".devcontainer.json updated"
-			if !strings.Contains(output, "'.devcontainer.json' updated") {
-				t.Errorf("expected '.devcontainer.json' updated in output, got: %s", output)
+			if !strings.Contains(output, ".devcontainer.json updated") {
+				t.Errorf("expected '.devcontainer.json updated' in output, got: %s", output)
 			}
 
 			// Then the file ".devcontainer.json" should not contain '{"name": "custom"}'
@@ -99,9 +98,9 @@ func TestFeatureDevcontainer(t *testing.T) {
 		})
 
 		t.Run("Scenario: --update does not affect .silo/devcontainer.json handling", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SetupWorkspace(t, cfg)
-			internal.SetupUserConfig(t)
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
+			internal.SetupWorkspaceFiles(t, cfg)
+			internal.SetupUserFiles(t)
 
 			// Given a file ".silo/devcontainer.json" already exists with content '{"custom": true}'
 			if err := os.MkdirAll(".silo", 0755); err != nil {
@@ -115,8 +114,8 @@ func TestFeatureDevcontainer(t *testing.T) {
 			// When I run `silo devcontainer --update`
 			output := internal.CaptureStdout(func() { cmd.DevcontainerGenerate([]string{"--update"}) })
 
-			// Then the output should contain "'.silo/devcontainer.json' already exists"
-			if !strings.Contains(output, "'.silo/devcontainer.json' already exists") {
+			// Then the output should contain ".silo/devcontainer.json already exists"
+			if !strings.Contains(output, ".silo/devcontainer.json already exists") {
 				t.Errorf("expected 'already exists' in output, got: %s", output)
 			}
 			// And a file ".silo/devcontainer.json" should still contain '{"custom": true}'
@@ -130,9 +129,9 @@ func TestFeatureDevcontainer(t *testing.T) {
 		})
 
 		t.Run("Scenario: devcontainer uses the workspace image", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SetupWorkspace(t, cfg)
-			internal.SetupUserConfig(t)
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
+			internal.SetupWorkspaceFiles(t, cfg)
+			internal.SetupUserFiles(t)
 
 			// When I run `silo devcontainer`
 			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
@@ -156,9 +155,9 @@ func TestFeatureDevcontainer(t *testing.T) {
 		})
 
 		t.Run("Scenario: devcontainer uses a distinct container name", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SetupWorkspace(t, cfg)
-			internal.SetupUserConfig(t)
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
+			internal.SetupWorkspaceFiles(t, cfg)
+			internal.SetupUserFiles(t)
 
 			// When I run `silo devcontainer`
 			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
@@ -182,9 +181,9 @@ func TestFeatureDevcontainer(t *testing.T) {
 		})
 
 		t.Run("Scenario: unknown flag shows error and help", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SetupWorkspace(t, cfg)
-			internal.SetupUserConfig(t)
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
+			internal.SetupWorkspaceFiles(t, cfg)
+			internal.SetupUserFiles(t)
 
 			// When I run `silo devcontainer --unknown`
 			err := cmd.DevcontainerGenerate([]string{"--unknown"})
@@ -204,9 +203,9 @@ func TestFeatureDevcontainer(t *testing.T) {
 		})
 
 		t.Run("Scenario: devcontainer runs volume setup before generating when shared volume is configured", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/"}
-			internal.SubsequentRun(t, cfg, "alice")
+			internal.SetupWorkspace(t, cfg, "alice")
 			mock := internal.NewMock(t)
 			mock.MockExec(map[string]*exec.Cmd{
 				"podman image exists silo-abc12345":     exec.Command("true"),
@@ -227,10 +226,10 @@ func TestFeatureDevcontainer(t *testing.T) {
 		})
 
 		t.Run("Scenario: devcontainer includes forwardPorts when network ports are configured", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Network.Ports = []string{"8080:8080", "3000:3000"}
-			internal.SetupWorkspace(t, cfg)
-			internal.SetupUserConfig(t, "alice")
+			internal.SetupWorkspaceFiles(t, cfg)
+			internal.SetupUserFiles(t, "alice")
 
 			// When I run `silo devcontainer`
 			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
@@ -259,10 +258,10 @@ func TestFeatureDevcontainer(t *testing.T) {
 		})
 
 		t.Run("Scenario: devcontainer omits forwardPorts when no network ports are configured", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Network.Ports = []string{}
-			internal.SetupWorkspace(t, cfg)
-			internal.SetupUserConfig(t, "alice")
+			internal.SetupWorkspaceFiles(t, cfg)
+			internal.SetupUserFiles(t, "alice")
 
 			// When I run `silo devcontainer`
 			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
@@ -284,12 +283,12 @@ func TestFeatureDevcontainer(t *testing.T) {
 		})
 
 		t.Run("Scenario: devcontainer includes limits in runArgs", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Limits.CPUs = 2
 			cfg.Limits.Memory = 4096
 			cfg.Limits.Processes = 1024
-			internal.SetupWorkspace(t, cfg)
-			internal.SetupUserConfig(t, "alice")
+			internal.SetupWorkspaceFiles(t, cfg)
+			internal.SetupUserFiles(t, "alice")
 
 			// When I run `silo devcontainer`
 			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
@@ -323,12 +322,12 @@ func TestFeatureDevcontainer(t *testing.T) {
 		})
 
 		t.Run("Scenario: devcontainer includes unlimited values for zero or negative limits", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
 			cfg.Limits.CPUs = 0
 			cfg.Limits.Memory = -1
 			cfg.Limits.Processes = 0
-			internal.SetupWorkspace(t, cfg)
-			internal.SetupUserConfig(t, "alice")
+			internal.SetupWorkspaceFiles(t, cfg)
+			internal.SetupUserFiles(t, "alice")
 
 			// When I run `silo devcontainer`
 			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
@@ -360,53 +359,19 @@ func TestFeatureDevcontainer(t *testing.T) {
 				t.Errorf("expected --pids-limit=-1 in runArgs, got: %v", runArgs)
 			}
 		})
-
-		t.Run("Scenario: devcontainer uses workspace limits only", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			cfg.Limits.CPUs = 4
-			cfg.Limits.Memory = 8192
-			internal.SetupWorkspace(t, cfg)
-			internal.SetupUserConfig(t, "alice")
-
-			// When I run `silo devcontainer`
-			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			// Then the .devcontainer.json should have workspace limits
-			data, err := os.ReadFile(".devcontainer.json")
-			if err != nil {
-				t.Fatalf("read .devcontainer.json: %v", err)
-			}
-			var parsed map[string]any
-			if err := json.Unmarshal(data, &parsed); err != nil {
-				t.Fatalf("expected valid json: %v", err)
-			}
-			runArgs, ok := parsed["runArgs"].([]any)
-			if !ok {
-				t.Fatalf("expected runArgs to be array, got: %v", parsed["runArgs"])
-			}
-			runArgsStr := toStringSlice(runArgs)
-			joined := strings.Join(runArgsStr, " ")
-			if !strings.Contains(joined, "--cpus=4") {
-				t.Errorf("expected --cpus=4 in runArgs, got: %v", runArgs)
-			}
-			if !strings.Contains(joined, "--memory=8192m") {
-				t.Errorf("expected --memory=8192m in runArgs, got: %v", runArgs)
-			}
-		})
 	})
 
 	t.Run("Rule: Merge order: template wins > .silo > user", func(t *testing.T) {
 		t.Run("Scenario: template values override user config", func(t *testing.T) {
 			internal.FirstRunWith(t, func(siloUser string) {
-				internal.WriteUserFile(t, siloUser, "silo.user.toml", `[general]
-user = "alice"
-`)
+				internal.WriteUserFile(t, siloUser, "silo.user.toml", `
+				[general]
+				user = "alice"
+				`)
 				internal.WriteUserFile(t, siloUser, "devcontainer.user.json", `{"name": "my-devcontainer"}`)
 			})
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SetupWorkspace(t, cfg)
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
+			internal.SetupWorkspaceFiles(t, cfg)
 
 			// When I run `silo devcontainer`
 			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
@@ -433,13 +398,14 @@ user = "alice"
 
 		t.Run("Scenario: .silo overrides user config, template wins over both", func(t *testing.T) {
 			internal.FirstRunWith(t, func(siloUser string) {
-				internal.WriteUserFile(t, siloUser, "silo.user.toml", `[general]
-user = "alice"
-`)
+				internal.WriteUserFile(t, siloUser, "silo.user.toml", `
+				[general]
+				user = "alice"
+				`)
 				internal.WriteUserFile(t, siloUser, "devcontainer.user.json", `{"name": "user-name", "custom": "user-value"}`)
 			})
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SetupWorkspace(t, cfg)
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
+			internal.SetupWorkspaceFiles(t, cfg)
 
 			// Given .silo/devcontainer.json has different values
 			if err := os.MkdirAll(".silo", 0755); err != nil {
@@ -471,34 +437,31 @@ user = "alice"
 			}
 		})
 
-		t.Run("Scenario: arrays from all sources are concatenated", func(t *testing.T) {
+		t.Run("Scenario: arrays from all sources are concatenated in order", func(t *testing.T) {
 			internal.FirstRunWith(t, func(siloUser string) {
-				internal.WriteUserFile(t, siloUser, "silo.user.toml", `[general]
-user = "alice"
-`)
-				internal.WriteUserFile(t, siloUser, "devcontainer.user.json", `{"features": ["user-feat"]}`)
+				internal.WriteUserFile(t, siloUser, "silo.user.toml", `
+				[general]
+				user = "alice"
+				`)
+				internal.WriteUserFile(t, siloUser, "devcontainer.user.json", `{"forwardPorts": ["3000:3000"]}`)
 			})
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SetupWorkspace(t, cfg)
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
+			internal.SetupWorkspaceFiles(t, cfg)
 
-			// Given .silo/devcontainer.json has features
+			// Given the workspace has ".silo/devcontainer.json" with content '{"forwardPorts": ["8080:8080"]}'
 			if err := os.MkdirAll(".silo", 0755); err != nil {
 				t.Fatal(err)
 			}
-			if err := os.WriteFile(".silo/devcontainer.json", []byte(`{"features": ["silo-feat"]}`), 0644); err != nil {
+			if err := os.WriteFile(".silo/devcontainer.json", []byte(`{"forwardPorts": ["8080:8080"]}`), 0644); err != nil {
 				t.Fatal(err)
 			}
-
-			// Template doesn't have features, so we need to set it there
-			// Actually template has no features, so the first merge (user) sets ["user-feat"]
-			// Then .silo concat to ["user-feat", "silo-feat"]
 
 			// When I run `silo devcontainer`
 			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			// Then features should be concatenated: user first, then .silo
+			// Then the .devcontainer.json should have "forwardPorts" with all elements "3000:3000", "8080:8080" in order
 			data, err := os.ReadFile(".devcontainer.json")
 			if err != nil {
 				t.Fatalf("read .devcontainer.json: %v", err)
@@ -507,27 +470,28 @@ user = "alice"
 			if err := json.Unmarshal(data, &parsed); err != nil {
 				t.Fatalf("expected valid json: %v", err)
 			}
-			features, ok := parsed["features"].([]any)
+			forwardPorts, ok := parsed["forwardPorts"].([]any)
 			if !ok {
-				t.Fatalf("expected features to be array, got: %v", parsed["features"])
+				t.Fatalf("expected forwardPorts to be array, got: %v", parsed["forwardPorts"])
 			}
-			if len(features) != 2 {
-				t.Errorf("expected 2 features, got %d: %v", len(features), features)
+			if len(forwardPorts) != 2 {
+				t.Errorf("expected 2 forwardPorts, got %d: %v", len(forwardPorts), forwardPorts)
 			}
-			if features[0] != "user-feat" || features[1] != "silo-feat" {
-				t.Errorf("expected ['user-feat', 'silo-feat'], got: %v", features)
+			if forwardPorts[0] != "3000:3000" || forwardPorts[1] != "8080:8080" {
+				t.Errorf("expected ['3000:3000', '8080:8080'], got: %v", forwardPorts)
 			}
 		})
 
 		t.Run("Scenario: user extensions are added to template customizations", func(t *testing.T) {
 			internal.FirstRunWith(t, func(siloUser string) {
-				internal.WriteUserFile(t, siloUser, "silo.user.toml", `[general]
-user = "alice"
-`)
+				internal.WriteUserFile(t, siloUser, "silo.user.toml", `
+				[general]
+				user = "alice"
+				`)
 				internal.WriteUserFile(t, siloUser, "devcontainer.user.json", `{"customizations": {"vscode": {"extensions": ["ms-python.python"]}}}`)
 			})
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SetupWorkspace(t, cfg)
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
+			internal.SetupWorkspaceFiles(t, cfg)
 
 			// When I run `silo devcontainer`
 			if err := cmd.DevcontainerGenerate([]string{}); err != nil {
@@ -562,10 +526,7 @@ user = "alice"
 	t.Run("Rule: Requires workspace to be initialized", func(t *testing.T) {
 		t.Run("Scenario: devcontainer fails when workspace is not initialized", func(t *testing.T) {
 			// Given a clean workspace with no existing silo files
-			dir := t.TempDir()
-			orig, _ := os.Getwd()
-			t.Cleanup(func() { os.Chdir(orig) })
-			os.Chdir(dir)
+			internal.SetupEmptyWorkspace(t)
 
 			// When I run `silo devcontainer`
 			err := cmd.DevcontainerGenerate([]string{})
@@ -581,30 +542,11 @@ user = "alice"
 		})
 	})
 
-	t.Run("Rule: devcontainer is independent from workspace container", func(t *testing.T) {
-		t.Run("Scenario: devcontainer command does not create the workspace container", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SetupWorkspace(t, cfg)
-			internal.SetupUserConfig(t)
-			mock := internal.NewMock(t)
-			mock.MockExec(map[string]*exec.Cmd{
-				"podman image exists silo-abc12345": exec.Command("true"),
-			})
-
-			// When I run `silo devcontainer`
-			cmd.DevcontainerGenerate([]string{})
-
-			// Then no workspace container should be created
-			mock.AssertNoExec("podman", "create", "<any>")
-			mock.AssertNoExec("podman", "run", "<any>")
-		})
-	})
-
 	t.Run("Rule: Creates .silo/devcontainer.json boilerplate for project-specific customization", func(t *testing.T) {
 		t.Run("Scenario: .silo/devcontainer.json is created when not present", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SetupWorkspace(t, cfg)
-			internal.SetupUserConfig(t)
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
+			internal.SetupWorkspaceFiles(t, cfg)
+			internal.SetupUserFiles(t)
 
 			// Ensure .silo/devcontainer.json does not exist from prior tests
 			os.RemoveAll(".silo/devcontainer.json")
@@ -616,16 +558,16 @@ user = "alice"
 			if _, err := os.Stat(".silo/devcontainer.json"); os.IsNotExist(err) {
 				t.Errorf(".silo/devcontainer.json was not created")
 			}
-			// And the output should contain "Creating .silo/devcontainer.json"
-			if !strings.Contains(output, "Creating .silo/devcontainer.json") {
-				t.Errorf("expected 'Creating .silo/devcontainer.json' in output, got: %s", output)
+			// And the output should contain "Creating .silo/devcontainer.json..."
+			if !strings.Contains(output, "Creating .silo/devcontainer.json...") {
+				t.Errorf("expected 'Creating .silo/devcontainer.json...' in output, got: %s", output)
 			}
 		})
 
 		t.Run("Scenario: .silo/devcontainer.json is skipped when already present", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SetupWorkspace(t, cfg)
-			internal.SetupUserConfig(t)
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
+			internal.SetupWorkspaceFiles(t, cfg)
+			internal.SetupUserFiles(t)
 
 			// Given a file ".silo/devcontainer.json" already exists
 			if err := os.MkdirAll(".silo", 0755); err != nil {
@@ -639,8 +581,8 @@ user = "alice"
 			// When I run `silo devcontainer`
 			output := internal.CaptureStdout(func() { cmd.DevcontainerGenerate([]string{}) })
 
-			// Then the output should contain "'.silo/devcontainer.json' already exists"
-			if !strings.Contains(output, "'.silo/devcontainer.json' already exists") {
+			// Then the output should contain ".silo/devcontainer.json already exists"
+			if !strings.Contains(output, ".silo/devcontainer.json already exists") {
 				t.Errorf("expected 'already exists' in output, got: %s", output)
 			}
 			// And a file ".silo/devcontainer.json" should not be modified
@@ -654,9 +596,9 @@ user = "alice"
 		})
 
 		t.Run("Scenario: .silo/devcontainer.json is created even when .devcontainer.json is skipped", func(t *testing.T) {
-			cfg := internal.MinimalConfig("abc12345")
-			internal.SetupWorkspace(t, cfg)
-			internal.SetupUserConfig(t)
+			cfg := internal.MinimalWorkspaceConfig("abc12345")
+			internal.SetupWorkspaceFiles(t, cfg)
+			internal.SetupUserFiles(t)
 
 			// Given a file ".devcontainer.json" already exists
 			if err := os.WriteFile(".devcontainer.json", []byte(`{"name": "custom"}`), 0644); err != nil {

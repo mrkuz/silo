@@ -8,10 +8,10 @@ import (
 
 // Status implements `silo status`.
 func Status() error {
-	cfg, err := internal.RequireWorkspaceConfig()
+	cfg, err := internal.RequireMergedConfig()
 	if err != nil {
 		return fmt.Errorf("load workspace configuration: %w", err)
 	}
-	internal.PrintRunningStatus(internal.ContainerRunning(internal.WorkspaceContainerName(cfg.General.ID)))
+	internal.PrintRunningStatus(internal.ContainerRunning(internal.WorkspaceContainerName(cfg.ID)))
 	return nil
 }

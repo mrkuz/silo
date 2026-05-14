@@ -51,16 +51,16 @@ func VolumeSetup(cfg MergedConfig) (bool, error) {
 	}
 
 	var mkdirCmd strings.Builder
-	for i, path := range cfg.Persistence.SharedPaths {
+	addPath := func(prefix string, path string) {
 		containerPath := ResolveContainerPath(path, cfg.User)
 		if containerPath == "" {
-			continue
+			return
 		}
-		if i > 0 {
+		if mkdirCmd.Len() > 0 {
 			mkdirCmd.WriteString(" && ")
 		}
 		isDir := strings.HasSuffix(path, "/")
-		volPath := volumeMountPath + "/shared" + containerPath
+		volPath := prefix + containerPath
 		if isDir {
 			mkdirCmd.WriteString("mkdir -p " + volPath + " && chmod 755 " + volPath)
 		} else {
@@ -68,22 +68,13 @@ func VolumeSetup(cfg MergedConfig) (bool, error) {
 		}
 	}
 
-	for i, path := range cfg.Persistence.PrivatePaths {
-		containerPath := ResolveContainerPath(path, cfg.User)
-		if containerPath == "" {
-			continue
-		}
-		if len(cfg.Persistence.SharedPaths) > 0 || i > 0 {
-			mkdirCmd.WriteString(" && ")
-		}
-		isDir := strings.HasSuffix(path, "/")
-		volPath := volumeMountPath + "/" + cfg.ID + containerPath
-		if isDir {
-			mkdirCmd.WriteString("mkdir -p " + volPath + " && chmod 755 " + volPath)
-		} else {
-			mkdirCmd.WriteString("mkdir -p $(dirname " + volPath + ") && touch " + volPath + " && chmod 644 " + volPath)
-		}
+	for _, path := range cfg.Persistence.SharedPaths {
+		addPath(volumeMountPath+"/shared", path)
 	}
+	for _, path := range cfg.Persistence.PrivatePaths {
+		addPath(volumeMountPath+"/"+cfg.ID, path)
+	}
+
 	cmd := ExecCommand("podman", "run", "--rm", "-v", "silo:"+volumeMountPath+":z", workspaceImage, "sh", "-c", mkdirCmd.String())
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -135,114 +126,100 @@ func containerNameWithSuffix(baseName, suffix string) string {
 	return baseName + suffix
 }
 
-// ContainerArgs returns podman flags for container name, hostname, and basic settings.
-// Security and capability args are stored in [podman].create_args in silo.toml.
-// user is the username to set in the container; containerNameSuffix is an optional suffix for the container name.
-func ContainerArgs(cfg WorkspaceConfig, user string, containerNameSuffix ...string) []string {
-	suffix := ""
-	if len(containerNameSuffix) > 0 {
-		suffix = containerNameSuffix[0]
+// DefaultCreateArgs returns podman security and capability arguments based on podman setting.
+func DefaultCreateArgs(podman bool) []string {
+	if podman {
+		return []string{"--security-opt", "label=disable", "--device", "/dev/fuse"}
 	}
-	containerName := containerNameWithSuffix(WorkspaceContainerName(cfg.General.ID), suffix)
+	return []string{"--cap-drop=ALL", "--cap-add=NET_BIND_SERVICE", "--security-opt", "no-new-privileges"}
+}
 
-	args := []string{"--name", containerName, "--hostname", containerName}
-	if user != "" {
-		args = append(args, "--user", user)
+// LimitsArgs returns podman resource limit arguments.
+func LimitsArgs(limits LimitsConfig) []string {
+	var args []string
+	if limits.CPUs > 0 {
+		args = append(args, fmt.Sprintf("--cpus=%d", limits.CPUs))
+	} else {
+		args = append(args, "--cpus=0")
 	}
-
+	if limits.Memory > 0 {
+		args = append(args, fmt.Sprintf("--memory=%dm", limits.Memory))
+	} else {
+		args = append(args, "--memory=0")
+	}
+	if limits.Processes > 0 {
+		args = append(args, fmt.Sprintf("--pids-limit=%d", limits.Processes))
+	} else {
+		args = append(args, "--pids-limit=-1")
+	}
 	return args
 }
 
-// BuildContainerArgs returns podman container-specific arguments from cfg.
-// Callers should prepend subcommands ("create", "run") as needed.
-// user is the username for resolving container paths; if empty, shared volume paths are skipped.
-func BuildContainerArgs(cfg WorkspaceConfig, user string) ([]string, error) {
+// ContainerArgs returns podman flags for container name, hostname, and basic settings.
+// user is the username to set in the container; containerNameSuffix is an optional suffix for the container name.
+func ContainerArgs(cfg WorkspaceConfig, containerNameSuffix string) []string {
+	containerName := containerNameWithSuffix(WorkspaceContainerName(cfg.General.ID), containerNameSuffix)
+	args := []string{"--name", containerName, "--hostname", containerName}
+	return args
+}
+
+// CreateContainerArgs returns podman container-specific arguments from cfg.
+func CreateContainerArgs(cfg MergedConfig) ([]string, error) {
 	hostDir, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("get current working directory: %w", err)
 	}
 
-	var args []string
+	args := append([]string{}, ContainerArgs(WorkspaceConfig{General: WorkspaceGeneralConfig{ID: cfg.ID}}, "")...)
+	args = append(args, "--user", cfg.User)
+	args = append(args, DefaultCreateArgs(cfg.Features.Podman)...)
 
-	args = append(args, ContainerArgs(cfg, user)...)
-
-	// Workspace mount (host dir → container path)
-	containerDir, err := WorkspaceMountPath(cfg)
+	containerDir, err := WorkspaceMountPath(WorkspaceConfig{General: WorkspaceGeneralConfig{ID: cfg.ID}})
 	if err != nil {
 		return nil, fmt.Errorf("get workspace mount path: %w", err)
 	}
 	args = append(args, "--volume", fmt.Sprintf("%s:%s:z", hostDir, containerDir))
 	args = append(args, "--workdir", containerDir)
 
-	// Shared volume - mount each path as a subpath of the named volume
-	// user may be empty during container create; VolumeSetup will handle path creation
-	for _, path := range cfg.Persistence.SharedPaths {
-		if user == "" {
-			continue
-		}
-		containerPath := ResolveContainerPath(path, user)
-		// Skip invalid/relative paths
+	addVolume := func(subpath string, containerPath string) {
 		if containerPath == "" {
-			continue
+			return
 		}
-		// subpath is the path within the volume (without leading /)
-		// paths now reside under /silo/persistence/shared
-		subpath := "shared/" + strings.TrimPrefix(containerPath, "/")
 		args = append(args, "--mount", fmt.Sprintf("type=volume,source=%s,target=%s,subpath=%s,z", "silo", containerPath, subpath))
 	}
 
-	// Private volume - mount each path as a subpath of the named volume
+	for _, path := range cfg.Persistence.SharedPaths {
+		containerPath := ResolveContainerPath(path, cfg.User)
+		if cfg.User == "" {
+			continue
+		}
+		addVolume("shared/"+strings.TrimPrefix(containerPath, "/"), containerPath)
+	}
 	for _, path := range cfg.Persistence.PrivatePaths {
-		if user == "" {
+		containerPath := ResolveContainerPath(path, cfg.User)
+		if cfg.User == "" {
 			continue
 		}
-		containerPath := ResolveContainerPath(path, user)
-		if containerPath == "" {
-			continue
-		}
-		subpath := cfg.General.ID + "/" + strings.TrimPrefix(containerPath, "/")
-		args = append(args, "--mount", fmt.Sprintf("type=volume,source=%s,target=%s,subpath=%s,z", "silo", containerPath, subpath))
+		addVolume(cfg.ID+"/"+strings.TrimPrefix(containerPath, "/"), containerPath)
 	}
 
 	for _, port := range cfg.Network.Ports {
 		args = append(args, "-p", port)
 	}
 
-	if cfg.Limits.CPUs > 0 {
-		args = append(args, fmt.Sprintf("--cpus=%d", cfg.Limits.CPUs))
-	} else {
-		args = append(args, "--cpus=0")
-	}
-	if cfg.Limits.Memory > 0 {
-		args = append(args, fmt.Sprintf("--memory=%dm", cfg.Limits.Memory))
-	} else {
-		args = append(args, "--memory=0")
-	}
-	if cfg.Limits.Processes > 0 {
-		args = append(args, fmt.Sprintf("--pids-limit=%d", cfg.Limits.Processes))
-	} else {
-		args = append(args, "--pids-limit=-1")
-	}
+	args = append(args, LimitsArgs(cfg.Limits)...)
 
 	return args, nil
 }
 
 // CreateContainer creates a new container. It does not start it.
-// Extra args are forwarded to podman create.
-func CreateContainer(cfg MergedConfig, extra []string) error {
-	podmanArgs, err := BuildContainerArgs(WorkspaceConfig{
-		General:     WorkspaceGeneralConfig{ID: cfg.ID},
-		Features:    cfg.Features,
-		Persistence: cfg.Persistence,
-		Podman:      cfg.Podman,
-		Network:     cfg.Network,
-		Limits:      cfg.Limits,
-	}, cfg.User)
+func CreateContainer(cfg MergedConfig) error {
+	podmanArgs, err := CreateContainerArgs(cfg)
 	if err != nil {
-		return fmt.Errorf("build container arguments: %w", err)
+		return fmt.Errorf("create container arguments: %w", err)
 	}
 	createArgs := append([]string{"create"}, podmanArgs...)
-	createArgs = append(createArgs, extra...)
+	createArgs = append(createArgs, cfg.Podman.CreateArgs...)
 	createArgs = append(createArgs, WorkspaceImageName(cfg.ID))
 
 	fmt.Printf("Creating %s...\n", WorkspaceContainerName(cfg.ID))
@@ -278,14 +255,6 @@ func RemoveContainer(name string) error {
 	return nil
 }
 
-// RemoveImage removes the named image.
-func RemoveImage(name string) error {
-	if err := RunVisible("podman", "rmi", name); err != nil {
-		return fmt.Errorf("remove image: %w", err)
-	}
-	return nil
-}
-
 // RunVisible runs a command with stdout and stderr connected to the terminal.
 func RunVisible(name string, args ...string) error {
 	cmd := ExecCommand(name, args...)
@@ -303,19 +272,6 @@ func RunInteractive(name string, args ...string) error {
 	return cmd.Run()
 }
 
-// PrintInitFileStatus prints the status of an init file.
-func PrintInitFileStatus(path string) error {
-	if _, err := os.Stat(path); err == nil {
-		fmt.Printf("'%s' already exists\n", path)
-		return nil
-	} else if os.IsNotExist(err) {
-		fmt.Printf("Creating %s\n", path)
-		return nil
-	} else {
-		return fmt.Errorf("stat %s: %w", path, err)
-	}
-}
-
 // PrintRunningStatus prints the running status.
 func PrintRunningStatus(isRunning bool) {
 	if isRunning {
@@ -323,9 +279,4 @@ func PrintRunningStatus(isRunning bool) {
 		return
 	}
 	fmt.Println("Stopped")
-}
-
-// PrintNotFound prints a not found message.
-func PrintNotFound(name string) {
-	fmt.Printf("%s not found\n", name)
 }

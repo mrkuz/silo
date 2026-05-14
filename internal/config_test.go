@@ -3,6 +3,7 @@ package internal
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -265,20 +266,14 @@ func TestEnsureFile(t *testing.T) {
 	})
 }
 
-func TestInitWorkspaceConfig(t *testing.T) {
+func TestEnsureInit(t *testing.T) {
 	t.Run("first run: creates .silo/silo.toml with generated ID", func(t *testing.T) {
-		SetupUserConfig(t)
-		SetupWorkspace(t, WorkspaceConfig{}) // write an *empty* silo.toml so setupWorkspace doesn't interfere
-		// Remove the file so we simulate a true first run.
-		os.Remove(SiloToml())
-		os.Remove(SiloDir()) // remove dir too so it is recreated
+		SetupUserFiles(t)
+		SetupEmptyWorkspace(t)
 
-		cfg, firstRun, err := InitWorkspaceConfig()
+		cfg, err := EnsureInit(nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
-		}
-		if !firstRun {
-			t.Error("expected firstRun=true on first run")
 		}
 		if len(cfg.General.ID) != 8 {
 			t.Errorf("expected 8-char ID, got %q", cfg.General.ID)
@@ -286,16 +281,13 @@ func TestInitWorkspaceConfig(t *testing.T) {
 	})
 
 	t.Run("second run: existing silo.toml is loaded unchanged", func(t *testing.T) {
-		existing := MinimalConfig("deadbeef")
-		SetupWorkspace(t, existing)
-		SetupUserConfig(t)
+		existing := MinimalWorkspaceConfig("deadbeef")
+		SetupWorkspaceFiles(t, existing)
+		SetupUserFiles(t)
 
-		cfg, firstRun, err := InitWorkspaceConfig()
+		cfg, err := EnsureInit(nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
-		}
-		if firstRun {
-			t.Error("expected firstRun=false on subsequent run")
 		}
 		if cfg.General.ID != "deadbeef" {
 			t.Errorf("expected ID deadbeef, got %q", cfg.General.ID)
@@ -303,14 +295,14 @@ func TestInitWorkspaceConfig(t *testing.T) {
 	})
 }
 
-func TestRequireWorkspaceConfig(t *testing.T) {
+func TestRequireMergedConfig(t *testing.T) {
 	t.Run("missing ID returns error", func(t *testing.T) {
-		SetupUserConfig(t)
-		cfg := MinimalConfig("abc12345")
+		SetupUserFiles(t)
+		cfg := MinimalWorkspaceConfig("abc12345")
 		cfg.General.ID = ""
-		SetupWorkspace(t, cfg)
+		SetupWorkspaceFiles(t, cfg)
 
-		_, err := RequireWorkspaceConfig()
+		_, err := RequireMergedConfig()
 		if err == nil {
 			t.Error("expected error when [general].id is empty")
 		}
@@ -366,23 +358,15 @@ func TestEnsureUserFilesError(t *testing.T) {
 
 func TestEnsureInitError(t *testing.T) {
 	t.Run("returns error when workspace files cannot be created", func(t *testing.T) {
-		// Create a read-only directory to force EnsureWorkspaceFiles to fail
 		dir := t.TempDir()
 		orig, _ := os.Getwd()
 		t.Cleanup(func() { os.Chdir(orig) })
 		os.Chdir(dir)
 
-		// Create .silo as a file (not directory) to cause mkdirall to fail
-		if err := os.WriteFile(SiloDir(), []byte("x"), 0644); err != nil {
-			t.Fatal(err)
-		}
-		// Make it read-only
-		if err := os.Chmod(SiloDir(), 0444); err != nil {
-			t.Fatal(err)
-		}
+		MakeDirReadonly(t, SiloDir())
 
-		SetupUserConfig(t)
-		_, _, err := EnsureInit(nil)
+		SetupUserFiles(t)
+		_, err := EnsureInit(nil)
 		if err == nil {
 			t.Error("expected error when workspace files cannot be created")
 		}
@@ -391,7 +375,7 @@ func TestEnsureInitError(t *testing.T) {
 
 func TestEnsureWorkspaceFiles(t *testing.T) {
 	t.Run("creates workspace home.nix when absent", func(t *testing.T) {
-		SetupWorkspace(t, MinimalConfig("abc12345"))
+		SetupWorkspaceFiles(t, MinimalWorkspaceConfig("abc12345"))
 		os.Remove(filepath.Join(SiloDir(), "home.nix"))
 		if err := EnsureWorkspaceFiles(false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -402,7 +386,7 @@ func TestEnsureWorkspaceFiles(t *testing.T) {
 	})
 
 	t.Run("does not overwrite existing .silo/home.nix", func(t *testing.T) {
-		SetupWorkspace(t, MinimalConfig("abc12345"))
+		SetupWorkspaceFiles(t, MinimalWorkspaceConfig("abc12345"))
 		sentinel := []byte("# custom\n")
 		os.WriteFile(filepath.Join(SiloDir(), "home.nix"), sentinel, 0644)
 		if err := EnsureWorkspaceFiles(false); err != nil {
@@ -415,7 +399,7 @@ func TestEnsureWorkspaceFiles(t *testing.T) {
 	})
 
 	t.Run("podman=true creates workspace home.nix with podman enabled", func(t *testing.T) {
-		SetupWorkspace(t, MinimalConfig("abc12345"))
+		SetupWorkspaceFiles(t, MinimalWorkspaceConfig("abc12345"))
 		os.Remove(filepath.Join(SiloDir(), "home.nix"))
 		if err := EnsureWorkspaceFiles(true); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -430,7 +414,7 @@ func TestEnsureWorkspaceFiles(t *testing.T) {
 	})
 
 	t.Run("podman=false creates workspace home.nix with podman disabled", func(t *testing.T) {
-		SetupWorkspace(t, MinimalConfig("abc12345"))
+		SetupWorkspaceFiles(t, MinimalWorkspaceConfig("abc12345"))
 		os.Remove(filepath.Join(SiloDir(), "home.nix"))
 		if err := EnsureWorkspaceFiles(false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -446,12 +430,9 @@ func TestEnsureWorkspaceFiles(t *testing.T) {
 }
 
 func TestSaveWorkspaceConfigTOMLFormat(t *testing.T) {
-	dir := t.TempDir()
-	orig, _ := os.Getwd()
-	t.Cleanup(func() { os.Chdir(orig) })
-	os.Chdir(dir)
+	SetupWorkspaceFiles(t, MinimalWorkspaceConfig("abc12345"))
 
-	cfg := MinimalConfig("abc12345")
+	cfg := MinimalWorkspaceConfig("abc12345")
 	cfg.Persistence.SharedPaths = []string{"$HOME/.cache/uv/", "$HOME/.local/share/opencode/"}
 	if err := cfg.SaveWorkspaceConfig(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -465,14 +446,9 @@ func TestSaveWorkspaceConfigTOMLFormat(t *testing.T) {
 }
 
 func TestSaveWorkspaceConfigNilGuards(t *testing.T) {
-	// Configs loaded from old TOML files may have nil slices;
-	// SaveWorkspaceConfig must normalize them to empty slices.
-	dir := t.TempDir()
-	orig, _ := os.Getwd()
-	t.Cleanup(func() { os.Chdir(orig) })
-	os.Chdir(dir)
+	SetupWorkspaceFiles(t, MinimalWorkspaceConfig("abc12345"))
 
-	cfg := MinimalConfig("abc12345")
+	cfg := MinimalWorkspaceConfig("abc12345")
 	cfg.Persistence.SharedPaths = nil
 	cfg.Podman.CreateArgs = nil
 	if err := cfg.SaveWorkspaceConfig(); err != nil {
@@ -490,10 +466,255 @@ func TestSaveWorkspaceConfigNilGuards(t *testing.T) {
 	}
 }
 
-// assertTOMLFormat checks that s follows silo's TOML style:
-//   - no tab characters anywhere
-//   - keys are not indented; only array string elements use exactly 2-space indent
-//   - a blank line precedes each [section] header
+func TestWorkspaceNames(t *testing.T) {
+	id := "abc12345"
+	if got := WorkspaceContainerName(id); got != "silo-abc12345" {
+		t.Errorf("WorkspaceContainerName(%q) = %q, want %q", id, got, "silo-abc12345")
+	}
+	if got := WorkspaceImageName(id); got != "silo-abc12345" {
+		t.Errorf("WorkspaceImageName(%q) = %q, want %q", id, got, "silo-abc12345")
+	}
+}
+
+func TestMergeUserInto(t *testing.T) {
+	t.Run("user values prepend to workspace values", func(t *testing.T) {
+		workspace := WorkspaceConfig{
+			General:     WorkspaceGeneralConfig{ID: "abc12345"},
+			Podman:      PodmanConfig{CreateArgs: []string{"--workspace-flag"}},
+			Persistence: PersistenceConfig{SharedPaths: []string{"/workspace/path"}, PrivatePaths: []string{"/workspace/private"}},
+			Network:     NetworkConfig{Ports: []string{"8080:8080"}},
+		}
+		user := UserConfig{
+			General:     UserGeneralConfig{User: "alice"},
+			Podman:      UserPodmanConfig{CreateArgs: []string{"--user-flag"}, Network: NetworkConfig{Ports: []string{"3000:3000"}}},
+			Persistence: PersistenceConfig{SharedPaths: []string{"$HOME/.cache"}, PrivatePaths: []string{"$HOME/.private"}},
+		}
+		got := MergeUserInto(workspace, user)
+
+		if got.User != "alice" {
+			t.Errorf("expected User alice, got %q", got.User)
+		}
+		if got.ID != "abc12345" {
+			t.Errorf("expected ID abc12345, got %q", got.ID)
+		}
+		if !slices.Equal(got.Podman.CreateArgs, []string{"--user-flag", "--workspace-flag"}) {
+			t.Errorf("expected CreateArgs [user-flag workspace-flag], got %v", got.Podman.CreateArgs)
+		}
+		if !slices.Equal(got.Persistence.SharedPaths, []string{"$HOME/.cache", "/workspace/path"}) {
+			t.Errorf("expected SharedPaths [$HOME/.cache /workspace/path], got %v", got.Persistence.SharedPaths)
+		}
+		if !slices.Equal(got.Persistence.PrivatePaths, []string{"$HOME/.private", "/workspace/private"}) {
+			t.Errorf("expected PrivatePaths [$HOME/.private /workspace/private], got %v", got.Persistence.PrivatePaths)
+		}
+		if !slices.Equal(got.Network.Ports, []string{"3000:3000", "8080:8080"}) {
+			t.Errorf("expected Ports [3000:3000 8080:8080], got %v", got.Network.Ports)
+		}
+	})
+
+	t.Run("features.podman from workspace only", func(t *testing.T) {
+		workspace := WorkspaceConfig{
+			General:  WorkspaceGeneralConfig{ID: "abc12345"},
+			Features: FeaturesConfig{Podman: true},
+		}
+		user := UserConfig{
+			General: UserGeneralConfig{User: "alice"},
+		}
+		got := MergeUserInto(workspace, user)
+		if got.Features.Podman != true {
+			t.Error("expected Features.Podman from workspace")
+		}
+	})
+
+	t.Run("empty user values leave workspace intact", func(t *testing.T) {
+		workspace := WorkspaceConfig{
+			General:     WorkspaceGeneralConfig{ID: "abc12345"},
+			Podman:      PodmanConfig{CreateArgs: []string{"--ws-flag"}},
+			Persistence: PersistenceConfig{SharedPaths: []string{"/ws/path"}},
+		}
+		user := UserConfig{
+			General:     UserGeneralConfig{User: "alice"},
+			Podman:      UserPodmanConfig{CreateArgs: []string{}},
+			Persistence: PersistenceConfig{SharedPaths: []string{}},
+		}
+		got := MergeUserInto(workspace, user)
+		if !slices.Equal(got.Podman.CreateArgs, []string{"--ws-flag"}) {
+			t.Errorf("expected CreateArgs [ws-flag], got %v", got.Podman.CreateArgs)
+		}
+		if !slices.Equal(got.Persistence.SharedPaths, []string{"/ws/path"}) {
+			t.Errorf("expected SharedPaths [/ws/path], got %v", got.Persistence.SharedPaths)
+		}
+	})
+}
+
+func TestUserFiles(t *testing.T) {
+	base := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", base)
+	files, err := UserFiles()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(files) != 3 {
+		t.Errorf("expected 3 files, got %d", len(files))
+	}
+	paths := make([]string, len(files))
+	for i, f := range files {
+		paths[i] = f.Path
+	}
+	dir := filepath.Join(base, "silo")
+	for _, name := range []string{"home.user.nix", "devcontainer.user.json", "silo.user.toml"} {
+		found := false
+		for _, p := range paths {
+			if strings.HasSuffix(p, name) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected %s in user files", name)
+		}
+		_ = dir
+	}
+	if !strings.HasSuffix(files[0].Path, "home.user.nix") {
+		t.Errorf("expected first file to be home.user.nix, got %s", files[0].Path)
+	}
+	if !strings.HasSuffix(files[1].Path, "devcontainer.user.json") {
+		t.Errorf("expected second file to be devcontainer.user.json, got %s", files[1].Path)
+	}
+	if !strings.HasSuffix(files[2].Path, "silo.user.toml") {
+		t.Errorf("expected third file to be silo.user.toml, got %s", files[2].Path)
+	}
+}
+
+func TestEnsureDevcontainerUserJSON(t *testing.T) {
+	base := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", base)
+	if err := EnsureDevcontainerUserJSON(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	path := filepath.Join(base, "silo", "devcontainer.user.json")
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		t.Error("expected devcontainer.user.json to be created")
+	}
+	content, _ := os.ReadFile(path)
+	if string(content) != "{}\n" {
+		t.Errorf("expected %q, got %q", "{}\n", string(content))
+	}
+}
+
+func TestLoadSiloDevcontainerJSON(t *testing.T) {
+	t.Run("returns empty map when file absent", func(t *testing.T) {
+		dir := t.TempDir()
+		orig, _ := os.Getwd()
+		t.Cleanup(func() { os.Chdir(orig) })
+		os.Chdir(dir)
+		got, err := LoadSiloDevcontainerJSON()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 0 {
+			t.Errorf("expected empty map, got %v", got)
+		}
+	})
+
+	t.Run("parses existing file", func(t *testing.T) {
+		dir := t.TempDir()
+		orig, _ := os.Getwd()
+		t.Cleanup(func() { os.Chdir(orig) })
+		os.Chdir(dir)
+		if err := os.MkdirAll(".silo", 0755); err != nil {
+			t.Fatal(err)
+		}
+		content := []byte(`{"name": "test", "custom": "value"}`)
+		if err := os.WriteFile(".silo/devcontainer.json", content, 0644); err != nil {
+			t.Fatal(err)
+		}
+		got, err := LoadSiloDevcontainerJSON()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got["name"] != "test" {
+			t.Errorf("expected name=test, got %v", got["name"])
+		}
+		if got["custom"] != "value" {
+			t.Errorf("expected custom=value, got %v", got["custom"])
+		}
+	})
+
+	t.Run("malformed JSON returns error", func(t *testing.T) {
+		dir := t.TempDir()
+		orig, _ := os.Getwd()
+		t.Cleanup(func() { os.Chdir(orig) })
+		os.Chdir(dir)
+		if err := os.MkdirAll(".silo", 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(".silo/devcontainer.json", []byte("{invalid"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		_, err := LoadSiloDevcontainerJSON()
+		if err == nil {
+			t.Error("expected error for malformed JSON")
+		}
+	})
+}
+
+func TestLoadDevcontainerUserJSON(t *testing.T) {
+	t.Run("returns empty map when file absent", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		got, err := LoadDevcontainerUserJSON()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 0 {
+			t.Errorf("expected empty map, got %v", got)
+		}
+	})
+
+	t.Run("parses existing file", func(t *testing.T) {
+		base := t.TempDir()
+		t.Setenv("XDG_CONFIG_HOME", base)
+		dir := filepath.Join(base, "silo")
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		content := []byte(`{"extensions": ["ms-python.python"]}`)
+		if err := os.WriteFile(filepath.Join(dir, "devcontainer.user.json"), content, 0644); err != nil {
+			t.Fatal(err)
+		}
+		got, err := LoadDevcontainerUserJSON()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		exts, ok := got["extensions"].([]any)
+		if !ok {
+			t.Fatalf("expected extensions array, got %v", got["extensions"])
+		}
+		if len(exts) != 1 || exts[0] != "ms-python.python" {
+			t.Errorf("expected extensions [ms-python.python], got %v", exts)
+		}
+	})
+}
+
+func TestPrintRunningStatus(t *testing.T) {
+	t.Run("running", func(t *testing.T) {
+		output := CaptureStdout(func() { PrintRunningStatus(true) })
+		if !strings.Contains(output, "Running") {
+			t.Errorf("expected 'Running', got %s", output)
+		}
+	})
+
+	t.Run("stopped", func(t *testing.T) {
+		output := CaptureStdout(func() { PrintRunningStatus(false) })
+		if !strings.Contains(output, "Stopped") {
+			t.Errorf("expected 'Stopped', got %s", output)
+		}
+	})
+}
+
+// - no tab characters anywhere
+// - keys are not indented; only array string elements use exactly 2-space indent
+// - a blank line precedes each [section] header
 func assertTOMLFormat(t *testing.T, s string) {
 	t.Helper()
 	if strings.ContainsRune(s, '\t') {

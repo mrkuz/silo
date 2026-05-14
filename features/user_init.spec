@@ -52,6 +52,6 @@ Feature: silo user init — Create user starter files
     Scenario: user init shows already exists message for existing files
       Given the user's silo config directory already has all starter files
       When I run `silo user init`
-      Then the output should contain "'<XDG_CONFIG_HOME>/silo/home.user.nix' already exists"
-      And the output should contain "'<XDG_CONFIG_HOME>/silo/devcontainer.user.json' already exists"
-      And the output should contain "'<XDG_CONFIG_HOME>/silo/silo.user.toml' already exists"
+      Then the output should contain "<XDG_CONFIG_HOME>/silo/home.user.nix already exists"
+      And the output should contain "<XDG_CONFIG_HOME>/silo/devcontainer.user.json already exists"
+      And the output should contain "<XDG_CONFIG_HOME>/silo/silo.user.toml already exists"

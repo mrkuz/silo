@@ -42,7 +42,7 @@ Commands:
   devcontainer stop     Stop and remove the devcontainer
   devcontainer status   Print devcontainer status
   help                  Show this help
-`
+ `
 
 // Help prints the command reference to stdout.
 func Help() {
