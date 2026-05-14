@@ -74,7 +74,8 @@ func BuildImage(tag string, tc TemplateContext, noCache bool) error {
 		"Containerfile":      containerfile,
 		"flake.nix":          flakeNix,
 		"home.user.nix":      homeUserNix,
-		"home.nix": homeWorkspaceNix,
+		"home.empty.nix":     []byte(EmptyHomeNix),
+		"home.nix":           homeWorkspaceNix,
 		"modules/podman.nix": podmanModule,
 		"modules/silo.nix":   siloModule,
 	}

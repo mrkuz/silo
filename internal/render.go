@@ -57,6 +57,12 @@ func ReadTemplate(name string) ([]byte, error) {
 	return os.ReadFile(filepath.Join(templatesPath(), name))
 }
 
+// EmptyHomeNix is the empty home-manager module used in the build context.
+const EmptyHomeNix = `{ config, pkgs, ... }:
+{
+}
+`
+
 // HomeUserNix is the home-manager module for user configuration.
 const HomeUserNix = `{ config, pkgs, ... }:
 {
@@ -98,21 +104,21 @@ var templateFuncs = template.FuncMap{
 
 // TemplateContext provides data for template rendering across devcontainer, Containerfile, and setup scripts.
 type TemplateContext struct {
-	User                     string
-	Home                     string
-	Image                    string
-	ContainerName            string
-	PersistenceVolumeName    string
-	WorkspaceMount           string
+	User                    string
+	Home                    string
+	Image                   string
+	ContainerName           string
+	PersistenceVolumeName   string
+	WorkspaceMount          string
 	SiloID                  string
 	System                  string
-	ContainerArgs            []string
-	DevcontainerArgs         []string
-	PersistenceSharedPaths   []string
-	PersistencePrivatePaths  []string
-	NetworkPorts             []string
-	Limits                   LimitsConfig
-	LimitsArgs               []string
+	ContainerArgs           []string
+	DevcontainerArgs        []string
+	PersistenceSharedPaths  []string
+	PersistencePrivatePaths []string
+	NetworkPorts            []string
+	Limits                  LimitsConfig
+	LimitsArgs              []string
 }
 
 // NewTemplateContext builds a TemplateContext from MergedConfig for template rendering.
@@ -173,21 +179,21 @@ func NewTemplateContext(cfg MergedConfig, containerNameSuffix ...string) (Templa
 	devcontainerArgs = append(devcontainerArgs, limitsArgs...)
 
 	return TemplateContext{
-		User:                     cfg.User,
-		Home:                     home,
-		Image:                    WorkspaceImageName(cfg.ID),
-		ContainerName:            containerName,
-		PersistenceVolumeName:    sharedVolumeNameValue,
-		WorkspaceMount:           workspaceMount,
+		User:                    cfg.User,
+		Home:                    home,
+		Image:                   WorkspaceImageName(cfg.ID),
+		ContainerName:           containerName,
+		PersistenceVolumeName:   sharedVolumeNameValue,
+		WorkspaceMount:          workspaceMount,
 		SiloID:                  cfg.ID,
 		System:                  DetectNixSystem(),
-		ContainerArgs:            ContainerArgs(WorkspaceConfig{General: WorkspaceGeneralConfig{ID: cfg.ID}}, cfg.User, containerNameSuffix...),
-		DevcontainerArgs:         devcontainerArgs,
-		PersistenceSharedPaths:    sharedPaths,
-		PersistencePrivatePaths:   privatePaths,
-		NetworkPorts:             cfg.Network.Ports,
-		Limits:                   cfg.Limits,
-		LimitsArgs:               limitsArgs,
+		ContainerArgs:           ContainerArgs(WorkspaceConfig{General: WorkspaceGeneralConfig{ID: cfg.ID}}, cfg.User, containerNameSuffix...),
+		DevcontainerArgs:        devcontainerArgs,
+		PersistenceSharedPaths:  sharedPaths,
+		PersistencePrivatePaths: privatePaths,
+		NetworkPorts:            cfg.Network.Ports,
+		Limits:                  cfg.Limits,
+		LimitsArgs:              limitsArgs,
 	}, nil
 }
 
@@ -251,21 +257,21 @@ func NewTemplateContextFromWorkspace(cfg WorkspaceConfig) (TemplateContext, erro
 	}
 
 	return TemplateContext{
-		User:                     user,
-		Home:                     "/home/" + user,
-		Image:                    WorkspaceImageName(cfg.General.ID),
-		ContainerName:            containerName,
-		PersistenceVolumeName:    sharedVolumeNameValue,
-		WorkspaceMount:           workspaceMount,
+		User:                    user,
+		Home:                    "/home/" + user,
+		Image:                   WorkspaceImageName(cfg.General.ID),
+		ContainerName:           containerName,
+		PersistenceVolumeName:   sharedVolumeNameValue,
+		WorkspaceMount:          workspaceMount,
 		SiloID:                  cfg.General.ID,
 		System:                  DetectNixSystem(),
-		ContainerArgs:            ContainerArgs(cfg, user, ""),
-		DevcontainerArgs:         devcontainerArgs,
-		PersistenceSharedPaths:    sharedPaths,
-		PersistencePrivatePaths:   privatePaths,
-		NetworkPorts:             cfg.Network.Ports,
-		Limits:                   cfg.Limits,
-		LimitsArgs:               limitsArgs,
+		ContainerArgs:           ContainerArgs(cfg, user, ""),
+		DevcontainerArgs:        devcontainerArgs,
+		PersistenceSharedPaths:  sharedPaths,
+		PersistencePrivatePaths: privatePaths,
+		NetworkPorts:            cfg.Network.Ports,
+		Limits:                  cfg.Limits,
+		LimitsArgs:              limitsArgs,
 	}, nil
 }
 

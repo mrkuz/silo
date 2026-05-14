@@ -59,6 +59,7 @@ in
     less.enable = true;
     npm.enable = true;
     ripgrep.enable = true;
+    uv.enable = true;
   };
 
   programs.diff-so-fancy = {
