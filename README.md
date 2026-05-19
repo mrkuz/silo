@@ -1,46 +1,34 @@
 # silo
 
-Per-workspace development containers, powered by Podman, Nix, and home-manager.
+Per-workspace development containers. Powered by Podman, Nix, and home-manager.
 
 ## Goals
 
-- Simple way to create and run personal workspace containers, configured via home-manager
+- Simple way to create and run personal workspace containers, set up via home-manager
 
 ## Non-Goals
 
 - Full secured agent sandbox
-- Deterministic reproducibility — builds may vary across machines or time
-- Sharability — workspaces are personal and local to a user
+- Reproducibility — builds may vary across machines or time
 
 ---
 
 ## Features
 
-- **Per-workspace isolation** — each workspace gets its own container with a unique ID
+- **Per-workspace isolation** — each workspace gets its own container
 - **Nix + home-manager** — shared `home.user.nix` and per-workspace `.silo/home.nix`
-- **Workspace mount** — the host directory is mounted inside the container automatically
-- **Shared volume** — persist package caches and other data across containers and rebuilds
-- **Port forwarding** — expose container ports to the host via `network.ports`
-- **VS Code integration** — `silo devcontainer` generates a `.devcontainer.json`
+- **Workspace mount** — the host directory is mounted inside the container
+- **Persistence** — persist package caches and other data across containers and rebuilds
+- **Port forwarding** — expose container ports to the host
+- **Resource limits** — control CPU, memory, and process limits per workspace
 - **Nested Podman** — optional support for running containers inside the container
-
----
-
-## Quick Start
-
-```bash
-silo
-```
-
-On first run, silo initializes workspace files, builds the workspace image, starts the container, and connects to it. Subsequent runs skip steps that are already complete and connect directly.
-
-See [Build and Install](#build-and-install) for installation instructions. See [Configuration](#configuration) to customize your workspace.
+- **VS Code support** — generate a `.devcontainer.json` which uses the workspace image
 
 ---
 
 ## Build and Install
 
-**Requirements:** Go 1.23+, Podman.
+**Requirements:** Go 1.23+, Podman
 
 ```bash
 # Build binary
@@ -55,32 +43,41 @@ go install .
 
 ---
 
-## Lifecycle
-
-Every workspace goes through a fixed chain of steps. Each step depends on the ones before it. Running `silo` (or `silo connect`) triggers the full chain automatically.
-
-```
-init → build → create → volume setup → start → connect
-```
-
-| Step | Description | Output | Idempotency |
-|---|---|---|---|
-| **init** | Creates `.silo/silo.toml`, `.silo/home.nix`; runs `silo user init` to create user files | Workspace + user files | Writes config only on first run |
-| **build** | Builds the workspace image if it does not exist | Container image | Images are cached; only missing ones are built |
-| **create** | Creates the container if it doesn't exist | Container (stopped) | Skipped if container already exists |
-| **volume setup** | Creates directories on the shared volume | Configured container | Safe to re-run |
-| **start** | Starts the container if not running | Running container | Skipped if container is already running |
-| **connect** | Opens an interactive shell inside the running container | Terminal session | — |
-
-You can run individual steps:
+## Quick Start
 
 ```bash
-silo init          # Initialize workspace and user files
-silo build         # Build images (if not already built)
-silo start         # Start container (creates if needed)
-silo volume setup  # Run shared volume setup
-silo connect       # Connect to container (triggers missing steps automatically)
+silo
 ```
+
+On first run, `silo` initializes required files, builds the workspace image, starts the container, and connects to it. Subsequent runs skip steps that are already complete and connect directly.
+
+### Customize workspace container
+
+```bash
+# Edit .silo/home.nix
+silo stop
+silo build --rebuild
+silo
+```
+
+---
+
+## Lifecycle
+
+Every workspace goes through a fixed chain of steps. Each step depends on the ones before it. Running `silo` triggers the full chain.
+
+```
+user init → init → build → volume setup → start → connect
+```
+
+| Step | Description | Idempotency | Calls |
+|---|---|---|---|
+| **user init** | Creates user config files under `$XDG_CONFIG_HOME/silo/` | Writes files only on first run | - |
+| **init** | Creates `.silo/silo.toml` and `.silo/home.nix` | Writes files only on first run | `silo user init` |
+| **build** | Builds the workspace image | Skipped if image exists | `silo init` |
+| **volume setup** | Creates directories on shared volume | Safe to re-run | - |
+| **start** | Creates and starts the container | Skipped if container is already running | `silo build`,  `silo volume setup` |
+| **connect** | Opens an interactive shell inside the running container | - | - |
 
 ---
 
@@ -114,7 +111,7 @@ Run the full lifecycle chain if needed, then connect to the container for the cu
 
 ### `silo init`
 
-Initialize workspace files. Creates `.silo/silo.toml` and `.silo/home.nix`, then delegates to `silo user init` for user files. Writes config only on first run. If a flag is not provided, the default from `silo.user.toml` is used; if that's also unset, built-in defaults apply.
+Initialize workspace files. Creates `.silo/silo.toml` and `.silo/home.nix`.
 
 | Flag | Description |
 |---|---|
@@ -128,35 +125,35 @@ Build the workspace image if it does not exist yet.
 | Flag | Description |
 |---|---|
 | `--rebuild` | Force rebuild even if image exists; aborts if container exists or is running |
-| `--no-cache` | Disable Docker build cache |
+| `--no-cache` | Disable build cache |
 
 ### `silo start`
 
-Start the container and run post-start setup. Creates the container if it doesn't exist. If the container is already running, this command does nothing.
+Creates and starts the container. If the container is already running, this command does nothing.
 
 ### `silo volume setup`
 
-Creates directories on the persistence volume for paths configured in `[persistence]`. Runs a temporary container with the workspace image — the workspace container does not need to be running. This step runs automatically after every start.
+Creates directories on the persistence volume for paths configured in `[persistence]`. Runs a temporary container with the workspace image for the setup.
 
 ### `silo connect`
 
-Connect to the container for the current workspace. Requires the container to exist and be running. Does not trigger build, create, or start steps.
+Connect to the container for the current workspace. Requires the container to exist and be running.
 
 ### `silo stop`
 
-Stop and remove the running container (immediate, no grace period).
+Stop and remove the running container.
 
 ### `silo rm`
 
-Remove the workspace image. If the container exists and is stopped, it is removed first. Returns an error if the container is running; in that case neither the container nor the image is modified.
+Remove the workspace image. If the container exists and is stopped, it is removed first. Returns an error if the container is running.
 
 ### `silo user init`
 
-Create user starter files under `$XDG_CONFIG_HOME/silo/` if they do not exist:
+Create user files under `$XDG_CONFIG_HOME/silo/` if they do not exist:
 
-- `home.user.nix` — user home-manager config baked into the workspace image
-- `silo.user.toml` — default values for new workspaces
-- `devcontainer.user.json` — merged into every generated `.devcontainer.json`
+- `home.user.nix` - User-wide home-manager config baked into every workspace image
+- `silo.user.toml` - User-wide silo configuration
+- `devcontainer.user.json` - Personal configuration merged into every generated `.devcontainer.json`
 
 ### `silo status`
 
@@ -164,7 +161,7 @@ Print `Running` or `Stopped` for the workspace container.
 
 ### `silo devcontainer`
 
-Generate a `.devcontainer.json` for VS Code in the current host directory. Does nothing if `.devcontainer.json` already exists. The generated container name is `<workspace-container-name>-dev`. See [VS Code devcontainer](#vs-code-devcontainer) for details.
+Generates `.silo/devcontainer.json` and `.devcontainer.json` for VS Code in the current host directory. See [VS Code devcontainer](#vs-code-devcontainer) for details.
 
 | Flag | Description |
 |---|---|
@@ -172,7 +169,7 @@ Generate a `.devcontainer.json` for VS Code in the current host directory. Does 
 
 ### `silo devcontainer stop`
 
-Stop and remove the devcontainer (immediate, no grace period).
+Stop and remove the devcontainer.
 
 ### `silo devcontainer status`
 
@@ -190,38 +187,37 @@ Show the full command reference.
 
 ## Configuration
 
-Configuration is TOML-based with three tiers. Later tiers override earlier ones:
+silo is configured via two TOML files. Both configs are merged at runtime.
 
-1. Built-in defaults
-2. User config at `$XDG_CONFIG_HOME/silo/silo.user.toml`
-3. Workspace config at `.silo/silo.toml`
+1. User config at `$XDG_CONFIG_HOME/silo/silo.user.toml`
+2. Workspace config at `.silo/silo.toml`
 
-On macOS, `~/.config/silo/` is used unless `$XDG_CONFIG_HOME` is set explicitly.
+If `$XDG_CONFIG_HOME` is not set, `~/.config/silo/` is used.
 
-The two config files serve different purposes:
+Configuration changes require restart of the container to become effective.
 
-| | `silo.user.toml` | `.silo/silo.toml` |
-|---|---|---|
-| **Purpose** | Defaults for new workspaces; shared across all workspaces | Per-workspace runtime config |
-| **`[general]`** | `user` — your username | `id` — workspace ID (8-char random) |
-| **`[features]`** | — | `podman` — enable nested Podman |
-| **`[persistence]`** | `shared_paths` — default paths<br>`private_paths` — default private paths | `shared_paths` — additional paths (merged)<br>`private_paths` — additional private paths (merged) |
-| **`[podman]`** | `create_args` — prepended | `create_args` — base args |
-| **`[network]`** | `ports` — default ports | `ports` — additional ports (merged) |
+### Sections
+
+| Section | `silo.user.toml` | `.silo/silo.toml` | Description |
+|---|---|---|---|
+| **`[general]`** | `user`<br>- | -<br>`id` | Your username<br>Workspace ID (8-char random) |
+| **`[features]`** | - | `podman` | Enable nested Podman inside the container |
+| **`[persistence]`** | `shared_paths`<br>`private_paths` | `shared_paths`<br>`private_paths` | Paths persisted and shared across all containers<br>Private paths to persist<br>A trailing slash marks a directory |
+| **`[podman]`** | `create_args` | `create_args` | Podman create arguments<br>Default values are set on `silo init` |
+| **`[network]`** | `ports` | `ports` | Port forwarding mappings (e.g. `8080:8080`) |
+| **`[limits]`** | - | `cpus`<br>`memory`<br>`processes` | CPU limit<br>Memory limit (MB)<br>Process ID limit<br>Zero or negative = unlimited |
 
 ### Merge behavior
 
-- **`[general].user`** — from user config only
-- **`[general].id`** — from workspace config only; set once on first run
-- **`[features].podman`** — from workspace config only; set by `silo init --[no-]podman`
-- **`[persistence].shared_paths`** — merged: user paths first, then workspace paths
-- **`[persistence].private_paths`** — merged: user paths first, then workspace paths
-- **`[podman].create_args`** — merged: user args prepended to workspace args
-- **`[network].ports`** — merged: user ports prepended to workspace ports
+- **`[general].user`** - user config only
+- **`[general].id`** - workspace config only; set once on first run
+- **`[features].podman`** - workspace config only; set by `silo init --[no-]podman` on first run
+- **`[persistence].shared_paths`** - user paths first, then workspace paths
+- **`[persistence].private_paths`** - user paths first, then workspace paths
+- **`[podman].create_args`** - user args first, then workspace args
+- **`[network].ports`** - user ports first, then workspace ports
 
-### User config: `$XDG_CONFIG_HOME/silo/silo.user.toml`
-
-Default values for new workspaces. Your username and default shared volume paths live here. `[general].id` is ignored.
+### Example: `$XDG_CONFIG_HOME/silo/silo.user.toml`
 
 ```toml
 [general]
@@ -229,21 +225,20 @@ user = "alice"
 
 [persistence]
 shared_paths = [
-    "$HOME/.cache/uv/",                      # persist and share directory (trailing /)
-    "$HOME/.local/share/fish/fish_history",  # persist and share file
+    "$HOME/.cache/uv/"
 ]
-private_paths = []   # persist privately per silo
+private_paths = [
+    "$HOME/.local/share/fish/fish_history"
+]
 
 [podman]
 create_args = []
 
 [network]
-ports = []   # port forwarding mappings (e.g., "8080:8080")
+ports = []
 ```
 
-### Workspace config: `.silo/silo.toml`
-
-Per-workspace runtime config. Created automatically on first run.
+### Example: `.silo/silo.toml`
 
 ```toml
 [general]
@@ -253,11 +248,8 @@ id = "ab3f9c12"
 podman = false
 
 [persistence]
-shared_paths = [
-    "$HOME/.local/share/fish/fish_history",  # persist and share file
-    "$HOME/.cache/uv/",                      # persist and share directory (trailing /)
-]
-private_paths = []   # persist privately per silo
+shared_paths = []
+private_paths = []
 
 [podman]
 create_args = [
@@ -268,108 +260,64 @@ create_args = [
 ]
 
 [network]
-ports = []   # port forwarding mappings (e.g., "8080:8080")
+ports = [ "8080:8080" ]
 
 [limits]
-cpus = 0       # 0 or negative means unlimited (--cpus=0)
-memory = 0     # 0 or negative means unlimited (--memory=0)
-processes = 0  # 0 or negative means unlimited (--pids-limit=-1)
+cpus = 0
+memory = 0
+processes = 1024
 ```
-
-### Workspace config: `.silo/home.nix`
-
-Home-manager config applied to the workspace image. Created as an empty module on first run.
-
-```nix
-{ config, pkgs, ... }:
-{
-  home.packages = with pkgs; [
-    nodejs
-    python3
-  ];
-}
-```
-
-### User config files: `$XDG_CONFIG_HOME/silo/`
-
-| File | Description |
-|---|---|
-| `silo.user.toml` | Default values for new workspaces |
-| `home.user.nix` | User home-manager config baked into the workspace image |
-| `devcontainer.user.json` | Merged into every generated `.devcontainer.json` |
-
-See `examples/` for reference configs.
-
----
 
 ## How It Works
 
 ### Image build
 
-silo builds a single OCI image using Podman:
+silo builds a workspace image using Podman. The image is based on Fedora, with Nix and home-manager installed.
 
-- **Workspace image** (`silo-<id>`) — Fedora with Nix and home-manager. Both the user `home.user.nix` and workspace `.silo/home.nix` are baked in here.
+Each image build generates a Nix flake in a temporary directory on the host. The flake wires together `nixos-unstable`, home-manager, `home.user.nix`, and `.silo/home.nix`.
 
-Build context files are written to a temporary directory on the host and passed to `podman build`. No persistent build context is kept on disk.
+### Container creation
 
-### Workspace mount
+When creating a container, silo passes several arguments to `podman create`:
 
-The host directory is mounted into the container at `/workspace/<id>/<dirname>`, where `<id>` is the workspace ID and `<dirname>` is the host directory's basename.
+- **Name and hostname**: `--name silo-<id>` and `--hostname silo-<id>`
+- **Workspace mount**: The host directory is mounted at `/workspace/<id>/<dirname>`
+- **Persistence volume**: The named volume `silo` is mounted at `/silo/persistence`
+- **Limits args**: `--cpus=N`, `--memory=Nm`, `--pids-limit=N` (from `[limits]` config)
+- **Network ports**: Port forwarding mappings from `[network].ports`
+- **Create args**: Additional args from `[podman].create_args`
 
 ### Persistence volume
 
-The named Podman volume (`silo`) is mounted at `/silo/persistence` inside every container. Data stored there survives container restarts and image rebuilds.
+silo uses named Podman volumes with subpath mounts. Each configured path gets its own mount point directly inside the container, using the volume's subpath feature.
 
-**Shared paths** (`shared_paths`): Files persisted at `/silo/persistence/shared/<path>` — shared across all workspaces. A trailing slash marks a directory; no trailing slash marks a file. `$HOME` is expanded inside the container.
+**Shared paths**: Persisted at `shared/<path>` on the volume. Shared across all workspaces. A trailing slash marks a directory; no trailing slash marks a file. `$HOME` is expanded inside the container.
 
-**Private paths** (`private_paths`): Files persisted at `/silo/persistence/<SILO_ID>/<path>` — isolated per workspace. Uses the same directory/file convention as shared paths.
+_Example:_ `shared_paths = ["$HOME/.cache/uv/"]` creates a volume mount with `target=/home/alice/.cache/uv` and `subpath=shared/home/alice/.cache/uv`.
 
-Example shared: `$HOME/.cache/uv/` creates a volume mount with `target=/silo/persistence/shared/home/alice/.cache/uv` and `subpath=shared/home/alice/.cache/uv`.
+**Private paths**: Persisted at `<SILO_ID>/<path>` on the volume. Local to each workspace.
 
-Example private: `private_paths = ["/data"]` in workspace `abc12345` creates `/silo/persistence/abc12345/data` on the volume, mounted at `/data` inside the container.
+_Example:_ `private_paths = ["/data"]` in workspace `abc12345` creates a volume mount with `target=/data` and `subpath=abc12345/data`.
 
 ### Nested Podman
 
-When `--podman` is passed to `silo init`, Podman is installed and configured inside the container, allowing you to run containers within the container. This is useful for testing containerized workflows or running Docker-in-Docker style setups.
-
-The `silo.podman.enable = true` option is set in `.silo/home.nix` when `--podman` is used, which activates the Podman service via home-manager.
-
-### Nix + home-manager
-
-Each image build generates a Nix flake in a temporary directory on the host and passes it to `podman build`. The flake wires together `nixos-unstable`, home-manager, `home.user.nix`, and `.silo/home.nix`.
+When the Podman feature is enabled, Podman is installed and configured inside the container. This is implemented as home-manager module, which is part of the image and enabled via `silo.podman.enable = true` in `.silo/home.nix`
 
 ### VS Code devcontainer
 
-`silo devcontainer` generates a `.devcontainer.json` on the host by merging three sources in priority order (highest wins):
+`silo devcontainer` generates `.silo/devcontainer.json` and `.devcontainer.json`. The latter is created by merging three sources in the following order:
 
-1. **Template** — `devcontainer.json.tmpl` (provides workspace image, container name, mounts)
-2. **Project** — `.silo/devcontainer.json` (project-specific, can be committed to version control)
-3. **User** — `$XDG_CONFIG_HOME/silo/devcontainer.user.json` (personal defaults)
+1. **Personal defaults** - `$XDG_CONFIG_HOME/silo/devcontainer.user.json`
+2. **Project-specific** - `.silo/devcontainer.json`
+3. **Silo** - Sets workspace image, username, container name, mounts, limits, forwarded ports and run args
 
 Merge behavior:
 - Objects merge recursively (key-by-key)
-- Arrays concatenate (in order: user first, then project, then template)
-- Scalars from higher-priority sources override lower-priority ones
-
-The `.silo/devcontainer.json` is created automatically if it doesn't exist.
-
-**Port forwarding:** When `network.ports` is configured in `silo.user.toml` or `.silo/silo.toml`, the generated `.devcontainer.json` includes `forwardPorts` with the port mappings.
+- Arrays concatenate
+- Scalars override
 
 **Important:**
-- The `silo` container is independent from the devcontainer.
-- Lifecycle is managed by VS Code/devcontainers, not by `silo`.
-- `silo` commands target the regular workspace container.
 
-Example `$XDG_CONFIG_HOME/silo/devcontainer.user.json`:
-
-```json
-{
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "lfs.vscode-emacs-friendly"
-      ]
-    }
-  }
-}
-```
+- The devcontainer uses the workspace image, but is independent from the silo container
+- The container is named `silo-<id>-dev`
+- Creation is handled by VS Code/devcontainers, not by `silo`.
